@@ -85,6 +85,7 @@ project-root/                             # Root directory of the project
 │       │   ├── command.ex                # Definitions for game commands used across the domain
 │       │   ├── event.ex                  # Immutable event definitions for event sourcing
 │       │   ├── projection.ex             # Projections (read models) for stats, history, etc.
+│       │   ├── word_service.ex           # Core service for word management and matching
 │       │   ├── projections/              # CQRS read models built from event streams
 │       │   │   ├── game_projection.ex    # Game state projections for queries
 │       │   │   ├── team_projection.ex    # Team state projections for queries
@@ -193,6 +194,16 @@ This project structure implements Command Query Responsibility Segregation (CQRS
 1. Game sessions are implemented as GenServers under a DynamicSupervisor
 2. Player and game registries provide efficient lookup mechanisms
 3. Session cleanup ensures proper resource management
+
+### Word Service
+The WordService module provides core functionality for the all game modes:
+1. Dictionary management for word validation
+2. Word pair generation for gameplay
+3. Word matching algorithms with support for:
+   - US/UK spelling variations (color/colour)
+   - Singular/plural forms (dog/dogs)
+   - Lemmatization (run/running/runs)
+4. Performance optimizations with ETS-based caching
 
 ### Event Sourcing Benefits
 - Complete audit trail of all state changes

@@ -45,7 +45,8 @@ defmodule GameBot.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:nostrum, "~> 0.8"}  # Discord API library
+      {:nostrum, "~> 0.8"},  # Discord API library
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}  # Static code analysis
     ]
   end
 
