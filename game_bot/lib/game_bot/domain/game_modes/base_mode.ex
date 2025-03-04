@@ -53,7 +53,6 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       teams: teams,
       team_ids: Map.keys(teams),
       player_ids: List.flatten(Map.values(teams)),
-      roles: %{},
       config: config,
       timestamp: DateTime.utc_now(),
       metadata: %{}
@@ -83,13 +82,11 @@ defmodule GameBot.Domain.GameModes.BaseMode do
         team_id: team_id,
         player1_info: %{
           player_id: player1_id,
-          team_id: team_id,
-          role: :guesser
+          team_id: team_id
         },
         player2_info: %{
           player_id: player2_id,
-          team_id: team_id,
-          role: :guesser
+          team_id: team_id
         },
         player1_word: player1_word,
         player2_word: player2_word,
@@ -121,13 +118,11 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       team_id: team_id,
       player1_info: %{
         player_id: last_guess["player1_id"],
-        team_id: team_id,
-        role: :guesser
+        team_id: team_id
       },
       player2_info: %{
         player_id: last_guess["player2_id"],
-        team_id: team_id,
-        role: :guesser
+        team_id: team_id
       },
       reason: reason,
       abandoning_player_id: last_guess["abandoning_player_id"],

@@ -4,14 +4,9 @@ defmodule GameBot.Domain.Events.GameEvents do
   Events are immutable records of things that have happened in the system.
   """
 
-  @type metadata :: %{
-    optional(:client_version) => String.t(),
-    optional(:server_version) => String.t(),
-    optional(:correlation_id) => String.t(),
-    optional(:causation_id) => String.t(),
-    optional(:user_agent) => String.t(),
-    optional(:ip_address) => String.t()
-  }
+  alias GameBot.Domain.Events.Metadata
+
+  @type metadata :: Metadata.t()
 
   @type team_info :: %{
     team_id: String.t(),
@@ -130,6 +125,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         is_nil(event.teams) -> {:error, "teams is required"}
         is_nil(event.team_ids) -> {:error, "team_ids is required"}
         is_nil(event.player_ids) -> {:error, "player_ids is required"}
+        is_nil(event.metadata) -> {:error, "metadata is required"}
+        is_nil(event.metadata["guild_id"]) -> {:error, "guild_id is required in metadata"}
         Enum.empty?(event.team_ids) -> {:error, "team_ids cannot be empty"}
         Enum.empty?(event.player_ids) -> {:error, "player_ids cannot be empty"}
         !Enum.all?(Map.keys(event.teams), &(&1 in event.team_ids)) -> {:error, "invalid team_id in teams map"}

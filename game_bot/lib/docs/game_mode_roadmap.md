@@ -142,9 +142,11 @@
 ## Phase 7: Discord Integration (1 week)
 
 ### 7.1 Command System
-- [ ] Implement command parsing
-- [ ] Create command routing
-- [ ] Add response formatting
+- [x] Implement command parsing
+- [x] Create command routing through CommandHandler
+- [x] Organize commands in dedicated modules
+- [x] Add basic response formatting
+- [ ] Add advanced response formatting
 
 ### 7.2 DM Management
 - [ ] Implement word distribution

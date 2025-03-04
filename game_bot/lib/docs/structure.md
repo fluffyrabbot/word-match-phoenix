@@ -1,4 +1,4 @@
-project-root/                             # Root directory of the project
+game_bot/                                 # Main directory of the project
 ├── config/                               # Configuration files for different environments
 │   ├── config.exs                        # General application configuration (including Ecto settings)
 │   ├── dev.exs                           # Development-specific configuration (DB credentials, logging, etc.)
@@ -9,15 +9,16 @@ project-root/                             # Root directory of the project
 │       ├── application.ex                # Application startup module and supervision tree definition
 │       ├── bot/                          # Discord bot integration layer
 │       │   ├── dispatcher.ex             # Routes incoming Discord events to appropriate handlers
-│       │   ├── command_handler.ex        # Processes Discord commands issued by users
+│       │   ├── command_handler.ex        # Routes Discord commands to appropriate command modules
+│       │   ├── commands/                 # Command implementations
+│       │   │   └── game_commands.ex      # Game-specific command implementations
 │       │   └── listener.ex               # Listens for Discord events (e.g., using Nostrum)
 │       ├── domain/                       # Core business logic and domain models (DDD, event sourcing)
 │       │   ├── aggregates/               # CQRS aggregate roots - handle commands and emit events
 │       │   │   ├── game_aggregate.ex     # Manages game state and handles game-related commands
 │       │   │   ├── team_aggregate.ex     # Manages team state and handles team-related commands
 │       │   │   └── user_aggregate.ex     # Manages user state and handles user-related commands
-│       │   ├── commands/                 # Command definitions and handling (CQRS command side)
-│       │   │   ├── command_router.ex     # Routes commands to appropriate aggregates
+│       │   ├── commands/                 # Command definitions and validation (CQRS command side)
 │       │   │   ├── validation.ex         # Centralized command validation logic
 │       │   │   ├── game_commands.ex      # Game-specific command structures
 │       │   │   └── team_commands.ex      # Team-specific command structures

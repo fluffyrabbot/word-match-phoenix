@@ -9,10 +9,10 @@ This document outlines the high-level roadmap for implementing the Word Match Bo
   - [x] Define rules for all game modes (Two Player, Knockout, Race, Golf Race, Longform)
   - [x] Specify turn sequence, timing, and scoring systems
 
-- [ ] **Team System Specification**
-  - [ ] Define team formation, joining, leaving, and dissolution rules
-  - [ ] Document team identity systems (naming, member management)
-  - [ ] Specify team roles and permissions
+- [x] **Team System Specification**
+  - [x] Define team formation, joining, leaving, and dissolution rules
+  - [x] Document team identity systems (naming, member management)
+  - [x] Specify team roles and permissions
 
 - [ ] **Replay System Specification**
   - [ ] Define replay data structures and retention policies
@@ -54,13 +54,14 @@ This document outlines the high-level roadmap for implementing the Word Match Bo
 
 - [ ] **Event Infrastructure**
   - [x] Configure event store
-  - [ ] Implement event serialization/deserialization
+  - [x] Implement event serialization/deserialization
   - [ ] Set up event subscription system
 
-- [ ] **Command Processing Framework**
-  - [ ] Implement command router
-  - [ ] Create command validation framework
-  - [ ] Set up dispatcher connection to domain
+- [x] **Command Processing Framework**
+  - [x] Implement command routing through CommandHandler
+  - [x] Create command validation framework
+  - [x] Set up dispatcher connection to domain
+  - [x] Organize game commands in dedicated module
 
 - [ ] **Aggregate Root Implementation**
   - [ ] Build base aggregate behavior

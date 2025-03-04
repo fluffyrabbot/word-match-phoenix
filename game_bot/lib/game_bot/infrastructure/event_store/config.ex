@@ -11,9 +11,9 @@ defmodule GameBot.Infrastructure.EventStore.Config do
     {:ok, config}
   end
 
-  # Configure JSON serialization for events
+  # Configure custom serialization for events
   def serializer do
-    EventStore.JsonSerializer
+    GameBot.Infrastructure.EventStore.Serializer
   end
 
   def event_store_wait_for_schema? do

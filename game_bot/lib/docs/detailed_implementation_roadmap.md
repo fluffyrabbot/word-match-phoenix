@@ -148,10 +148,11 @@ This document provides a comprehensive step-by-step guide for implementing GameB
 
 ### 3.2 Command Processing
 
-- [ ] **Command Framework**
-  - [ ] Implement command router
-  - [ ] Create command validation
-  - [ ] Set up dispatcher
+- [x] **Command Framework**
+  - [x] Implement command routing through CommandHandler
+  - [x] Create command validation
+  - [x] Set up dispatcher
+  - [x] Organize commands in dedicated modules
   - [ ] Add command versioning
 
 ### 3.3 Aggregate Implementation
@@ -177,10 +178,12 @@ This document provides a comprehensive step-by-step guide for implementing GameB
 
 ### 4.1 Command System
 
-- [ ] **Command Handling**
-  - [ ] Implement command parsing
-  - [ ] Create command routing
-  - [ ] Add response formatting
+- [x] **Command Handling**
+  - [x] Implement command parsing
+  - [x] Create command routing
+  - [x] Add basic response formatting
+  - [ ] Add advanced response formatting
+  - [ ] Implement error handling
 
 ### 4.2 DM Management
 
