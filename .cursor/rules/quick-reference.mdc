@@ -1,0 +1,40 @@
+---
+description: 
+globs: 
+---
+ # AI Assistant Quick Reference
+
+## Core Rules
+
+1. **NO NEW FEATURES**
+   - Never add features that weren't explicitly requested
+   - Focus only on specific tasks at hand
+
+2. **MAINTAIN ARCHITECTURE**
+   - Follow the directory structure defined in project
+   - Do not create new directories or modules without approval
+   - Keep responsibility separation clear
+
+3. **FOLLOW PATTERNS**
+   - Use existing components and services
+   - Maintain naming conventions and code style
+   - Don't duplicate functionality that already exists
+
+4. **MINIMIZE CHANGES**
+   - Make the smallest possible change that meets requirements
+   - Focus on optimization over extension
+   - Ensure changes are reversible
+
+## Process Checklist
+
+✓ Understand existing code first
+✓ Plan minimal changes
+✓ Follow established patterns
+✓ Document changes clearly
+✓ Verify guideline compliance
+
+## Terminal Usage
+
+- Use Git Bash syntax for all commands
+- Break large diffs into smaller pieces
+- Document all changes with clear commit messages

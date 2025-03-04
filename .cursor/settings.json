@@ -1,0 +1,28 @@
+{
+  "aiRules": {
+    "enabledRules": [
+      "noNewFeatures",
+      "maintainArchitecture",
+      "followExistingPatterns",
+      "minimizeChanges"
+    ],
+    "projectConstraints": {
+      "directoryStructure": {
+        "components": "/src/components",
+        "services": "/src/services",
+        "utils": "/src/utils"
+      },
+      "requireApproval": {
+        "architecturalChanges": true,
+        "newFeatures": true,
+        "newDependencies": true
+      }
+    }
+  },
+  "cursorSettings": {
+    "useGitBashSyntax": true,
+    "breakLargeDiffs": true,
+    "focusOnOptimization": true,
+    "avoidFeatureExtension": true
+  }
+} 
