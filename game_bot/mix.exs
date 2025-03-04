@@ -19,7 +19,8 @@ defmodule GameBot.MixProject do
   def application do
     [
       mod: {GameBot.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools],
+      included_applications: (if Mix.env() == :test, do: [:nostrum], else: [])
     ]
   end
 
@@ -32,21 +33,27 @@ defmodule GameBot.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.19"},
-      {:phoenix_ecto, "~> 4.5"},
+      {:phoenix, "~> 1.7.10"},
+      {:phoenix_ecto, "~> 4.4"},
       {:ecto_sql, "~> 3.10"},
       {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 4.1"},
+      {:phoenix_html, "~> 3.3"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.0.0"},
+      {:phoenix_live_view, "~> 0.20.1"},
       {:floki, ">= 0.30.0", only: :test},
-      {:telemetry_metrics, "~> 1.0"},
+      {:phoenix_live_dashboard, "~> 0.8.2"},
+      {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 1.0"},
+      {:gettext, "~> 0.20"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
-      {:bandit, "~> 1.5"},
-      {:nostrum, "~> 0.8"},  # Discord API library
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}  # Static code analysis
+      {:plug_cowboy, "~> 2.5"},
+      {:nostrum, "~> 0.10"},
+      {:commanded, "~> 1.4"},
+      {:commanded_eventstore_adapter, "~> 1.4"},
+      {:eventstore, "~> 1.4"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:finch, "~> 0.13"}
     ]
   end
 
@@ -57,11 +64,18 @@ defmodule GameBot.MixProject do
   #
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
+    setup_aliases = if Mix.env() == :test do
+      ["deps.get", "ecto.setup"]
+    else
+      ["deps.get", "ecto.setup", "event_store.setup"]
+    end
+
     [
-      setup: ["deps.get", "ecto.setup"],
+      setup: setup_aliases,
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      "event_store.setup": ["event_store.create", "event_store.init"]
     ]
   end
 end

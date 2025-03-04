@@ -1,13 +1,13 @@
 # GameBot Implementation Roadmap - Summary
 
-This document outlines the high-level roadmap for implementing the GameBot Discord game system using CQRS and Event Sourcing architecture.
+This document outlines the high-level roadmap for implementing the Word Match Bot Discord game system using CQRS and Event Sourcing architecture.
 
 ## Phase 1: Preliminary Specifications and Domain Design
 
-- [ ] **Game Logic Specification**
+- [x] **Game Logic Specification**
   - [x] Document core word matching mechanics
-  - [ ] Define rules for all game modes (Two Player, Knockout, Race, Golf Race, Longform)
-  - [ ] Specify turn sequence, timing, and scoring systems
+  - [x] Define rules for all game modes (Two Player, Knockout, Race, Golf Race, Longform)
+  - [x] Specify turn sequence, timing, and scoring systems
 
 - [ ] **Team System Specification**
   - [ ] Define team formation, joining, leaving, and dissolution rules
@@ -29,10 +29,31 @@ This document outlines the high-level roadmap for implementing the GameBot Disco
   - [ ] Specify team performance metrics and calculations
   - [ ] Document team history and trend analysis requirements
 
-## Phase 2: Core Architecture Implementation
+## Phase 2: Game Mode Implementation
+
+- [ ] **Team Management**
+  - [ ] Implement team creation and registration
+  - [ ] Add player management system
+  - [ ] Create role and permission system
+
+- [ ] **Game Mode Implementation**
+  - [ ] Implement base game mode behavior
+  - [ ] Build two-player mode
+  - [ ] Add knockout, race, golf race, and longform variants
+  - [ ] Integrate with WordService
+
+- [x] **Word Service Integration**
+  - [x] Implement GenServer with dictionary management
+  - [x] Create word matching with variations, plurals, and lemmatization 
+  - [x] Add ETS-based caching for performance
+  - [x] Optimize test setup and variation generation
+  - [x] Integrate with test framework
+  - [ ] Integrate with game modes
+
+## Phase 3: Core Architecture Implementation
 
 - [ ] **Event Infrastructure**
-  - [ ] Configure event store
+  - [x] Configure event store
   - [ ] Implement event serialization/deserialization
   - [ ] Set up event subscription system
 
@@ -43,36 +64,22 @@ This document outlines the high-level roadmap for implementing the GameBot Disco
 
 - [ ] **Aggregate Root Implementation**
   - [ ] Build base aggregate behavior
-  - [ ] Implement game aggregate
-  - [ ] Develop team and user aggregates
+  - [ ] Convert game modes to use events
+  - [ ] Convert team system to use events
 
 - [ ] **Projection Framework**
   - [ ] Create projection registry
   - [ ] Implement base projection behavior
   - [ ] Set up read model update mechanisms
 
-- [ ] **Registry and Process Management**
-  - [ ] Configure game registry
-  - [ ] Implement player registry
-  - [ ] Create dynamic supervision system
-
-- [x] **Word Service Implementation**
-  - [x] Implement GenServer with dictionary management
-  - [x] Create word matching with variations, plurals, and lemmatization 
-  - [x] Add ETS-based caching for performance
-  - [ ] Integrate with game modes
-
-## Phase 3: Feature Implementation
+## Phase 4: Discord Integration
 
 - [ ] **Discord Integration**
   - [ ] Connect bot to Discord using Nostrum
   - [ ] Implement command parsing and routing
   - [ ] Set up direct message handling
 
-- [ ] **Game Mode Implementation**
-  - [ ] Implement base game mode behavior
-  - [ ] Build two-player mode
-  - [ ] Add knockout, race, golf race, and longform variants
+## Phase 5: Feature Implementation
 
 - [ ] **Team Management System**
   - [ ] Implement team creation and membership management
@@ -89,7 +96,7 @@ This document outlines the high-level roadmap for implementing the GameBot Disco
   - [ ] Add replay storage and retrieval
   - [ ] Create replay formatting and display
 
-## Phase 4: Optimization and Enhancement
+## Phase 6: Optimization and Enhancement
 
 - [ ] **Performance Optimization**
   - [ ] Add caching layer for read models
@@ -106,7 +113,7 @@ This document outlines the high-level roadmap for implementing the GameBot Disco
   - [ ] Implement logging and error tracking
   - [ ] Create performance monitoring dashboard
 
-## Phase 5: Testing, Documentation, and Deployment
+## Phase 7: Testing, Documentation, and Deployment
 
 - [ ] **Testing**
   - [ ] Write unit tests for all components

@@ -1,14 +1,30 @@
 import Config
 
 # Configure your database
-config :game_bot, GameBot.Repo,
+config :game_bot, GameBot.Infrastructure.Repo,
   username: "postgres",
-  password: "postgres",
+  password: "csstarahid",
   hostname: "localhost",
   database: "game_bot_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
+
+# Configure EventStore for development
+config :game_bot, GameBot.Infrastructure.EventStore.Config,
+  serializer: EventStore.JsonSerializer,
+  username: "postgres",
+  password: "csstarahid",
+  database: "game_bot_eventstore_dev",
+  hostname: "localhost",
+  pool_size: 10
+
+# Configure Commanded for development
+config :game_bot, :commanded,
+  event_store_adapter: Commanded.EventStore.Adapters.EventStore,
+  event_store: GameBot.Infrastructure.EventStore.Config,
+  pubsub: :local,
+  registry: :local
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

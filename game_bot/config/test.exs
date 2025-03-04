@@ -5,13 +5,32 @@ import Config
 # The MIX_TEST_PARTITION environment variable can be used
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
-config :game_bot, GameBot.Repo,
+config :game_bot, GameBot.Infrastructure.Repo,
   username: "postgres",
-  password: "postgres",
+  password: "csstarahid",
   hostname: "localhost",
   database: "game_bot_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
+
+# Configure EventStore for testing
+config :game_bot, GameBot.Infrastructure.EventStore.Config,
+  serializer: EventStore.JsonSerializer,
+  username: "postgres",
+  password: "csstarahid",
+  database: "game_bot_eventstore_test#{System.get_env("MIX_TEST_PARTITION")}",
+  hostname: "localhost",
+  pool_size: 1,
+  schema: "public"
+
+# Configure Commanded for testing
+config :game_bot, GameBot.Infrastructure.CommandedApp,
+  event_store: [
+    adapter: Commanded.EventStore.Adapters.EventStore,
+    event_store: GameBot.Infrastructure.EventStore.Config
+  ],
+  pubsub: :local,
+  registry: :local
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

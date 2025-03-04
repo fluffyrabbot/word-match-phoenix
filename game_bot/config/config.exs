@@ -8,8 +8,27 @@
 import Config
 
 config :game_bot,
-  ecto_repos: [GameBot.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  ecto_repos: [GameBot.Infrastructure.Repo],
+  generators: [timestamp_type: :utc_datetime],
+  event_stores: [GameBot.Infrastructure.EventStore.Config]
+
+# Configure Commanded for event sourcing
+config :game_bot, GameBot.Infrastructure.CommandedApp,
+  event_store: [
+    adapter: Commanded.EventStore.Adapters.EventStore,
+    event_store: GameBot.Infrastructure.EventStore.Config
+  ],
+  pubsub: :local,
+  registry: :local
+
+# Configure EventStore
+config :game_bot, GameBot.Infrastructure.EventStore.Config,
+  serializer: EventStore.JsonSerializer,
+  username: "postgres",
+  password: "csstarahid",
+  database: "game_bot_eventstore",
+  hostname: "localhost",
+  pool_size: 10
 
 # Configures the endpoint
 config :game_bot, GameBotWeb.Endpoint,
