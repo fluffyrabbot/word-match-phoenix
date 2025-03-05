@@ -39,9 +39,18 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
   end
 
   describe "retry mechanism" do
+    setup do
+      start_supervised!(GameBot.Test.Mocks.EventStore)
+      :ok
+    end
+
     test "retries on connection errors" do
-      # This would need a mock implementation to properly test
-      # We could add a test implementation that fails N times then succeeds
+      stream_id = unique_stream_id()
+      event = build_test_event()
+
+      GameBot.Test.Mocks.EventStore.set_failure_count(2)
+
+      assert {:ok, _} = Adapter.append_to_stream(stream_id, 0, [event])
     end
 
     test "respects timeout settings" do

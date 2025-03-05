@@ -1585,55 +1585,332 @@ Would you like me to:
 
 _**User**_
 
-@serializer_test.exs the current version of this file displays a linter error at the end, where there's a proper newline, suggesting that there may be a syntax error somewhere in the file that's not being caught by the linter properly. suggest where this syntax error might reside
+suggest the next step
 
 ---
 
 _**Assistant**_
 
-Looking at the `serializer_test.exs` file, I notice a syntax error in the `event_generator` function. The issue is with the `do:` syntax - it's not properly aligned with the `gen all` block. Here's the problematic section:
+Looking at our test implementation, I notice a few key areas we should address next:
 
-```elixir
-  defp event_generator do
-    gen all
-      type <- StreamData.string(:alphanumeric, min_length: 1),
-      version <- StreamData.positive_integer(),
-      data <- map_generator(),
-      do: %{                    # <- This do: syntax is incorrect here
-        event_type: type,
-        event_version: version,
-        data: data,
-        stored_at: DateTime.utc_now()
-      }
-    end                        # <- This end is then mismatched
+1. We need a mock implementation to properly test the retry mechanism in the adapter. Let's create:
+
+````elixir:game_bot/test/support/mocks/event_store.ex
+defmodule GameBot.Test.Mocks.EventStore do
+  @moduledoc """
+  Mock EventStore implementation for testing retry mechanisms and error conditions.
+  """
+  @behaviour GameBot.Infrastructure.Persistence.EventStore.Behaviour
+
+  use GenServer
+
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
-```
 
-Let's fix it. Here's the correct syntax:
+  def set_failure_count(count) do
+    GenServer.call(__MODULE__, {:set_failure_count, count})
+  end
 
-````elixir:game_bot/test/game_bot/infrastructure/persistence/event_store/serializer_test.exs
-  defp event_generator do
-    gen all
-      type <- StreamData.string(:alphanumeric, min_length: 1),
-      version <- StreamData.positive_integer(),
-      data <- map_generator() do
-      %{
-        event_type: type,
-        event_version: version,
-        data: data,
-        stored_at: DateTime.utc_now()
-      }
+  # Behaviour Implementation
+  @impl true
+  def append_to_stream(stream_id, version, events, opts \\ []) do
+    GenServer.call(__MODULE__, {:append, stream_id, version, events, opts})
+  end
+
+  # ... other behaviour implementations
+end
+````
+
+2. Then update the adapter test to use this mock:
+
+````elixir:game_bot/test/game_bot/infrastructure/persistence/event_store/adapter_test.exs
+  describe "retry mechanism" do
+    setup do
+      start_supervised!(GameBot.Test.Mocks.EventStore)
+      :ok
+    end
+
+    test "retries on connection errors" do
+      stream_id = unique_stream_id()
+      event = build_test_event()
+      
+      GameBot.Test.Mocks.EventStore.set_failure_count(2)
+      
+      assert {:ok, _} = Adapter.append_to_stream(stream_id, 0, [event])
     end
   end
 ````
 
-The key changes are:
-1. Replace `do:` with `do`
-2. Remove the extra `end` that was causing the misalignment
+3. We should also add repository tests:
 
-This should resolve the syntax error and the linter warning. The issue was that the `do:` syntax is for single-line expressions, while we're using a multi-line block here. In this case, we want the standard `do...end` block syntax.
+````elixir:game_bot/test/game_bot/infrastructure/persistence/repo/postgres_test.exs
+defmodule GameBot.Infrastructure.Persistence.Repo.PostgresTest do
+  use GameBot.Test.RepositoryCase, async: true
+  
+  alias GameBot.Infrastructure.Persistence.Repo.Postgres
+  alias GameBot.Infrastructure.Persistence.Error
 
-Would you like me to show the complete corrected file?
+  describe "transaction/1" do
+    test "successfully executes transaction"
+    test "rolls back on error"
+    test "handles concurrent modifications"
+  end
+  
+  # ... other tests
+end
+````
+
+Here's my suggested priority order:
+
+1. First, implement the mock EventStore
+   - This will allow proper testing of retry mechanisms
+   - Help verify error handling
+   - Enable testing of timeout scenarios
+
+2. Then, add repository tests
+   - Test transaction handling
+   - Test concurrent modifications
+   - Test error conditions
+
+3. Finally, add integration tests
+   - Test complete workflows
+   - Verify error propagation
+   - Test performance under load
+
+Would you like me to implement any of these components next?
+
+---
+
+_**User**_
+
+yes implement in your order
+
+---
+
+_**Assistant**_
+
+I'll start with implementing the mock EventStore fully:
+
+````elixir:game_bot/test/support/mocks/event_store.ex
+defmodule GameBot.Test.Mocks.EventStore do
+  @moduledoc """
+  Mock EventStore implementation for testing retry mechanisms and error conditions.
+  """
+  @behaviour GameBot.Infrastructure.Persistence.EventStore.Behaviour
+
+  use GenServer
+  alias GameBot.Infrastructure.Persistence.Error
+
+  # Client API
+
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  def set_failure_count(count) do
+    GenServer.call(__MODULE__, {:set_failure_count, count})
+  end
+
+  def set_delay(milliseconds) do
+    GenServer.call(__MODULE__, {:set_delay, milliseconds})
+  end
+
+  def reset_state do
+    GenServer.call(__MODULE__, :reset_state)
+  end
+
+  # Behaviour Implementation
+
+  @impl true
+  def append_to_stream(stream_id, version, events, opts \\ []) do
+    GenServer.call(__MODULE__, {:append, stream_id, version, events, opts})
+  end
+
+  @impl true
+  def read_stream_forward(stream_id, start_version \\ 0, count \\ 1000, opts \\ []) do
+    GenServer.call(__MODULE__, {:read, stream_id, start_version, count, opts})
+  end
+
+  @impl true
+  def subscribe_to_stream(stream_id, subscriber, subscription_options \\ [], opts \\ []) do
+    GenServer.call(__MODULE__, {:subscribe, stream_id, subscriber, subscription_options, opts})
+  end
+
+  @impl true
+  def stream_version(stream_id) do
+    GenServer.call(__MODULE__, {:version, stream_id})
+  end
+
+  # Server Implementation
+
+  @impl true
+  def init(_opts) do
+    {:ok, %{
+      streams: %{},
+      failure_count: 0,
+      delay: 0,
+      subscriptions: %{}
+    }}
+  end
+
+  @impl true
+  def handle_call({:set_failure_count, count}, _from, state) do
+    {:reply, :ok, %{state | failure_count: count}}
+  end
+
+  def handle_call({:set_delay, delay}, _from, state) do
+    {:reply, :ok, %{state | delay: delay}}
+  end
+
+  def handle_call(:reset_state, _from, _state) do
+    {:reply, :ok, %{streams: %{}, failure_count: 0, delay: 0, subscriptions: %{}}}
+  end
+
+  def handle_call({:append, stream_id, version, events, _opts}, _from, state) do
+    if state.failure_count > 0 do
+      {:reply, {:error, connection_error()}, %{state | failure_count: state.failure_count - 1}}
+    else
+      if state.delay > 0, do: Process.sleep(state.delay)
+
+      stream = Map.get(state.streams, stream_id, [])
+      current_version = length(stream)
+
+      cond do
+        version != current_version ->
+          {:reply, {:error, concurrency_error(version, current_version)}, state}
+        true ->
+          new_stream = stream ++ events
+          new_state = put_in(state.streams[stream_id], new_stream)
+          notify_subscribers(stream_id, events, state.subscriptions)
+          {:reply, {:ok, events}, new_state}
+      end
+    end
+  end
+
+  def handle_call({:read, stream_id, start_version, count, _opts}, _from, state) do
+    if state.delay > 0, do: Process.sleep(state.delay)
+
+    case Map.get(state.streams, stream_id) do
+      nil ->
+        {:reply, {:error, not_found_error(stream_id)}, state}
+      events ->
+        result = events
+        |> Enum.drop(start_version)
+        |> Enum.take(count)
+        {:reply, {:ok, result}, state}
+    end
+  end
+
+  def handle_call({:subscribe, stream_id, subscriber, _options, _opts}, _from, state) do
+    ref = make_ref()
+    new_subscriptions = Map.update(
+      state.subscriptions,
+      stream_id,
+      %{ref => subscriber},
+      &Map.put(&1, ref, subscriber)
+    )
+    {:reply, {:ok, ref}, %{state | subscriptions: new_subscriptions}}
+  end
+
+  def handle_call({:version, stream_id}, _from, state) do
+    case Map.get(state.streams, stream_id) do
+      nil -> {:reply, {:ok, 0}, state}
+      events -> {:reply, {:ok, length(events)}, state}
+    end
+  end
+
+  # Private Functions
+
+  defp notify_subscribers(stream_id, events, subscriptions) do
+    case Map.get(subscriptions, stream_id) do
+      nil -> :ok
+      subscribers ->
+        Enum.each(subscribers, fn {_ref, pid} ->
+          send(pid, {:events, events})
+        end)
+    end
+  end
+
+  defp connection_error do
+    %Error{
+      type: :connection,
+      context: __MODULE__,
+      message: "Simulated connection error",
+      details: %{retryable: true}
+    }
+  end
+
+  defp concurrency_error(expected, actual) do
+    %Error{
+      type: :concurrency,
+      context: __MODULE__,
+      message: "Wrong expected version",
+      details: %{expected: expected, actual: actual}
+    }
+  end
+
+  defp not_found_error(stream_id) do
+    %Error{
+      type: :not_found,
+      context: __MODULE__,
+      message: "Stream not found",
+      details: %{stream_id: stream_id}
+    }
+  end
+end
+````
+
+This mock implementation:
+1. Simulates connection failures with configurable retry count
+2. Supports artificial delays for timeout testing
+3. Maintains in-memory state for streams
+4. Handles subscriptions and notifications
+5. Provides proper error handling
+
+Now we can use this to properly test the adapter's retry mechanism. Would you like me to:
+
+1. Update the adapter tests to use this mock implementation more thoroughly?
+2. Move on to implementing the repository tests?
+3. Something else?
+
+---
+
+_**User**_
+
+For the code present, we get this error:
+```
+** (TokenMissingError) token missing on game_bot/test/game_bot/infrastructure/persistence/event_store/serializer_test.exs:78:6:
+    error: missing terminator: end
+    │
+  1 │ defmodule GameBot.Infrastructure.Persistence.EventStore.SerializerTest do
+    │                                                                        └ unclosed delimiter
+ ...
+ 78 │   end
+    │      └ missing closing delimiter (expected "end")
+    │
+    └─ game_bot/test/game_bot/infrastructure/persistence/event_store/serializer_test.exs:78:6
+```
+How can I resolve this? If you propose a fix, please make it concise.
+
+---
+
+_**Assistant**_
+
+The issue is in the `map_generator` function. Here's the fix:
+
+````elixir:game_bot/test/game_bot/infrastructure/persistence/event_store/serializer_test.exs
+  defp map_generator do
+    gen all(
+      keys <- StreamData.list_of(StreamData.string(:alphanumeric), min_length: 1),
+      values <- StreamData.list_of(StreamData.string(:alphanumeric), min_length: 1),
+      pairs = Enum.zip(keys, values)) do
+      Map.new(pairs)
+    end
+  end
+````
+
+The issue was missing parentheses around the `gen all` arguments, similar to how we fixed the `event_generator` function.
 
 ---
 

@@ -55,25 +55,27 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.SerializerTest do
 
   # Generators for property testing
   defp event_generator do
-    gen all
+    gen all(
       type <- StreamData.string(:alphanumeric, min_length: 1),
       version <- StreamData.positive_integer(),
-      data <- map_generator() do
-      %{
+      data <- map_generator(),
+      do: %{
         event_type: type,
         event_version: version,
         data: data,
         stored_at: DateTime.utc_now()
       }
-    end
+    )
   end
 
   defp map_generator do
-    gen all
+    gen all(
       keys <- StreamData.list_of(StreamData.string(:alphanumeric), min_length: 1),
       values <- StreamData.list_of(StreamData.string(:alphanumeric), min_length: 1),
-      pairs = Enum.zip(keys, values) do
+      pairs = Enum.zip(keys, values)
+    ) do
       Map.new(pairs)
     end
   end
+
 end
