@@ -1,0 +1,1067 @@
+
+## PROJECT OVERVIEW
+This project is a Discord bot built using Elixir and Phoenix LiveView, designed for a word-guessing game with multiple game modes.  The architecture employs event sourcing for persistence and CQRS for command handling.  The bot now handles both slash commands and message commands with a prefix. Message commands use the "!" prefix. DM guesses are passed verbatim.  Game sessions are managed using GenServers.  A new `GameBot.GameSessions.Session` GenServer manages each active game, delegating game logic to the appropriate game mode module.  The `GameBot.GameSessions.Supervisor` dynamically manages active game sessions. The `GameBot.GameSessions.Cleanup` GenServer periodically cleans up completed or abandoned game sessions.
+
+## CODE STYLE
+Adhere to Elixir's official style guide.  Use consistent indentation (2 spaces).  Keep functions concise and focused.  Favor descriptive variable and function names.  Commit messages should clearly describe the changes made. Edit diffs directly.
+
+
+## FOLDER ORGANIZATION
+The project follows a layered architecture:
+
+- `game_bot`: Contains the main application code.
+    - `lib/game_bot`: Core application logic.
+        - `bot`: Discord bot integration layer.
+            - `commands`: Command implementations (e.g., `game_commands.ex`).
+            - `dispatcher.ex`: Routes incoming Discord events to appropriate handlers.
+            - `listener.ex`: Listens for Discord events (e.g., using Nostrum).
+        - `domain`: Core business logic and domain models (DDD, event sourcing).
+            - `aggregates`: Aggregate roots (e.g., `team_aggregate.ex`, `user_aggregate.ex`).
+            - `commands`: Command definitions and validation (CQRS command side).
+                - `validation.ex`: Centralized command validation logic.
+                - `game_commands.ex`: Game-specific command implementations.
+        - `infrastructure`: Persistence and external service interactions.
+            - `game_sessions`: Manages game sessions (GenServer implementation).
+        - `game_sessions`: Manages game sessions (GenServer implementation).
+    - `test`: Unit and integration tests.
+- `nodedocs`:  Javascript documentation.
+- `lib`: Libraries
+
+
+## TECH STACK
+- Elixir
+- Phoenix LiveView
+- PostgreSQL (EventStoreDB)
+- Nostrum (Discord library)
+
+
+## PROJECT-SPECIFIC STANDARDS
+- Use event sourcing for persistence.
+- Employ CQRS (Command Query Responsibility Segregation) for command handling.
+- Maintain clear module boundaries.
+- Follow consistent design patterns.
+- One responsibility per module.
+- Use either Registry or ETS for tracking active game sessions for performance. Use the database for persistent game history. Currently using ETS.  Migration to Registry planned upon implementation of GameBot.GameSessions.Session GenServer.
+
+## WORKFLOW & RELEASE RULES
+- Use Git for version control.
+- Create clear and concise commit messages.
+- Follow a branching strategy (e.g., Gitflow).
+- Implement a CI/CD pipeline.
+- Edit diffs directly.
+
+
+## REFERENCE EXAMPLES
+- Refer to the `game_bot/lib/game_bot/bot/commands/game_commands.ex` file for a proper command handler structure.
+
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+- Documentation is maintained in Markdown format.
+- Use SpecStory for tracking project decisions and progress.
+- Update documentation to reflect the current state of the bot after major changes.  Relevant files include `summary_implementation_roadmap.md`, `structure.md`, `game_mode_roadmap.md`, and `detailed_implementation_roadmap.md`.  A new document `command_system.md` details the command handling architecture.  The `command_system.md` file now documents the dispatcher, command handler, and game commands. The `command_system.md` file now documents the dispatcher, command handler, and game commands.  The `command_system.md` file now documents the dispatcher, command handler, and game commands.  A new document `sessions.md` details the game session system architecture, implementation, and testing strategy.  The documentation for the command system and game sessions has been updated to reflect the latest changes.  The documentation has been updated to reflect the move of game commands to `game_commands.ex` and the removal of the redundant `command_router.ex` file.  The documentation for the command system and game sessions has been updated to reflect the latest changes.
+
+
+## DEBUGGING
+- Use Elixir's built-in debugging tools (e.g., `iex`, `Logger`).
+- Implement comprehensive logging.
+
+
+## FINAL DOs AND DON'Ts
+- **DO:** Keep functions concise and focused.
+- **DO:** Use descriptive variable and function names.
+- **DO:** Follow the layered architecture.
+- **DO:** Maintain clear module boundaries.
+- **DO:** Update documentation regularly.
+- **DO:** Edit diffs directly.
+- **DON'T:** Mix concerns within modules.
+- **DON'T:** Create redundant components.
+- **DON'T:** Neglect testing.
+- **DO:** Slash commands are handled directly within the `dispatcher.ex` file. Message commands should use the "!" prefix and are handled by `command_handler.ex`. DM guesses should be passed verbatim and are handled by `command_handler.ex`.  The `dispatcher.ex` file routes raw Discord events to appropriate handlers. The `command_handler.ex` file handles message commands and routes them to appropriate command implementations.  The `dispatcher.ex` now also handles slash commands directly. Message commands use the "!" prefix. DM guesses are handled directly by passing them to `game_commands.ex`.  The `dispatcher` now handles all raw Discord events, routing slash commands to `GameCommands` and messages to `CommandHandler`. `CommandHandler` now focuses on message commands and DM guesses, using ETS for active game tracking.  DM guesses are passed verbatim to `GameCommands`. The dispatcher now handles both slash commands and message events, routing appropriately. The command handler now focuses exclusively on message commands and DM guesses, using an ETS table for active game tracking. DM guesses are passed verbatim to GameCommands.  The `dispatcher.ex` now handles both slash commands and message events, routing appropriately. The `command_handler.ex` now handles message commands and DM guesses, using an ETS table for active game tracking. DM guesses are passed verbatim to `GameCommands`.  The command handler now focuses exclusively on message commands and DM guesses.  DM guesses are passed verbatim to `GameCommands`.  The dispatcher now handles both slash commands and message events, routing appropriately.  The command handler now focuses exclusively on message commands and DM guesses, using an ETS table for active game tracking.  DM guesses are passed verbatim to GameCommands.  Guess timeouts are removed as an unnecessary feature.
+
+# Command System Architecture
+
+## Overview
+
+The command system is split into three layers:
+1. Dispatcher (Entry Point)
+2. Command Handler (Message Commands)
+3. Game Commands (Implementation)
+
+## Components
+
+### Dispatcher (`GameBot.Bot.Dispatcher`)
+
+The dispatcher is the entry point for all Discord events. It handles:
+
+1. **Slash Commands** (directly routes to GameCommands):
+   ```elixir
+   /start [mode] [options]  # Start a new game
+   /team create [options]   # Create team via slash command
+   /guess [game_id] [word] # Submit guess via slash command
+   ```
+
+2. **Message Events**:
+   - Routes all message events to CommandHandler
+   - Maintains clean separation between Discord events and command processing
+
+### Command Handler (`GameBot.Bot.CommandHandler`)
+
+Handles text-based commands and DM interactions:
+
+1. **Prefix Commands** (using "!" prefix):
+   ```elixir
+   !team @user  # Create team with mentioned user
+   ```
+
+2. **DM Guesses**:
+   - Any message in a DM is treated as a guess
+   - Uses ETS to track active games per user
+
+3. **Active Game Tracking**:
+   ```elixir
+   # ETS table for fast user->game lookups
+   @active_games_table :active_games
+
+   # Public API
+   set_active_game(user_id, game_id)    # Associate user with game
+   clear_active_game(user_id)           # Remove user's game association
+   ```
+
+### Game Commands (`GameBot.Bot.Commands.GameCommands`)
+
+Implementation layer that:
+- Processes both slash commands and message commands
+- Generates appropriate game events
+- Handles core game logic
+
+## Command Flow
+
+1. **Slash Commands**:
+   ```
+   Discord → Dispatcher → GameCommands
+   ```
+
+2. **Message Commands**:
+   ```
+   Discord → Dispatcher → CommandHandler → GameCommands
+   ```
+
+3. **DM Guesses**:
+   ```
+   Discord → Dispatcher → CommandHandler → [ETS Lookup] → GameCommands
+   ```
+
+## Active Game State Management
+
+Currently using ETS for active game tracking:
+
+- **Table**: Named `:active_games`
+- **Structure**: `{user_id, game_id}`
+- **Access**: Public table for fast lookups
+- **Lifecycle**: Initialized in CommandHandler.init/0
+
+## Future Considerations
+
+1. **Game Sessions**:
+   - Implemented as GenServers
+   - May switch from ETS to Registry in the future
+
+2. **Additional Commands**:
+    - More prefix commands can be added in CommandHandler
+    - More slash commands can be added in Dispatcher
+
+3. **Error Handling**:
+    - Need to implement proper error responses
+    - Should add command validation
+    - Consider adding rate limiting
+
+## Command Reference
+
+### Slash Commands
+```elixir
+/start
+  mode: String    # Game mode to start
+  options: Map    # Game configuration options
+
+/team create
+  name: String    # Team name
+  players: List   # Player IDs
+
+/guess
+  game_id: String # ID of active game
+  word: String    # Word to submit
+```
+
+### Message Commands
+```elixir
+!team @user       # Create team with mentioned user
+```
+
+### DM Commands
+```elixir
+any_text         # Treated as guess for active game
+```
+
+# Game Session System
+
+## Overview
+
+The session system manages active game instances using GenServers, providing real-time state management and coordination between players. Each game session is a separate process that handles game state, player interactions, and game mode-specific logic. The system uses event sourcing for state persistence and recovery.
+
+## Core Components
+
+### Session GenServer (`GameBot.GameSessions.Session`)
+
+Manages individual game sessions with the following responsibilities:
+- State management for active games
+- Player registration and tracking
+- Guess validation and processing
+- Round management and transitions
+- Integration with game modes
+- Event generation and persistence
+- State recovery from events
+
+#### State Structure
+```elixir
+%{
+  game_id: String.t(),         # Unique identifier for the game
+  mode: module(),              # Game mode module (e.g., TwoPlayerMode)
+  mode_state: GameState.t(),   # Current game state
+  teams: %{String.t() => team_state()},  # Team states
+  started_at: DateTime.t(),    # Session start timestamp
+  status: :initializing | :active | :completed,  # Current session status
+  guild_id: String.t(),        # Discord server ID
+  round_timer_ref: reference() | nil,  # Reference to round check timer
+  pending_events: [Event.t()]  # Events pending persistence
+}
+```
+
+### Session Supervisor (`GameBot.GameSessions.Supervisor`)
+
+Dynamic supervisor that:
+- Manages session lifecycle
+- Handles session crashes
+- Provides session lookup
+- Manages cleanup of completed sessions
+
+### Session Cleanup (`GameBot.GameSessions.Cleanup`)
+
+Periodic cleanup process that:
+- Removes completed/abandoned sessions
+- Cleans up associated resources
+- Maintains system health
+### Event System Integration
+
+The session integrates with the event store for:
+1. **Event Generation**:
+   - Game initialization events
+   - Guess processing events
+   - Round management events
+   - Error events
+   - Game completion events
+
+2. **Event Persistence**:
+   ```elixir
+   # Event persistence flow
+   generate_events()    # From game actions
+   -> collect_events()  # Accumulate related events
+   -> persist_events()  # Store in event store
+   -> update_state()    # Apply event effects
+   ```
+
+3. **Event Types**:
+   ```elixir
+   # Core event types
+   GameStarted        # Initial game setup
+   GuessProcessed     # Guess handling
+   GuessMatched      # Successful match
+   GuessFailed       # Failed match
+   GuessError        # Validation errors
+   RoundEnded        # Round completion
+   GameCompleted     # Game finish
+   ```
+
+## Key Interactions
+
+1. **Game Mode Integration**
+   ```elixir
+   # Mode callbacks now return events
+   @callback init(game_id, config) :: 
+     {:ok, state, [Event.t()]} | {:error, term()}
+   
+   @callback process_guess_pair(state, team_id, guess_pair) :: 
+     {:ok, new_state, [Event.t()]} | {:error, term()}
+   
+   @callback check_round_end(state) :: 
+     {:round_end, winners, [Event.t()]} | :continue
+   
+   @callback check_game_end(state) :: 
+     {:game_end, winners, [Event.t()]} | :continue
+   ```
+
+2. **Event Flow**
+   ```elixir
+   # Event handling flow
+   handle_action()
+   -> generate_events()
+   -> persist_events()
+   -> update_state()
+   -> respond()
+   ```
+
+3. **Word Processing**
+   ```elixir
+   # Guess validation flow with events
+   validate_guess(word)
+   -> generate_validation_event()
+   -> check_forbidden(word)
+   -> record_guess(word)
+   -> process_guess_pair()
+   -> generate_result_event()
+   -> persist_events()
+   ```
+
+# Session Crash Recovery Implementation Checklist
+
+## Overview
+This document outlines the implementation steps needed for full game session recovery after crashes. The system uses event sourcing to rebuild game state, ensuring no game progress is lost even if a session process crashes.
+
+## Core Requirements
+
+### 1. Event Store Integration
+- [ ] Configure EventStore for game events
+- [ ] Define event schemas and versioning
+- [ ] Implement event serialization/deserialization
+- [ ] Set up event persistence with proper indexes
+
+### 2. Event Types to Track
+- [ ] Game initialization events
+  - Game creation
+  - Team setup
+  - Initial state
+- [ ] Game progress events
+  - Guess submissions
+  - Match results
+  - Forbidden word updates
+  - Score changes
+- [ ] Round management events
+  - Round starts/ends
+  - Winner declarations
+- [ ] Game state events
+  - Status changes
+  - Player joins/leaves
+
+### 3. State Recovery Implementation
+- [ ] Create state rebuilding function
+  ```elixir
+  def rebuild_state(game_id) do
+    {:ok, events} = EventStore.read_stream_forward(game_id)
+    Enum.reduce(events, initial_state(), &apply_event/2)
+  end
+  ```
+- [ ] Implement event application functions for each event type
+- [ ] Add validation for event ordering
+- [ ] Handle version migrations if needed
+
+### 4. Recovery Process Flow
+1. [ ] Detect session crash
+2. [ ] Fetch all events for game_id
+3. [ ] Sort events by timestamp
+4. [ ] Initialize empty game state
+5. [ ] Apply events sequentially
+6. [ ] Validate recovered state
+7. [ ] Resume game from recovered state
+
+### 5. Supervisor Integration
+- [ ] Update supervisor to handle restarts
+- [ ] Implement crash detection
+- [ ] Add recovery attempt tracking
+- [ ] Set appropriate restart strategy
+
+### 6. Testing Requirements
+- [ ] Unit tests for event application
+- [ ] Integration tests for full recovery
+- [ ] Crash simulation tests
+- [ ] State consistency verification
+- [ ] Performance benchmarks
+
+## Implementation Steps
+
+### Phase 1: Event System Setup
+1. [ ] Define event schemas
+2. [ ] Set up EventStore configuration
+3. [ ] Implement event persistence
+4. [ ] Add event validation
+
+### Phase 2: State Recovery
+1. [ ] Implement state rebuilding
+2. [ ] Add event application logic
+3. [ ] Create recovery triggers
+4. [ ] Add state validation
+
+### Phase 3: Supervisor Integration
+1. [ ] Update supervisor configuration
+2. [ ] Add crash handling
+3. [ ] Implement recovery flow
+4. [ ] Add monitoring
+
+### Phase 4: Testing & Validation
+1. [ ] Write unit tests
+2. [ ] Create integration tests
+3. [ ] Add performance tests
+4. [ ] Document recovery procedures
+
+## Recovery Function Template
+```elixir
+defmodule GameBot.GameSessions.Recovery do
+  @moduledoc """
+  Handles recovery of crashed game sessions using event sourcing.
+  """
+
+  def recover_session(game_id) do
+    with {:ok, events} <- fetch_events(game_id),
+         {:ok, initial_state} <- build_initial_state(events),
+         {:ok, recovered_state} <- apply_events(initial_state, events),
+         {:ok, _pid} <- restart_session(game_id, recovered_state) do
+      {:ok, recovered_state}
+    else
+      error -> {:error, error}
+    end
+  end
+
+  defp fetch_events(game_id) do
+    EventStore.read_stream_forward(game_id)
+  end
+
+  defp build_initial_state(events) do
+    # Extract initialization data from first event
+  end
+
+  defp apply_events(state, events) do
+    # Apply events in order to rebuild state
+  end
+
+  defp restart_session(game_id, state) do
+    # Start new session with recovered state
+  end
+end
+```
+
+## Error Handling
+
+### Recovery Failures
+- [ ] Implement retry mechanism
+- [ ] Add failure logging
+- [ ] Create error notifications
+- [ ] Handle partial recoveries
+
+### Data Consistency
+- [ ] Validate event ordering
+- [ ] Check state invariants
+- [ ] Verify team/player data
+- [ ] Ensure score consistency
+
+### Edge Cases
+- [ ] Handle missing events
+- [ ] Deal with corrupt data
+- [ ] Manage version mismatches
+- [ ] Process concurrent recoveries
+
+## Monitoring & Logging
+
+### Metrics to Track
+- [ ] Recovery attempts
+- [ ] Success/failure rates
+- [ ] Recovery duration
+- [ ] Event count processed
+
+### Logging Requirements
+- [ ] Crash detection
+- [ ] Recovery progress
+- [ ] Error conditions
+- [ ] State validation
+
+## Notes
+- Recovery should be transparent to users
+- Maintain event ordering guarantees
+- Consider performance impact of large event streams
+- Document recovery procedures for operators 
+
+# Game Session State Recovery Implementation
+
+## Implementation Approach
+
+### Phase 1: Core Recovery Infrastructure
+
+#### 1.1 Base Event Handling (Completed)
+- [x] Implement `GameBot.GameSessions.Recovery` module
+- [x] Define core event application functions
+- [x] Create state rebuilding pipeline
+- [x] Add comprehensive validation
+- [x] Add structured error handling
+- [x] Implement performance optimizations
+
+Core events handled:
+```elixir
+GameStarted      # Initializes game state
+GuessProcessed   # Updates state with guess results
+RoundEnded      # Handles round transitions
+GameCompleted    # Finalizes game state
+```
+
+#### 1.2 Recovery Flow
+```elixir
+# Optimized recovery pipeline
+fetch_events(game_id)
+|> validate_event_stream()     # Stream-based validation for efficiency
+|> build_initial_state()       # Pattern-matched state initialization
+|> apply_events()             # Batch processing by event type
+|> validate_recovered_state()  # Multi-stage validation
+```
+
+### Phase 2: Mode-Specific Extensions
+
+Will implement mode-specific recovery in this order:
+1. [ ] Two Player Mode (simplest, base implementation)
+2. [ ] Race Mode (adds time tracking)
+3. [ ] Golf Race Mode (adds point system)
+4. [ ] Knockout Mode (adds elimination)
+5. [ ] Longform Mode (adds persistence requirements)
+
+Each mode implementation will:
+1. Define any mode-specific events
+2. Add event application functions
+3. Add state validation
+4. Add recovery tests
+
+### Phase 3: Supervisor Integration
+
+- [ ] Update supervisor restart strategy
+- [ ] Add crash detection
+- [ ] Implement automatic recovery
+- [ ] Add recovery monitoring
+
+## Current Implementation Status
+
+### Completed
+- [x] Event generation in Session
+- [x] Event persistence
+- [x] Base event definitions
+- [x] Recovery module structure
+- [x] Core event handling
+- [x] Basic state rebuilding
+- [x] State validation
+- [x] Performance optimizations
+- [x] Error handling improvements
+- [x] Type safety enhancements
+
+### In Progress
+- [ ] Event application testing
+- [ ] Two Player mode recovery
+- [ ] Recovery error handling
+
+### Pending
+- [ ] Additional mode-specific recovery
+- [ ] Supervisor integration
+- [ ] Recovery monitoring
+
+## Testing Strategy
+
+### Unit Tests
+- [ ] Event application functions
+   - [ ] Test each event type
+   - [ ] Test event ordering
+   - [ ] Test state updates
+   - [ ] Test batch processing
+- [ ] State rebuilding
+   - [ ] Test initial state creation
+   - [ ] Test full recovery flow
+   - [ ] Test validation stages
+   - [ ] Test error scenarios
+- [ ] Validation functions
+   - [ ] Test event stream validation
+   - [ ] Test state validation
+   - [ ] Test error cases
+   - [ ] Test performance
+
+### Integration Tests
+- [ ] Full recovery flow
+- [ ] Mode-specific recovery
+- [ ] Supervisor integration
+- [ ] Performance benchmarks
+
+### Property Tests
+- [ ] Event ordering
+- [ ] State consistency
+- [ ] Recovery idempotency
+- [ ] Error handling
+
+## Recovery Module Implementation
+
+```elixir
+defmodule GameBot.GameSessions.Recovery do
+  @type error_reason :: 
+    :no_events 
+    | :invalid_stream_start 
+    | :invalid_event_order 
+    | :invalid_initial_event 
+    | :event_application_failed 
+    | :missing_game_id 
+    | :missing_mode 
+    | :missing_mode_state 
+    | :missing_teams 
+    | :missing_start_time 
+    | :invalid_status
+    | :persist_failed
+
+  # Core recovery pipeline with optimizations
+  def recover_session(game_id) do
+    with {:ok, events} <- fetch_events(game_id),
+         :ok <- validate_event_stream(events),
+         {:ok, initial_state} <- build_initial_state(events),
+         {:ok, recovered_state} <- apply_events(initial_state, events),
+         :ok <- validate_recovered_state(recovered_state) do
+      {:ok, recovered_state}
+    else
+      {:error, reason} = error ->
+        Logger.error("Failed to recover session #{game_id}",
+          error: reason,
+          game_id: game_id,
+          stacktrace: __STACKTRACE__
+        )
+        error
+    end
+  end
+
+  # Optimized event application with batch processing
+  def apply_events(initial_state, events) do
+    events
+    |> Enum.group_by(&event_type/1)
+    |> Map.to_list()
+    |> Enum.reduce(initial_state, fn {_type, type_events}, state ->
+      Enum.reduce(type_events, state, &apply_event/2)
+    end)
+  end
+
+  # Event handlers implemented:
+  # - GameStarted (initial state)
+  # - GuessProcessed (guess updates)
+  # - RoundEnded (round transitions)
+  # - GameCompleted (game finalization)
+end
+```
+
+## Progress Tracking
+
+### Week 1 Goals (Completed)
+- [x] Implement Recovery module
+- [x] Add core event handling
+- [x] Basic state rebuilding
+- [x] Initial tests
+- [x] Performance optimizations
+- [x] Error handling improvements
+
+### Week 2 Goals
+- [ ] Two Player mode recovery
+- [ ] Supervisor integration
+- [ ] Recovery monitoring
+- [ ] Extended testing
+
+### Week 3 Goals
+- [ ] Additional game modes
+- [ ] Performance optimization
+- [ ] Documentation updates
+- [ ] Final testing
+
+## Next Steps
+
+1. Implement comprehensive test suite
+2. Add Two Player mode specific recovery
+3. Integrate with supervisor
+
+## Notes
+
+- Recovery is now transparent to users
+- All state changes are event-sourced
+- Events are validated for proper ordering
+- Multi-stage state validation is implemented
+- Recovery process is logged with context
+- Error handling includes stacktraces
+- Performance optimized for large event streams
+- Type safety enforced through specs 
+
+# Game Session System
+
+## Overview
+
+The session system manages active game instances using GenServers, providing real-time state management and coordination between players. Each game session is a separate process that handles game state, player interactions, and game mode-specific logic. The system uses event sourcing for state persistence and recovery.
+
+## Core Components
+
+### Session GenServer (`GameBot.GameSessions.Session`)
+
+Manages individual game sessions with the following responsibilities:
+- State management for active games
+- Player registration and tracking
+- Guess validation and processing
+- Round management and transitions
+- Integration with game modes
+- Event generation and persistence
+- State recovery from events
+
+#### State Structure
+```elixir
+%{
+  game_id: String.t(),         # Unique identifier for the game
+  mode: module(),              # Game mode module (e.g., TwoPlayerMode)
+  mode_state: GameState.t(),   # Current game state
+  teams: %{String.t() => team_state()},  # Team states
+  started_at: DateTime.t(),    # Session start timestamp
+  status: :initializing | :active | :completed,  # Current session status
+  guild_id: String.t(),        # Discord server ID
+  round_timer_ref: reference() | nil,  # Reference to round check timer
+  pending_events: [Event.t()]  # Events pending persistence
+}
+```
+
+### Session Supervisor (`GameBot.GameSessions.Supervisor`)
+
+Dynamic supervisor that:
+- Manages session lifecycle
+- Handles session crashes
+- Provides session lookup
+- Manages cleanup of completed sessions
+
+### Session Cleanup (`GameBot.GameSessions.Cleanup`)
+
+Periodic cleanup process that:
+- Removes completed/abandoned sessions
+- Cleans up associated resources
+- Maintains system health
+### Event System Integration
+
+The session integrates with the event store for:
+1. **Event Generation**:
+   - Game initialization events
+   - Guess processing events
+   - Round management events
+   - Error events
+   - Game completion events
+
+2. **Event Persistence**:
+   ```elixir
+   # Event persistence flow
+   generate_events()    # From game actions
+   -> collect_events()  # Accumulate related events
+   -> persist_events()  # Store in event store
+   -> update_state()    # Apply event effects
+   ```
+
+3. **Event Types**:
+   ```elixir
+   # Core event types
+   GameStarted        # Initial game setup
+   GuessProcessed     # Guess handling
+   GuessMatched      # Successful match
+   GuessFailed       # Failed match
+   GuessError        # Validation errors
+   RoundEnded        # Round completion
+   GameCompleted     # Game finish
+   ```
+
+## Key Interactions
+
+1. **Game Mode Integration**
+   ```elixir
+   # Mode callbacks now return events
+   @callback init(game_id, config) :: 
+     {:ok, state, [Event.t()]} | {:error, term()}
+   
+   @callback process_guess_pair(state, team_id, guess_pair) :: 
+     {:ok, new_state, [Event.t()]} | {:error, term()}
+   
+   @callback check_round_end(state) :: 
+     {:round_end, winners, [Event.t()]} | :continue
+   
+   @callback check_game_end(state) :: 
+     {:game_end, winners, [Event.t()]} | :continue
+   ```
+
+2. **Event Flow**
+   ```elixir
+   # Event handling flow
+   handle_action()
+   -> generate_events()
+   -> persist_events()
+   -> update_state()
+   -> respond()
+   ```
+
+3. **Word Processing**
+   ```elixir
+   # Guess validation flow with events
+   validate_guess(word)
+   -> generate_validation_event()
+   -> check_forbidden(word)
+   -> record_guess(word)
+   -> process_guess_pair()
+   -> generate_result_event()
+   -> persist_events()
+   ```
+
+# Session Crash Recovery Implementation Checklist
+
+## Overview
+This document outlines the implementation steps needed for full game session recovery after crashes. The system uses event sourcing to rebuild game state, ensuring no game progress is lost even if a session process crashes.
+
+## Core Requirements
+
+### 1. Event Store Integration
+- [ ] Configure EventStore for game events
+- [ ] Define event schemas and versioning
+- [ ] Implement event serialization/deserialization
+- [ ] Set up event persistence with proper indexes
+
+### 2. Event Types to Track
+- [ ] Game initialization events
+  - Game creation
+  - Team setup
+  - Initial state
+- [ ] Game progress events
+  - Guess submissions
+  - Match results
+  - Forbidden word updates
+  - Score changes
+- [ ] Round management events
+  - Round starts/ends
+  - Winner declarations
+- [ ] Game state events
+  - Status changes
+  - Player joins/leaves
+
+### 3. State Recovery Implementation
+- [ ] Create state rebuilding function
+  ```elixir
+  def rebuild_state(game_id) do
+    {:ok, events} = EventStore.read_stream_forward(game_id)
+    Enum.reduce(events, initial_state(), &apply_event/2)
+  end
+  ```
+- [ ] Implement event application functions for each event type
+- [ ] Add validation for event ordering
+- [ ] Handle version migrations if needed
+
+### 4. Recovery Process Flow
+1. [ ] Detect session crash
+2. [ ] Fetch all events for game_id
+3. [ ] Sort events by timestamp
+4. [ ] Initialize empty game state
+5. [ ] Apply events sequentially
+6. [ ] Validate recovered state
+7. [ ] Resume game from recovered state
+
+### 5. Supervisor Integration
+- [ ] Update supervisor to handle restarts
+- [ ] Implement crash detection
+- [ ] Add recovery attempt tracking
+- [ ] Set appropriate restart strategy
+
+### 6. Testing Requirements
+- [ ] Unit tests for event application
+- [ ] Integration tests for full recovery
+- [ ] Crash simulation tests
+- [ ] State consistency verification
+- [ ] Performance benchmarks
+
+## Implementation Steps
+
+### Phase 1: Event System Setup
+1. [ ] Define event schemas
+2. [ ] Set up EventStore configuration
+3. [ ] Implement event persistence
+4. [ ] Add event validation
+
+### Phase 2: State Recovery
+1. [ ] Implement state rebuilding
+2. [ ] Add event application logic
+3. [ ] Create recovery triggers
+4. [ ] Add state validation
+
+### Phase 3: Supervisor Integration
+1. [ ] Update supervisor configuration
+2. [ ] Add crash handling
+3. [ ] Implement recovery flow
+4. [ ] Add monitoring
+
+### Phase 4: Testing & Validation
+1. [ ] Write unit tests
+2. [ ] Create integration tests
+3. [ ] Add performance tests
+4. [ ] Document recovery procedures
+
+## Recovery Function Template
+```elixir
+defmodule GameBot.GameSessions.Recovery do
+  @moduledoc """
+  Handles recovery of crashed game sessions using event sourcing.
+  """
+
+  def recover_session(game_id) do
+    with {:ok, events} <- fetch_events(game_id),
+         {:ok, initial_state} <- build_initial_state(events),
+         {:ok, recovered_state} <- apply_events(initial_state, events),
+         {:ok, _pid} <- restart_session(game_id, recovered_state) do
+      {:ok, recovered_state}
+    else
+      error -> {:error, error}
+    end
+  end
+
+  defp fetch_events(game_id) do
+    EventStore.read_stream_forward(game_id)
+  end
+
+  defp build_initial_state(events) do
+    # Extract initialization data from first event
+  end
+
+  defp apply_events(state, events) do
+    # Apply events in order to rebuild state
+  end
+
+  defp restart_session(game_id, state) do
+    # Start new session with recovered state
+  end
+end
+```
+
+## Error Handling
+
+### Recovery Failures
+- [ ] Implement retry mechanism
+- [ ] Add failure logging
+- [ ] Create error notifications
+- [ ] Handle partial recoveries
+
+### Data Consistency
+- [ ] Validate event ordering
+- [ ] Check state invariants
+- [ ] Verify team/player data
+- [ ] Ensure score consistency
+
+### Edge Cases
+- [ ] Handle missing events
+- [ ] Deal with corrupt data
+- [ ] Manage version mismatches
+- [ ] Process concurrent recoveries
+
+## Monitoring & Logging
+
+### Metrics to Track
+- [ ] Recovery attempts
+- [ ] Success/failure rates
+- [ ] Recovery duration
+- [ ] Event count processed
+
+### Logging Requirements
+- [ ] Crash detection
+- [ ] Recovery progress
+- [ ] Error conditions
+- [ ] State validation
+
+## Notes
+- Recovery should be transparent to users
+- Maintain event ordering guarantees
+- Consider performance impact of large event streams
+- Document recovery procedures for operators 
+
+# Word Service Specification
+
+### State Management
+
+The WordService implements an optimized caching system:
+
+- The dictionary of valid words
+- Word variations and relationships
+- Three ETS cache tables with TTL support
+- Automatic cache cleanup process
+
+### Dictionary Format
+
+### Performance Optimization
+
+The WordService implements an optimized caching system:
+
+1. **Cache Tables**
+   ```elixir
+   @word_match_cache      # For match? results
+   @variations_cache      # For word variations
+   @base_form_cache      # For lemmatization results
+   ```
+
+2. **Cache Features**
+   - TTL-based expiration (24 hours)
+   - Automatic cleanup (hourly)
+   - Read/write concurrency support
+   - Memory-efficient storage
+
+3. **Cached Operations**
+   - Word matching results
+   - Word variations computation
+   - Base form (lemma) calculations
+
+4. **Cache Management**
+   ```elixir
+   # Cache lookup with TTL check
+   lookup_cache(table, key) :: {:ok, value} | :miss
+
+   # Cache insertion with TTL
+   cache_result(table, key, value) :: :ok
+
+   # Automatic cleanup of expired entries
+   cleanup_expired_cache_entries() :: :ok
+   ```
+
+### Error Handling
+
+
+# Word Service Implementation Summary
+
+### Performance Optimization
+- [x] Implemented ETS-based caching with TTL support
+- [x] Created efficient dictionary storage with MapSet
+- [x] Added normalized cache keys for consistent lookups
+- [x] Implemented optimized dictionary lookups
+- [x] Added automatic cache cleanup process
+- [x] Implemented read/write concurrency for cache tables
+- [x] Added separate caches for matches, variations, and base forms
+- [x] Optimized memory usage with TTL-based expiration
+
+### Cache System Features
+- [x] TTL-based expiration (24 hours)
+- [x] Automatic cleanup (hourly process)
+- [x] Read/write concurrency support
+- [x] Memory-efficient storage
+- [x] Separate caches for different operations:
+  - Word matching results
+  - Word variations
+  - Base form calculations
+
+### Testing
+- [x] Implemented dictionary loading tests
+- [x] Added word validation and generation tests
+- [x] Added cache behavior tests
+
+## Remaining Tasks
+- Similarity scoring (only binary success/failure matching)
+
+This was a deliberate architectural decision to keep the service focused on its core functionality.
+
+## Recent Optimizations
+
+The latest update added targeted caching optimizations:
+
+1. **TTL-Based Caching**
+   - Added expiration to prevent stale cache entries
+   - Implemented automatic cleanup to manage memory usage
+   - Separated caches for different operations

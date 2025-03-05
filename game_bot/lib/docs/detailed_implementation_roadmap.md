@@ -72,82 +72,23 @@ This document provides a comprehensive step-by-step guide for implementing GameB
   - [x] Define GolfRaceMode struct
   - [x] Document LongformMode struct
 
-## Phase 2: Game Mode Implementation
+## Phase 2: Core Infrastructure
 
-### 2.1 Team Management
-
-- [ ] **Team System**
-  - [ ] Implement team creation and management
-  - [ ] Add player registration system
-  - [ ] Create team naming validation
-  - [ ] Implement role management
-
-### 2.2 Base Mode Implementation
-
-- [ ] **Core Behavior**
-  - [ ] Implement `GameBot.Domain.GameModes.BaseMode`
-  - [ ] Add common state management
-  - [ ] Create shared game rules
-  - [ ] Implement player turn management
-
-### 2.3 Two Player Mode
-
-- [ ] **Implementation**
-  - [ ] Create mode-specific state management
-  - [ ] Implement round progression
-  - [ ] Add scoring system
-  - [ ] Integrate with WordService
-
-### 2.4 Knockout Mode
-
-- [ ] **Implementation**
-  - [ ] Create elimination system
-  - [ ] Implement round timers
-  - [ ] Add team progression
-  - [ ] Integrate with WordService
-
-### 2.5 Race Mode
-
-- [ ] **Implementation**
-  - [ ] Create match counting
-  - [ ] Implement game timer
-  - [ ] Add scoring system
-  - [ ] Integrate with WordService
-
-### 2.6 Golf Race Mode
-
-- [ ] **Implementation**
-  - [ ] Create point system
-  - [ ] Implement efficiency tracking
-  - [ ] Add game timer
-  - [ ] Integrate with WordService
-
-### 2.7 Longform Mode
-
-- [ ] **Implementation**
-  - [ ] Create day-based rounds
-  - [ ] Implement elimination system
-  - [ ] Add persistence handling
-  - [ ] Integrate with WordService
-
-## Phase 3: Event Sourcing Infrastructure
-
-### 3.1 Event Infrastructure
-
-- [x] **Event Store Configuration**
-  - [x] Implement `GameBot.Infrastructure.EventStore.Config`
-  - [x] Set up event store database and tables
-  - [ ] Configure event stream partitioning
-  - [ ] Implement event store health checks
-
-- [ ] **Event System**
-  - [ ] Define game events based on implemented modes
-  - [ ] Implement event serialization
-  - [ ] Set up event subscription system
+### 2.1 Event Infrastructure
+- [ ] **Event Store Setup**
+  - [x] Configure event store
+  - [x] Implement event serialization
+  - [ ] Set up event subscriptions
   - [ ] Add event versioning
 
-### 3.2 Command Processing
+### 2.2 Session Management
+- [ ] **Game Session Infrastructure**
+  - [ ] Implement `GameBot.GameSessions.Session` GenServer
+  - [ ] Create session supervisor
+  - [ ] Add session cleanup mechanism
+  - [ ] Implement state recovery from events
 
+### 2.3 Command Processing
 - [x] **Command Framework**
   - [x] Implement command routing through CommandHandler
   - [x] Create command validation
@@ -155,29 +96,71 @@ This document provides a comprehensive step-by-step guide for implementing GameB
   - [x] Organize commands in dedicated modules
   - [ ] Add command versioning
 
-### 3.3 Aggregate Implementation
+## Phase 3: Game Implementation
 
-- [ ] **Game Aggregate**
-  - [ ] Build base aggregate behavior
-  - [ ] Convert game modes to use events
-  - [ ] Implement state recovery
+### 3.1 Base Mode Implementation
+- [ ] **Core Behavior**
+  - [ ] Implement `GameBot.Domain.GameModes.BaseMode`
+  - [ ] Add common state management
+  - [ ] Create shared game rules
+  - [ ] Integrate with session management
 
-- [ ] **Team Aggregate**
-  - [ ] Convert team management to events
-  - [ ] Implement team state recovery
-  - [ ] Add team event handling
+### 3.2 Team Management
+- [ ] **Team System**
+  - [ ] Implement team creation and management
+  - [ ] Add player registration system
+  - [ ] Create team naming validation
+  - [ ] Implement role management
 
-### 3.4 Projections
+### 3.3 Game Modes
+- [ ] **Two Player Mode**
+  - [ ] Create mode-specific state management
+  - [ ] Implement round progression
+  - [ ] Add scoring system
 
-- [ ] **Core Projections**
-  - [ ] Create projection registry
-  - [ ] Implement base projection behavior
-  - [ ] Set up read models
+### 3.4 Two Player Mode
+
+- [ ] **Implementation**
+  - [ ] Create mode-specific state management
+  - [ ] Implement round progression
+  - [ ] Add scoring system
+  - [ ] Integrate with WordService
+
+### 3.5 Knockout Mode
+
+- [ ] **Implementation**
+  - [ ] Create elimination system
+  - [ ] Implement round timers
+  - [ ] Add team progression
+  - [ ] Integrate with WordService
+
+### 3.6 Race Mode
+
+- [ ] **Implementation**
+  - [ ] Create match counting
+  - [ ] Implement game timer
+  - [ ] Add scoring system
+  - [ ] Integrate with WordService
+
+### 3.7 Golf Race Mode
+
+- [ ] **Implementation**
+  - [ ] Create point system
+  - [ ] Implement efficiency tracking
+  - [ ] Add game timer
+  - [ ] Integrate with WordService
+
+### 3.8 Longform Mode
+
+- [ ] **Implementation**
+  - [ ] Create day-based rounds
+  - [ ] Implement elimination system
+  - [ ] Add persistence handling
+  - [ ] Integrate with WordService
 
 ## Phase 4: Discord Integration
 
 ### 4.1 Command System
-
 - [x] **Command Handling**
   - [x] Implement command parsing
   - [x] Create command routing
@@ -186,15 +169,28 @@ This document provides a comprehensive step-by-step guide for implementing GameB
   - [ ] Implement error handling
 
 ### 4.2 DM Management
-
 - [ ] **Direct Messages**
-  - [ ] Implement word distribution
-  - [ ] Create guess handling
+  - [ ] Implement word distribution through sessions
+  - [ ] Create guess handling with session lookup
   - [ ] Add player state tracking
 
-## Phase 5: Testing and Optimization
+## Phase 5: Aggregates and Projections
 
-### 5.1 Test Implementation
+### 5.1 Aggregate Implementation
+- [ ] **Game Aggregate**
+  - [ ] Build base aggregate behavior
+  - [ ] Convert game modes to use events
+  - [ ] Implement state recovery
+
+### 5.2 Projections
+- [ ] **Core Projections**
+  - [ ] Create projection registry
+  - [ ] Implement base projection behavior
+  - [ ] Set up read models
+
+## Phase 6: Testing and Optimization
+
+### 6.1 Test Implementation
 
 - [ ] **Unit Tests**
   - [ ] Test game mode logic
@@ -206,14 +202,14 @@ This document provides a comprehensive step-by-step guide for implementing GameB
   - [ ] Test event persistence
   - [ ] Test game recovery
 
-### 5.2 Performance Optimization
+### 6.2 Performance Optimization
 
 - [ ] **Caching**
   - [ ] Implement ETS caching
   - [ ] Add cache invalidation
   - [ ] Optimize event retrieval
 
-### 5.3 Monitoring
+### 6.3 Monitoring
 
 - [ ] **Health Checks**
   - [ ] Add session monitoring
@@ -223,19 +219,42 @@ This document provides a comprehensive step-by-step guide for implementing GameB
 ## Implementation Dependencies
 
 ### Critical Path
-1. Base infrastructure setup
-2. Event store implementation
-3. Game session management
-4. Base mode implementation
-5. Individual game modes
-6. Discord integration
-7. Testing and optimization
+1. Core infrastructure setup (Event Store, Sessions)
+2. Base mode implementation
+3. Team and game mode implementation
+4. Discord integration completion
+5. Aggregates and projections
+6. Testing and optimization
 
 ### Dependency Graph
 ```
-Project Setup → Event Infrastructure → Session Management → Base Mode
-                           ↓
-Discord Integration → Game Modes Implementation → Testing → Optimization
+                                   ┌─────────────────┐
+                                   │  Event Store    │
+                                   └────────┬────────┘
+                                            │
+                    ┌───────────────────────┴───────────────────────┐
+                    │                                               │
+            ┌───────┴───────┐                               ┌───────┴───────┐
+            │    Session    │                               │   Command     │
+            │  Management   │                               │  Processing   │
+            └───────┬───────┘                               └───────┬───────┘
+                    │                                               │
+            ┌───────┴───────┐                               ┌───────┴───────┐
+            │  Base Mode    │                               │    Discord    │
+            │Implementation │                               │ Integration   │
+            └───────┬───────┘                               └───────┬───────┘
+                    │                                               │
+        ┌───────────┴────────────┐                          ┌───────┴────────┐
+        │                        │                          │                │
+┌───────┴───────┐       ┌────────┴────────┐         ┌───────┴───────┐┌───────┴───────┐   
+│     Team      │       │   Game Modes    │         │  Aggregates   ││  DM Handling  │
+│  Management   │       │ Implementation  │         │ & Projections ││               |
+└───────────────┘       └─────────────────┘         └───────────────┘└───────────────┘
+
+                    ┌────────────────────┐
+                    │     Testing &      │
+                    │   Optimization     │
+                    └────────────────────┘
 ```
 
 ## Success Criteria

@@ -1,0 +1,79 @@
+
+## PROJECT OVERVIEW
+This project is a Discord bot built using Elixir and Phoenix LiveView, designed for a word-guessing game with multiple game modes.  The architecture employs event sourcing for persistence and CQRS for command handling.  The bot now handles both slash commands and message commands with a prefix. Message commands use the "!" prefix. DM guesses are passed verbatim.
+
+## CODE STYLE
+Adhere to Elixir's official style guide.  Use consistent indentation (2 spaces).  Keep functions concise and focused.  Favor descriptive variable and function names.  Commit messages should clearly describe the changes made. Edit diffs directly.
+
+
+## FOLDER ORGANIZATION
+The project follows a layered architecture:
+
+- `game_bot`: Contains the main application code.
+    - `lib/game_bot`: Core application logic.
+        - `bot`: Discord bot integration layer.
+            - `commands`: Command implementations (e.g., `game_commands.ex`).
+            - `dispatcher.ex`: Routes incoming Discord events to appropriate handlers.
+            - `listener.ex`: Listens for Discord events (e.g., using Nostrum).
+        - `domain`: Core business logic and domain models (DDD, event sourcing).
+            - `aggregates`: Aggregate roots (e.g., `team_aggregate.ex`, `user_aggregate.ex`).
+            - `commands`: Command definitions and validation (CQRS command side).
+                - `validation.ex`: Centralized command validation logic.
+                - `game_commands.ex`: Game-specific command implementations.
+        - `infrastructure`: Persistence and external service interactions.
+        - `game_sessions`: Manages game sessions (GenServer implementation planned).
+    - `test`: Unit and integration tests.
+- `nodedocs`:  Javascript documentation.
+- `lib`: Libraries
+
+
+## TECH STACK
+- Elixir
+- Phoenix LiveView
+- PostgreSQL (EventStoreDB)
+- Nostrum (Discord library)
+
+
+## PROJECT-SPECIFIC STANDARDS
+- Use event sourcing for persistence.
+- Employ CQRS (Command Query Responsibility Segregation) for command handling.
+- Maintain clear module boundaries.
+- Follow consistent design patterns.
+- One responsibility per module.
+- Use either Registry or ETS for tracking active game sessions for performance. Use the database for persistent game history. Currently using ETS.  Migration to Registry planned upon implementation of GameBot.GameSessions.Session GenServer.
+
+
+## WORKFLOW & RELEASE RULES
+- Use Git for version control.
+- Create clear and concise commit messages.
+- Follow a branching strategy (e.g., Gitflow).
+- Implement a CI/CD pipeline.
+- Edit diffs directly.
+
+
+## REFERENCE EXAMPLES
+- Refer to the `game_bot/lib/game_bot/bot/commands/game_commands.ex` file for a proper command handler structure.
+
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+- Documentation is maintained in Markdown format.
+- Use SpecStory for tracking project decisions and progress.
+- Update documentation to reflect the current state of the bot after major changes.  Relevant files include `summary_implementation_roadmap.md`, `structure.md`, `game_mode_roadmap.md`, and `detailed_implementation_roadmap.md`.  A new document `command_system.md` details the command handling architecture.
+
+
+## DEBUGGING
+- Use Elixir's built-in debugging tools (e.g., `iex`, `Logger`).
+- Implement comprehensive logging.
+
+
+## FINAL DOs AND DON'Ts
+- **DO:** Keep functions concise and focused.
+- **DO:** Use descriptive variable and function names.
+- **DO:** Follow the layered architecture.
+- **DO:** Maintain clear module boundaries.
+- **DO:** Update documentation regularly.
+- **DO:** Edit diffs directly.
+- **DON'T:** Mix concerns within modules.
+- **DON'T:** Create redundant components.
+- **DON'T:** Neglect testing.
+- **DO:** Slash commands are handled directly within the `dispatcher.ex` file. Message commands should use the "!" prefix and are handled by `command_handler.ex`. DM guesses should be passed verbatim and are handled by `command_handler.ex`.  The `dispatcher.ex` file routes raw Discord events to appropriate handlers. The `command_handler.ex` file handles message commands and routes them to appropriate command implementations.

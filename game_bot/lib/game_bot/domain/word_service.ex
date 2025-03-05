@@ -7,9 +7,16 @@ defmodule GameBot.Domain.WordService do
   - Word validation
   - Random word generation
   - Word matching (including variations, plurals, and lemmatization)
+  - Optimized caching for expensive operations
   """
   use GenServer
   require Logger
+
+  # Cache tables for expensive operations
+  @word_match_cache :word_match_cache      # For match? results
+  @variations_cache :word_variations_cache  # For word variations
+  @base_form_cache :base_form_cache        # For lemmatization results
+  @cache_ttl :timer.hours(24)              # Cache entries expire after 24 hours
 
   # Irregular verb forms
   @irregular_verbs %{
@@ -91,9 +98,16 @@ defmodule GameBot.Domain.WordService do
     dictionary_file = Keyword.get(opts, :dictionary_file, "dictionary.txt")
     variations_file = Keyword.get(opts, :variations_file, "word_variations.json")
 
-    # Initialize ETS tables for caching
-    :ets.new(:word_match_cache, [:set, :public, :named_table])
-    :ets.new(:word_variations_cache, [:set, :public, :named_table])
+    # Initialize ETS tables with TTL support
+    :ets.new(@word_match_cache, [:set, :public, :named_table,
+      {:read_concurrency, true}, {:write_concurrency, true}])
+    :ets.new(@variations_cache, [:set, :public, :named_table,
+      {:read_concurrency, true}, {:write_concurrency, true}])
+    :ets.new(@base_form_cache, [:set, :public, :named_table,
+      {:read_concurrency, true}, {:write_concurrency, true}])
+
+    # Start cache cleanup process
+    schedule_cache_cleanup()
 
     # Load dictionary
     dictionary_result = do_load_dictionary(dictionary_file)
@@ -180,13 +194,13 @@ defmodule GameBot.Domain.WordService do
   def handle_call({:match?, word1, word2}, _from, state) do
     cache_key = cache_key(word1, word2)
 
-    result = case :ets.lookup(:word_match_cache, cache_key) do
-      [{_, cached_result}] ->
+    result = case lookup_cache(@word_match_cache, cache_key) do
+      {:ok, cached_result} ->
         cached_result
-      [] ->
+      :miss ->
         # No cache hit, calculate the match
         match_result = do_match(word1, word2, state)
-        :ets.insert(:word_match_cache, {cache_key, match_result})
+        cache_result(@word_match_cache, cache_key, match_result)
         match_result
     end
 
@@ -195,22 +209,21 @@ defmodule GameBot.Domain.WordService do
 
   @impl true
   def handle_call({:variations, word}, _from, state) do
-    variations = case :ets.lookup(:word_variations_cache, word) do
-      [{_, cached_variations}] ->
-        cached_variations
-      [] ->
-        # No cache hit, calculate variations
-        variations = do_variations(word, state)
-        :ets.insert(:word_variations_cache, {word, variations})
-        variations
-    end
-    {:reply, variations, state}
+    result = do_variations(word, state)
+    {:reply, result, state}
   end
 
   @impl true
   def handle_call({:base_form, word}, _from, state) do
-    base = do_base_form(word)
-    {:reply, base, state}
+    result = do_base_form(word)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_info(:cleanup_cache, state) do
+    cleanup_expired_cache_entries()
+    schedule_cache_cleanup()
+    {:noreply, state}
   end
 
   # Private functions
@@ -284,7 +297,7 @@ defmodule GameBot.Domain.WordService do
     words
     |> Enum.each(fn word ->
       variations = do_variations(word, %{variations: file_variations})
-      :ets.insert(:word_variations_cache, {word, variations})
+      :ets.insert(@variations_cache, {word, variations})
     end)
 
     Logger.info("Variation precomputation complete")
@@ -293,23 +306,13 @@ defmodule GameBot.Domain.WordService do
   defp do_variations(word, state) do
     word = String.downcase(word)
 
-    # Get variations from file
-    file_variations = Map.get(state.variations, word, [])
-
-    # Generate pattern-based variations
-    pattern_variations =
-      [word]
-      |> add_plural_variations()
-      |> add_verb_variations(word)
-      |> add_regional_variations(word)
-      |> MapSet.new()
-      |> MapSet.delete(word)  # Remove the original word
-      |> MapSet.to_list()
-
-    # Combine and deduplicate variations
-    (file_variations ++ pattern_variations)
-    |> Enum.uniq()
-    |> Enum.reject(&is_nil/1)
+    case lookup_cache(@variations_cache, word) do
+      {:ok, variations} -> variations
+      :miss ->
+        variations = compute_variations(word, state)
+        cache_result(@variations_cache, word, variations)
+        variations
+    end
   end
 
   defp add_plural_variations(variations) do
@@ -367,17 +370,86 @@ defmodule GameBot.Domain.WordService do
     end)
   end
 
-  # Simple lemmatization (base form extraction)
   defp do_base_form(word) do
-    w = String.downcase(word)
+    word = String.downcase(word)
 
+    case lookup_cache(@base_form_cache, word) do
+      {:ok, base} -> base
+      :miss ->
+        base = compute_base_form(word)
+        cache_result(@base_form_cache, word, base)
+        base
+    end
+  end
+
+  # Cache management functions
+
+  defp lookup_cache(table, key) do
+    case :ets.lookup(table, key) do
+      [{^key, value, expiry}] ->
+        if DateTime.compare(expiry, DateTime.utc_now()) == :gt do
+          {:ok, value}
+        else
+          :miss
+        end
+      [] -> :miss
+    end
+  end
+
+  defp cache_result(table, key, value) do
+    expiry = DateTime.add(DateTime.utc_now(), @cache_ttl, :millisecond)
+    :ets.insert(table, {key, value, expiry})
+  end
+
+  defp schedule_cache_cleanup do
+    Process.send_after(self(), :cleanup_cache, :timer.hours(1))
+  end
+
+  defp cleanup_expired_cache_entries do
+    now = DateTime.utc_now()
+    cleanup_table(@word_match_cache, now)
+    cleanup_table(@variations_cache, now)
+    cleanup_table(@base_form_cache, now)
+  end
+
+  defp cleanup_table(table, now) do
+    :ets.select_delete(table, [{
+      {:"$1", :"$2", :"$3"},
+      [{:<, :"$3", now}],
+      [true]
+    }])
+  end
+
+  # Move existing variation computation to separate function
+  defp compute_variations(word, state) do
+    # Get variations from file
+    file_variations = Map.get(state.variations, word, [])
+
+    # Generate pattern-based variations
+    pattern_variations =
+      [word]
+      |> add_plural_variations()
+      |> add_verb_variations(word)
+      |> add_regional_variations(word)
+      |> MapSet.new()
+      |> MapSet.delete(word)  # Remove the original word
+      |> MapSet.to_list()
+
+    # Combine and deduplicate variations
+    (file_variations ++ pattern_variations)
+    |> Enum.uniq()
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Move existing base form computation to separate function
+  defp compute_base_form(word) do
     # Check irregular verbs first
-    case find_irregular_base(w) do
+    case find_irregular_base(word) do
       nil ->
         cond do
           # -ing form
-          String.ends_with?(w, "ing") ->
-            base = String.slice(w, 0, String.length(w) - 3)
+          String.ends_with?(word, "ing") ->
+            base = String.slice(word, 0, String.length(word) - 3)
             if String.length(base) > 2 do
               # Handle doubled consonants (e.g., running -> run)
               if String.length(base) > 3 && String.at(base, -1) == String.at(base, -2) do
@@ -387,12 +459,12 @@ defmodule GameBot.Domain.WordService do
                 base <> "e"
               end
             else
-              w
+              word
             end
 
           # -ed form
-          String.ends_with?(w, "ed") ->
-            base = String.slice(w, 0, String.length(w) - 2)
+          String.ends_with?(word, "ed") ->
+            base = String.slice(word, 0, String.length(word) - 2)
             if String.length(base) > 2 do
               # Handle doubled consonants (e.g., stopped -> stop)
               if String.length(base) > 3 && String.at(base, -1) == String.at(base, -2) do
@@ -402,19 +474,19 @@ defmodule GameBot.Domain.WordService do
                 base <> "e"
               end
             else
-              w
+              word
             end
 
           # -s form (plural)
-          String.ends_with?(w, "s") and not String.ends_with?(w, "ss") ->
-            if String.ends_with?(w, "es") and String.length(w) > 3 do
-              String.slice(w, 0, String.length(w) - 2)
+          String.ends_with?(word, "s") and not String.ends_with?(word, "ss") ->
+            if String.ends_with?(word, "es") and String.length(word) > 3 do
+              String.slice(word, 0, String.length(word) - 2)
             else
-              String.slice(w, 0, String.length(w) - 1)
+              String.slice(word, 0, String.length(word) - 1)
             end
 
           # No change needed
-          true -> w
+          true -> word
         end
 
       base -> base

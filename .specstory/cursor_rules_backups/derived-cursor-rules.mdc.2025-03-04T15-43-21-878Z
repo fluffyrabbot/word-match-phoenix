@@ -1,0 +1,71 @@
+
+## PROJECT OVERVIEW
+This project is a Discord bot built using Elixir and Phoenix LiveView, designed for a word-guessing game with multiple game modes.  The architecture employs event sourcing for persistence and CQRS for command handling.
+
+## CODE STYLE
+Adhere to Elixir's official style guide.  Use consistent indentation (2 spaces).  Keep functions concise and focused.  Favor descriptive variable and function names.  Commit messages should clearly describe the changes made.  Edit diffs directly.
+
+
+## FOLDER ORGANIZATION
+The project follows a layered architecture:
+
+- `game_bot`: Contains the main application code.
+    - `lib/game_bot`: Core application logic.
+        - `bot`: Discord bot integration layer.
+            - `commands`: Command implementations (e.g., `game_commands.ex`).
+        - `domain`: Core business logic and domain models (DDD, event sourcing).
+            - `aggregates`: Aggregate roots (e.g., `team_aggregate.ex`, `user_aggregate.ex`).
+            - `commands`: Command definitions and validation (CQRS command side).
+                - `validation.ex`: Centralized command validation logic.
+        - `infrastructure`: Persistence and external service interactions.
+    - `test`: Unit and integration tests.
+- `nodedocs`:  Javascript documentation.
+- `lib`: Libraries
+
+
+## TECH STACK
+- Elixir
+- Phoenix LiveView
+- PostgreSQL (EventStoreDB)
+- Nostrum (Discord library)
+
+
+## PROJECT-SPECIFIC STANDARDS
+- Use event sourcing for persistence.
+- Employ CQRS (Command Query Responsibility Segregation) for command handling.
+- Maintain clear module boundaries.
+- Follow consistent design patterns.
+- One responsibility per module.
+
+
+## WORKFLOW & RELEASE RULES
+- Use Git for version control.
+- Create clear and concise commit messages.
+- Follow a branching strategy (e.g., Gitflow).
+- Implement a CI/CD pipeline.
+
+
+## REFERENCE EXAMPLES
+- Refer to the `game_bot/lib/game_bot/bot/commands/game_commands.ex` file for a proper command handler structure.
+
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+- Documentation is maintained in Markdown format.
+- Use SpecStory for tracking project decisions and progress.
+- Update documentation to reflect the current state of the bot after major changes.  Relevant files include `summary_implementation_roadmap.md`, `structure.md`, `game_mode_roadmap.md`, and `detailed_implementation_roadmap.md`.
+
+
+## DEBUGGING
+- Use Elixir's built-in debugging tools (e.g., `iex`, `Logger`).
+- Implement comprehensive logging.
+
+
+## FINAL DOs AND DON'Ts
+- **DO:** Keep functions concise and focused.
+- **DO:** Use descriptive variable and function names.
+- **DO:** Follow the layered architecture.
+- **DO:** Maintain clear module boundaries.
+- **DO:** Update documentation regularly.
+- **DON'T:** Mix concerns within modules.
+- **DON'T:** Create redundant components.
+- **DON'T:** Neglect testing.

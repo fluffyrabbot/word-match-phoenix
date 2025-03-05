@@ -1,0 +1,420 @@
+
+## PROJECT OVERVIEW
+This project is a Discord bot built using Elixir and Phoenix LiveView, designed for a word-guessing game with multiple game modes.  The architecture employs event sourcing for persistence and CQRS for command handling.  The bot now handles both slash commands and message commands with a prefix. Message commands use the "!" prefix. DM guesses are passed verbatim.  Game sessions are managed using GenServers.  A new `GameBot.GameSessions.Session` GenServer manages each active game, delegating game logic to the appropriate game mode module.  The `GameBot.GameSessions.Supervisor` dynamically manages active game sessions. The `GameBot.GameSessions.Cleanup` GenServer periodically cleans up completed or abandoned game sessions.
+
+## CODE STYLE
+Adhere to Elixir's official style guide.  Use consistent indentation (2 spaces).  Keep functions concise and focused.  Favor descriptive variable and function names.  Commit messages should clearly describe the changes made. Edit diffs directly.
+
+
+## FOLDER ORGANIZATION
+The project follows a layered architecture:
+
+- `game_bot`: Contains the main application code.
+    - `lib/game_bot`: Core application logic.
+        - `bot`: Discord bot integration layer.
+            - `commands`: Command implementations (e.g., `game_commands.ex`).
+            - `dispatcher.ex`: Routes incoming Discord events to appropriate handlers.
+            - `listener.ex`: Listens for Discord events (e.g., using Nostrum).
+        - `domain`: Core business logic and domain models (DDD, event sourcing).
+            - `aggregates`: Aggregate roots (e.g., `team_aggregate.ex`, `user_aggregate.ex`).
+            - `commands`: Command definitions and validation (CQRS command side).
+                - `validation.ex`: Centralized command validation logic.
+                - `game_commands.ex`: Game-specific command implementations.
+        - `infrastructure`: Persistence and external service interactions.
+            - `game_sessions`: Manages game sessions (GenServer implementation).
+        - `game_sessions`: Manages game sessions (GenServer implementation).
+    - `test`: Unit and integration tests.
+- `nodedocs`:  Javascript documentation.
+- `lib`: Libraries
+
+
+## TECH STACK
+- Elixir
+- Phoenix LiveView
+- PostgreSQL (EventStoreDB)
+- Nostrum (Discord library)
+
+
+## PROJECT-SPECIFIC STANDARDS
+- Use event sourcing for persistence.
+- Employ CQRS (Command Query Responsibility Segregation) for command handling.
+- Maintain clear module boundaries.
+- Follow consistent design patterns.
+- One responsibility per module.
+- Use either Registry or ETS for tracking active game sessions for performance. Use the database for persistent game history. Currently using ETS.  Migration to Registry planned upon implementation of GameBot.GameSessions.Session GenServer.
+
+## WORKFLOW & RELEASE RULES
+- Use Git for version control.
+- Create clear and concise commit messages.
+- Follow a branching strategy (e.g., Gitflow).
+- Implement a CI/CD pipeline.
+- Edit diffs directly.
+
+
+## REFERENCE EXAMPLES
+- Refer to the `game_bot/lib/game_bot/bot/commands/game_commands.ex` file for a proper command handler structure.
+
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+- Documentation is maintained in Markdown format.
+- Use SpecStory for tracking project decisions and progress.
+- Update documentation to reflect the current state of the bot after major changes.  Relevant files include `summary_implementation_roadmap.md`, `structure.md`, `game_mode_roadmap.md`, and `detailed_implementation_roadmap.md`.  A new document `command_system.md` details the command handling architecture.  The `command_system.md` file now documents the dispatcher, command handler, and game commands. The `command_system.md` file now documents the dispatcher, command handler, and game commands.  The `command_system.md` file now documents the dispatcher, command handler, and game commands.  A new document `sessions.md` details the game session system architecture, implementation, and testing strategy.  The documentation for the command system and game sessions has been updated to reflect the latest changes.
+
+## DEBUGGING
+- Use Elixir's built-in debugging tools (e.g., `iex`, `Logger`).
+- Implement comprehensive logging.
+
+
+## FINAL DOs AND DON'Ts
+- **DO:** Keep functions concise and focused.
+- **DO:** Use descriptive variable and function names.
+- **DO:** Follow the layered architecture.
+- **DO:** Maintain clear module boundaries.
+- **DO:** Update documentation regularly.
+- **DO:** Edit diffs directly.
+- **DON'T:** Mix concerns within modules.
+- **DON'T:** Create redundant components.
+- **DON'T:** Neglect testing.
+- **DO:** Slash commands are handled directly within the `dispatcher.ex` file. Message commands should use the "!" prefix and are handled by `command_handler.ex`. DM guesses should be passed verbatim and are handled by `command_handler.ex`.  The `dispatcher.ex` file routes raw Discord events to appropriate handlers. The `command_handler.ex` file handles message commands and routes them to appropriate command implementations.  The `dispatcher.ex` now also handles slash commands directly. Message commands use the "!" prefix. DM guesses are handled directly by passing them to `game_commands.ex`.  The `dispatcher` now handles all raw Discord events, routing slash commands to `GameCommands` and messages to `CommandHandler`. `CommandHandler` now focuses on message commands and DM guesses, using ETS for active game tracking.  DM guesses are passed verbatim to `GameCommands`. The dispatcher now handles both slash commands and message events, routing appropriately. The command handler now focuses exclusively on message commands and DM guesses, using an ETS table for active game tracking. DM guesses are passed verbatim to GameCommands.  The `dispatcher.ex` now handles both slash commands and message events, routing appropriately. The `command_handler.ex` now handles message commands and DM guesses, using an ETS table for active game tracking. DM guesses are passed verbatim to `GameCommands`.  The command handler now focuses exclusively on message commands and DM guesses.  DM guesses are passed verbatim to `GameCommands`.  The dispatcher now handles both slash commands and message events, routing appropriately.  The command handler now focuses exclusively on message commands and DM guesses, using an ETS table for active game tracking.  DM guesses are passed verbatim to GameCommands.  Guess timeouts are removed as an unnecessary feature.
+
+# Command System Architecture
+
+## Overview
+
+The command system is split into three layers:
+1. Dispatcher (Entry Point)
+2. Command Handler (Message Commands)
+3. Game Commands (Implementation)
+
+## Components
+
+### Dispatcher (`GameBot.Bot.Dispatcher`)
+
+The dispatcher is the entry point for all Discord events. It handles:
+
+1. **Slash Commands** (directly routes to GameCommands):
+   ```elixir
+   /start [mode] [options]  # Start a new game
+   /team create [options]   # Create team via slash command
+   /guess [game_id] [word] # Submit guess via slash command
+   ```
+
+2. **Message Events**:
+   - Routes all message events to CommandHandler
+   - Maintains clean separation between Discord events and command processing
+
+### Command Handler (`GameBot.Bot.CommandHandler`)
+
+Handles text-based commands and DM interactions:
+
+1. **Prefix Commands** (using "!" prefix):
+   ```elixir
+   !team @user  # Create team with mentioned user
+   ```
+
+2. **DM Guesses**:
+   - Any message in a DM is treated as a guess
+   - Uses ETS to track active games per user
+
+3. **Active Game Tracking**:
+   ```elixir
+   # ETS table for fast user->game lookups
+   @active_games_table :active_games
+
+   # Public API
+   set_active_game(user_id, game_id)    # Associate user with game
+   clear_active_game(user_id)           # Remove user's game association
+   ```
+
+### Game Commands (`GameBot.Bot.Commands.GameCommands`)
+
+Implementation layer that:
+- Processes both slash commands and message commands
+- Generates appropriate game events
+- Handles core game logic
+
+## Command Flow
+
+1. **Slash Commands**:
+   ```
+   Discord → Dispatcher → GameCommands
+   ```
+
+2. **Message Commands**:
+   ```
+   Discord → Dispatcher → CommandHandler → GameCommands
+   ```
+
+3. **DM Guesses**:
+   ```
+   Discord → Dispatcher → CommandHandler → [ETS Lookup] → GameCommands
+   ```
+
+## Active Game State Management
+
+Currently using ETS for active game tracking:
+
+- **Table**: Named `:active_games`
+- **Structure**: `{user_id, game_id}`
+- **Access**: Public table for fast lookups
+- **Lifecycle**: Initialized in CommandHandler.init/0
+
+## Future Considerations
+
+1. **Game Sessions**:
+   - Implemented as GenServers
+   - May switch from ETS to Registry in the future
+
+2. **Additional Commands**:
+    - More prefix commands can be added in CommandHandler
+    - More slash commands can be added in Dispatcher
+
+3. **Error Handling**:
+    - Need to implement proper error responses
+    - Should add command validation
+    - Consider adding rate limiting
+
+## Command Reference
+
+### Slash Commands
+```elixir
+/start
+  mode: String    # Game mode to start
+  options: Map    # Game configuration options
+
+/team create
+  name: String    # Team name
+  players: List   # Player IDs
+
+/guess
+  game_id: String # ID of active game
+  word: String    # Word to submit
+```
+
+### Message Commands
+```elixir
+!team @user       # Create team with mentioned user
+```
+
+### DM Commands
+```elixir
+any_text         # Treated as guess for active game
+```
+
+# Game Session System
+
+## Overview
+
+The session system manages active game instances using GenServers, providing real-time state management and coordination between players. Each game session is a separate process that handles game state, player interactions, and game mode-specific logic.  The system employs event sourcing for state persistence and recovery.
+
+## Core Components
+
+### Session GenServer (`GameBot.GameSessions.Session`)
+
+Manages individual game sessions with the following responsibilities:
+- State management for active games
+- Player registration and tracking
+- Guess validation and processing
+- Integration with game modes
+- Event generation and handling
+
+#### State Structure
+```elixir
+%{
+  game_id: String.t(),         # Unique identifier for the game
+  mode: module(),              # Game mode module (e.g., TwoPlayerMode)
+  mode_state: GameState.t(),   # Current game state
+  teams: %{String.t() => team_state()},  # Team states
+  started_at: DateTime.t(),    # Session start timestamp
+  status: :initializing | :active | :completed  # Current session status
+  guild_id: String.t()         # Discord server ID
+  round_timer_ref: reference() | nil,
+  pending_guess_timers: %{String.t() => reference()}
+}
+```
+
+### Session Supervisor (`GameBot.GameSessions.Supervisor`)
+
+Dynamic supervisor that:
+- Manages session lifecycle
+- Handles session crashes
+- Provides session lookup
+- Manages cleanup of completed sessions
+
+### Session Cleanup (`GameBot.GameSessions.Cleanup`)
+
+Periodic cleanup process that:
+- Removes completed/abandoned sessions
+- Cleans up associated resources
+- Maintains system health
+
+## Key Interactions
+
+1. **Game Mode Integration**
+   ```elixir
+   # Mode callbacks
+   @callback init(config :: term()) :: {:ok, state :: GameState.t()} | {:error, term()}
+   @callback process_guess(state :: GameState.t(), team_id :: String.t(), player_id :: String.t(), word :: String.t()) :: 
+     {:ok, new_state :: GameState.t(), event :: Event.t()} | 
+     {:error, term()}
+   @callback check_round_end(state :: GameState.t()) :: 
+     {:round_end, winners :: [team_id()]} | 
+     :continue
+   @callback check_game_end(state :: GameState.t()) ::
+     {:game_end, winners :: [team_id()]} |
+     :continue
+   ```
+
+2. **Word Processing**
+   ```elixir
+   # Guess validation flow
+   validate_guess(word)
+   -> check_forbidden(word)
+   -> record_guess(word)
+   -> process_guess_pair()
+   -> update_forbidden_words()
+   ```
+
+3. **State Management**
+   ```elixir
+   # State updates
+   handle_guess()
+   -> validate_and_record()
+   -> update_state()
+   -> check_round_end()
+   -> check_game_end()
+   ```
+
+## Implementation Status
+
+### Completed
+- [x] Basic GenServer structure
+- [x] Player registration
+- [x] Guess validation
+- [x] Word matching integration
+- [x] Forbidden word tracking
+- [x] Basic state management
+- [x] Round timer implementation
+- [x] Round end check implementation
+- [x] Game end check implementation
+
+### In Progress
+- [ ] Round management
+- [ ] Event generation
+- [ ] State recovery
+- [ ] Error handling
+
+### Pending
+- [ ] Game mode delegation
+- [ ] Round transitions
+- [ ] Game completion
+- [ ] Event persistence
+- [ ] State snapshots
+
+## Implementation Plan
+
+### Phase 1: Core Session Management
+1. Implement round management
+2. Add timer system
+3. Integrate with event system
+
+### Phase 2: Game Mode Integration
+1. Implement mode delegation
+2. Add round transitions
+3. Handle game completion
+
+### Phase 3: State Management
+1. Add event generation
+2. Implement state recovery
+3. Add snapshot system
+
+### Phase 4: Error Handling
+1. Add timeout handling
+2. Implement crash recovery
+3. Add session monitoring
+
+## Usage Examples
+
+### Starting a Session
+```elixir
+GameBot.GameSessions.Supervisor.start_game(%{
+  game_id: "game_123",
+  mode: TwoPlayerMode,
+  mode_config: config,
+  teams: teams,
+  guild_id: guild_id
+})
+```
+
+### Submitting a Guess
+```elixir
+GameBot.GameSessions.Session.submit_guess(
+  game_id,
+  team_id,
+  player_id,
+  word
+)
+```
+
+### Checking Game State
+```elixir
+GameBot.GameSessions.Session.get_state(game_id)
+```
+
+## Testing Strategy
+
+1. **Unit Tests**
+   - Session state management
+   - Guess processing
+   - Timer handling
+
+2. **Integration Tests**
+   - Game mode interaction
+   - Event generation
+   - State recovery
+
+3. **Property Tests**
+   - State consistency
+   - Event ordering
+   - Recovery correctness
+
+## Notes
+
+- Sessions are temporary and will not be restarted on crash unless state recovery from events is implemented.
+- Each session has a 24-hour maximum lifetime
+- Cleanup runs every 5 minutes
+- All state changes generate events
+- Events are persisted for replay capability
+
+
+# Game Session Regeneration Checklist
+
+This checklist outlines the steps required to ensure full game session regeneration upon a crash.  The goal is to restore the game to its exact state before the crash occurred, minimizing disruption to players.
+
+**I. Data Persistence:**
+
+- [ ] **Event Sourcing:**  Verify that all game state changes are consistently captured as events and appended to the event store.  This is crucial for reconstruction.
+- [ ] **Event Store Reliability:** Ensure the event store is highly available and resilient to failures.  Consider redundancy and fault tolerance mechanisms.
+- [ ] **Event Serialization:** Confirm that event serialization and deserialization are robust and handle all data types correctly.  Any errors here will prevent reconstruction.
+
+**II. Session Regeneration:**
+
+- [ ] **GenServer `init`:** The `init` function in `GameBot.GameSessions.Session` must be able to reconstruct the game state from the event stream.
+- [ ] **Event Replay:** Implement a mechanism to replay events from the event store to reconstruct the complete game state.
+- [ ] **State Reconstruction Logic:**  Thoroughly test the state reconstruction logic to ensure accuracy and completeness.
+- [ ] **Error Handling:** Implement robust error handling to gracefully manage situations where event replay fails or data is corrupted.
+- [ ] **Data Integrity:** Establish mechanisms to verify the integrity of the event stream, detecting and handling potential data corruption.
+
+**III. Testing and Verification:**
+
+- [ ] **Unit Tests:** Create comprehensive unit tests to verify individual components of the regeneration process.
+- [ ] **Integration Tests:** Develop integration tests to simulate crashes and verify that the game state is correctly restored.
+- [ ] **Stress Tests:** Perform stress tests to simulate high load and frequent crashes to ensure the robustness of the regeneration mechanism.
+- [ ] **Manual Testing:** Conduct manual tests in a controlled environment to verify the reliability of the crash recovery process.
+
+**IV. Monitoring and Alerting:**
+
+- [ ] **Session Monitoring:** Implement monitoring to track session status and detect potential issues.
+- [ ] **Alerting System:** Set up an alerting system to notify the development team of critical issues that might impact session regeneration.
+
+By completing this checklist, the game session system will be able to recover from crashes, ensuring a seamless user experience.

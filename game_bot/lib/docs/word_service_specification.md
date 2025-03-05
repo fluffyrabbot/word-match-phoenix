@@ -98,11 +98,12 @@ Returns the base form (lemma) of a word.
 
 ### State Management
 
-The WordService will be implemented as a GenServer that manages:
+The WordService implements an optimized caching system:
 
 - The dictionary of valid words
 - Word variations and relationships
-- Cache of validation and matching results
+- Three ETS cache tables with TTL support
+- Automatic cache cleanup process
 
 ### Dictionary Format
 
@@ -121,10 +122,37 @@ Word matching should consider:
 
 ### Performance Optimization
 
-The WordService should implement:
+The WordService implements an optimized caching system:
 
-1. **ETS-based caching** - Store validation and matching results
-2. **Efficient dictionary storage** - Optimize for lookup speed
+1. **Cache Tables**
+   ```elixir
+   @word_match_cache      # For match? results
+   @variations_cache      # For word variations
+   @base_form_cache      # For lemmatization results
+   ```
+
+2. **Cache Features**
+   - TTL-based expiration (24 hours)
+   - Automatic cleanup (hourly)
+   - Read/write concurrency support
+   - Memory-efficient storage
+
+3. **Cached Operations**
+   - Word matching results
+   - Word variations computation
+   - Base form (lemma) calculations
+
+4. **Cache Management**
+   ```elixir
+   # Cache lookup with TTL check
+   lookup_cache(table, key) :: {:ok, value} | :miss
+
+   # Cache insertion with TTL
+   cache_result(table, key, value) :: :ok
+
+   # Automatic cleanup of expired entries
+   cleanup_expired_cache_entries() :: :ok
+   ```
 
 ### Error Handling
 
