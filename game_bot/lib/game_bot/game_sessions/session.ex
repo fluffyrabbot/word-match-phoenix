@@ -208,20 +208,75 @@ defmodule GameBot.GameSessions.Session do
   end
 
   defp validate_guess(word, player_id, state) do
-    with true <- WordService.valid_word?(word),
-         {:ok, false} <- GameState.word_forbidden?(
-           state.mode_state,
-           state.guild_id,
-           player_id,
-           word
-         ) do
-      :ok
-    else
-      false -> {:error, :invalid_word}
-      {:ok, true} -> {:error, :forbidden_word}
-      error -> error
+    # First check if player already has a pending guess
+    team_id = find_player_team(state, player_id)
+    team_state = get_in(state.mode_state.teams, [team_id])
+
+    cond do
+      # Check if player has already submitted a guess
+      has_player_submitted?(team_state, player_id) ->
+        {:error, :guess_already_submitted}
+
+      # Special handling for "give up" command
+      word == "give up" ->
+        :ok
+
+      # Normal word validation
+      !WordService.valid_word?(word) ->
+        {:error, :invalid_word}
+
+      GameState.word_forbidden?(state.mode_state, state.guild_id, player_id, word) == {:ok, true} ->
+        {:error, :forbidden_word}
+
+      true ->
+        :ok
     end
   end
+
+  defp record_guess(team_id, player_id, word, state) do
+    team_state = get_in(state.mode_state.teams, [team_id])
+
+    case team_state.pending_guess do
+      nil ->
+        # First guess of the pair
+        {:ok,
+          put_in(state.mode_state.teams[team_id].pending_guess, %{
+            player_id: player_id,
+            word: word,
+            timestamp: DateTime.utc_now()
+          }),
+          []  # No events for first guess
+        }
+
+      %{player_id: pending_player_id} = pending when pending_player_id != player_id ->
+        # Second guess - create complete pair
+        {:ok,
+          put_in(state.mode_state.teams[team_id].pending_guess, %{
+            player1_id: pending_player_id,
+            player2_id: player_id,
+            player1_word: pending.word,
+            player2_word: word
+          }),
+          []  # Events will be generated when processing the complete pair
+        }
+
+      _ ->
+        {:error, :guess_already_submitted}
+    end
+  end
+
+  # Helper functions for guess validation
+
+  defp find_player_team(%{mode_state: %{teams: teams}}, player_id) do
+    Enum.find_value(teams, fn {team_id, team_state} ->
+      if player_id in team_state.player_ids, do: team_id, else: nil
+    end)
+  end
+
+  defp has_player_submitted?(%{pending_guess: nil}, _player_id), do: false
+  defp has_player_submitted?(%{pending_guess: %{player_id: pending_id}}, player_id), do: pending_id == player_id
+  defp has_player_submitted?(%{pending_guess: %{player1_id: p1, player2_id: p2}}, player_id), do: player_id in [p1, p2]
+  defp has_player_submitted?(_, _), do: false
 
   defp persist_events(events) when is_list(events) do
     EventStore.append_events(events)
@@ -246,16 +301,6 @@ defmodule GameBot.GameSessions.Session do
         :ok = persist_events([error_event])
         {:reply, {:error, reason}, state}
     end
-  end
-
-  defp record_guess(team_id, player_id, word, state) do
-    GameState.record_pending_guess(
-      state.mode_state,
-      state.guild_id,
-      team_id,
-      player_id,
-      word
-    )
   end
 
   defp schedule_round_check do

@@ -2,219 +2,208 @@
 
 This document provides a comprehensive step-by-step guide for implementing GameBot using CQRS and Event Sourcing patterns, including detailed technical specifications and implementation notes.
 
-## Phase 1: Preliminary Specifications
+## Phase 1: Core Infrastructure
 
-### 1.1 Game Logic Specification
+### 1.1 Event Store Setup (Priority)
+- [ ] Configure EventStore for game events
+  - [ ] Set up database connection
+  - [ ] Configure event schemas
+  - [ ] Add versioning support
+- [ ] Implement event serialization/deserialization
+  - [ ] Add JSON encoding/decoding
+  - [ ] Handle version migrations
+  - [ ] Add validation
+- [ ] Set up event subscriptions
+  - [ ] Implement subscription manager
+  - [ ] Add event broadcasting
+  - [ ] Create subscription registry
+- [ ] Add event persistence layer
+  - [ ] Implement event storage
+  - [ ] Add event retrieval
+  - [ ] Create event stream management
 
-- [x] **Core Mechanics Documentation**
-  - [x] Define word matching rules and constraints
-  - [x] Document valid and invalid word patterns
-  - [x] Specify validation rules for player submissions
-  - [x] Create dictionary and word list requirements
+### 1.2 Session Management (Priority)
+- [ ] Implement `GameBot.GameSessions.Session` GenServer
+  - [ ] Add state management
+  - [ ] Implement event handling
+  - [ ] Add game mode delegation
+- [ ] Create session supervisor
+  - [ ] Add dynamic supervision
+  - [ ] Implement restart strategies
+  - [ ] Add session tracking
+- [ ] Add state recovery
+  - [ ] Implement event replay
+  - [ ] Add state reconstruction
+  - [ ] Create recovery validation
+- [ ] Implement cleanup
+  - [ ] Add completed game cleanup
+  - [ ] Implement abandoned game handling
+  - [ ] Add resource cleanup
 
-- [x] **Game Mode Specification**
-  - [x] **Two Player Mode**
-    - [x] Define cooperative gameplay mechanics
-    - [x] Document scoring based on guess efficiency
-    - [x] Specify 5-round format with success threshold
-  - [x] **Knockout Mode**
-    - [x] Define elimination-based progression
-    - [x] Document 3-minute round time limit
-    - [x] Specify 12-guess elimination threshold
-  - [x] **Race Mode**
-    - [x] Define 3-minute time-based competition
-    - [x] Document match counting system
-    - [x] Specify tiebreaker mechanics
-  - [x] **Golf Race Mode**
-    - [x] Define point-based scoring system
-    - [x] Document 4-tier scoring brackets
-    - [x] Specify 3-minute time limit
-  - [x] **Longform Mode**
-    - [x] Define 24-hour round system
-    - [x] Document elimination mechanics
-    - [x] Specify round transition rules
+### 1.3 Base Infrastructure
+- [ ] Implement game state persistence
+  - [ ] Add state snapshots
+  - [ ] Implement state versioning
+  - [ ] Add state validation
+- [ ] Create monitoring system
+  - [ ] Add session monitoring
+  - [ ] Implement error tracking
+  - [ ] Create performance metrics
 
-- [x] **Command Interface Specification**
-  - [x] Define Discord-based interaction model
-  - [x] Document DM-based word distribution
-  - [x] Specify team management commands
+## Phase 2: Game Mode Testing
 
-### 1.2 Event System Specification
+### 2.1 Two Player Mode
+- [x] Core implementation complete
+- [ ] Add event handling
+  - [ ] Implement event generation
+  - [ ] Add event application
+  - [ ] Create event validation
+- [ ] Add state recovery
+  - [ ] Implement state rebuilding
+  - [ ] Add validation
+  - [ ] Create error handling
+- [ ] Integration tests
+  - [ ] Test with session management
+  - [ ] Test event persistence
+  - [ ] Test state recovery
 
-- [x] **Core Events**
-  - [x] Define GameStarted event
-  - [x] Define GuessProcessed event
-  - [x] Define GuessAbandoned event
-  - [x] Define GameCompleted event
-
-- [x] **Mode-Specific Events**
-  - [x] Define KnockoutRoundCompleted
-  - [x] Document RaceModeTimeExpired
-  - [x] Specify LongformDayEnded
-
-- [x] **Event Recording Requirements**
-  - [x] Define timestamp requirements
-  - [x] Document player/team tracking
-  - [x] Specify state snapshots
-
-### 1.3 State Management Specification
-
-- [x] **Core Game State**
-  - [x] Define GameState struct
-  - [x] Document team management
-  - [x] Specify forbidden word tracking
-  - [x] Define match/guess recording
-
-- [x] **Mode-Specific States**
-  - [x] Define TwoPlayerMode struct
-  - [x] Document KnockoutMode struct
-  - [x] Specify RaceMode struct
-  - [x] Define GolfRaceMode struct
-  - [x] Document LongformMode struct
-
-## Phase 2: Core Infrastructure
-
-### 2.1 Event Infrastructure
-- [ ] **Event Store Setup**
-  - [x] Configure event store
-  - [x] Implement event serialization
-  - [ ] Set up event subscriptions
-  - [ ] Add event versioning
-
-### 2.2 Session Management
-- [ ] **Game Session Infrastructure**
-  - [ ] Implement `GameBot.GameSessions.Session` GenServer
-  - [ ] Create session supervisor
-  - [ ] Add session cleanup mechanism
-  - [ ] Implement state recovery from events
-
-### 2.3 Command Processing
-- [x] **Command Framework**
-  - [x] Implement command routing through CommandHandler
-  - [x] Create command validation
-  - [x] Set up dispatcher
-  - [x] Organize commands in dedicated modules
-  - [ ] Add command versioning
+### 2.2 Knockout Mode
+- [x] Core implementation complete
+- [ ] Add event handling
+  - [ ] Implement elimination events
+  - [ ] Add round transition events
+  - [ ] Create game end events
+- [ ] Add state recovery
+  - [ ] Implement elimination tracking
+  - [ ] Add round state recovery
+  - [ ] Create game state validation
+- [ ] Integration tests
+  - [ ] Test elimination scenarios
+  - [ ] Test round transitions
+  - [ ] Test state recovery
 
 ## Phase 3: Game Implementation
 
 ### 3.1 Base Mode Implementation
-- [ ] **Core Behavior**
-  - [ ] Implement `GameBot.Domain.GameModes.BaseMode`
-  - [ ] Add common state management
-  - [ ] Create shared game rules
-  - [ ] Integrate with session management
+- [x] **Core Behavior**
+  - [x] Implement `GameBot.Domain.GameModes.BaseMode`
+  - [x] Add common state management
+  - [x] Create shared game rules
+  - [x] Integrate with session management
 
 ### 3.2 Team Management
-- [ ] **Team System**
-  - [ ] Implement team creation and management
-  - [ ] Add player registration system
-  - [ ] Create team naming validation
-  - [ ] Implement role management
+- [x] **Team System**
+  - [x] Implement team invitation system
+  - [x] Add player registration
+  - [x] Create team naming validation
+  - [x] Implement role management
+  - [x] Add invitation expiration
+  - [x] Implement prefix handling
 
 ### 3.3 Game Modes
-- [ ] **Two Player Mode**
-  - [ ] Create mode-specific state management
-  - [ ] Implement round progression
-  - [ ] Add scoring system
+- [x] **Two Player Mode**
+  - [x] Create mode-specific state
+  - [x] Implement round progression
+  - [x] Add scoring system
+  - [x] Integrate with WordService
 
-### 3.4 Two Player Mode
+- [ ] **Additional Game Modes**
+  - [ ] Implement Knockout Mode
+  - [ ] Add Race Mode
+  - [ ] Create Golf Race Mode
+  - [ ] Develop Longform Mode
 
-- [ ] **Implementation**
-  - [ ] Create mode-specific state management
-  - [ ] Implement round progression
-  - [ ] Add scoring system
-  - [ ] Integrate with WordService
+## Next Implementation Priorities
 
-### 3.5 Knockout Mode
+### 1. Game Mode Expansion
+1. **Knockout Mode**
+   - Implement elimination tracking
+   - Add round timer system
+   - Create player progression
+   - Add guess threshold tracking
 
-- [ ] **Implementation**
-  - [ ] Create elimination system
-  - [ ] Implement round timers
-  - [ ] Add team progression
-  - [ ] Integrate with WordService
+2. **Race Mode**
+   - Implement match counting
+   - Add time-based completion
+   - Create tiebreaker system
+   - Add team progress tracking
 
-### 3.6 Race Mode
+3. **Golf Race Mode**
+   - Implement point system
+   - Add efficiency tracking
+   - Create scoring brackets
+   - Add team standings
 
-- [ ] **Implementation**
-  - [ ] Create match counting
-  - [ ] Implement game timer
-  - [ ] Add scoring system
-  - [ ] Integrate with WordService
+4. **Longform Mode**
+   - Implement day-based rounds
+   - Add elimination system
+   - Create persistence handling
+   - Add round transitions
 
-### 3.7 Golf Race Mode
+### 2. State Recovery System
+1. **Session Recovery**
+   - Implement event replay
+   - Add state reconstruction
+   - Create recovery validation
+   - Add error handling
 
-- [ ] **Implementation**
-  - [ ] Create point system
-  - [ ] Implement efficiency tracking
-  - [ ] Add game timer
-  - [ ] Integrate with WordService
+2. **Team State Recovery**
+   - Implement invitation recovery
+   - Add team reconstruction
+   - Create membership validation
+   - Add history tracking
 
-### 3.8 Longform Mode
+### 3. Event Subscription System
+1. **Core Infrastructure**
+   - Implement subscription manager
+   - Add event broadcasting
+   - Create subscription registry
+   - Add real-time updates
 
-- [ ] **Implementation**
-  - [ ] Create day-based rounds
-  - [ ] Implement elimination system
-  - [ ] Add persistence handling
-  - [ ] Integrate with WordService
+2. **Integration**
+   - Add projection updates
+   - Implement view models
+   - Create notification system
+   - Add state synchronization
 
-## Phase 4: Discord Integration
+### 4. Statistics and Analytics
+1. **User Statistics**
+   - Implement stat tracking
+   - Add performance metrics
+   - Create rating system
+   - Add leaderboards
 
-### 4.1 Command System
-- [x] **Command Handling**
-  - [x] Implement command parsing
-  - [x] Create command routing
-  - [x] Add basic response formatting
-  - [ ] Add advanced response formatting
-  - [ ] Implement error handling
+2. **Team Statistics**
+   - Add team performance tracking
+   - Implement win/loss records
+   - Create efficiency metrics
+   - Add historical analysis
 
-### 4.2 DM Management
-- [ ] **Direct Messages**
-  - [ ] Implement word distribution through sessions
-  - [ ] Create guess handling with session lookup
-  - [ ] Add player state tracking
+## Success Metrics
 
-## Phase 5: Aggregates and Projections
+1. **Performance**
+   - Sub-second command response
+   - Reliable state recovery
+   - Efficient event processing
+   - Stable concurrent games
 
-### 5.1 Aggregate Implementation
-- [ ] **Game Aggregate**
-  - [ ] Build base aggregate behavior
-  - [ ] Convert game modes to use events
-  - [ ] Implement state recovery
+2. **Reliability**
+   - Zero data loss
+   - Consistent state recovery
+   - Accurate event replay
+   - Proper error handling
 
-### 5.2 Projections
-- [ ] **Core Projections**
-  - [ ] Create projection registry
-  - [ ] Implement base projection behavior
-  - [ ] Set up read models
+3. **User Experience**
+   - Clear command feedback
+   - Intuitive team management
+   - Responsive game play
+   - Accurate statistics
 
-## Phase 6: Testing and Optimization
-
-### 6.1 Test Implementation
-
-- [ ] **Unit Tests**
-  - [ ] Test game mode logic
-  - [ ] Test event handling
-  - [ ] Test state management
-
-- [ ] **Integration Tests**
-  - [ ] Test Discord integration
-  - [ ] Test event persistence
-  - [ ] Test game recovery
-
-### 6.2 Performance Optimization
-
-- [ ] **Caching**
-  - [ ] Implement ETS caching
-  - [ ] Add cache invalidation
-  - [ ] Optimize event retrieval
-
-### 6.3 Monitoring
-
-- [ ] **Health Checks**
-  - [ ] Add session monitoring
-  - [ ] Implement error tracking
-  - [ ] Create performance metrics
+4. **Scalability**
+   - Multiple concurrent games
+   - Efficient resource usage
+   - Fast state reconstruction
+   - Reliable cleanup
 
 ## Implementation Dependencies
 

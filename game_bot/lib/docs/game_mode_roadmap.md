@@ -1,8 +1,108 @@
 # Game Mode Implementation Roadmap
 
-## Phase 1: Core Infrastructure (1-2 weeks)
+## Phase 1: Core Infrastructure (2-3 weeks)
 
-### 1.1 Base Game Mode Implementation
+### 1.1 Event Store Setup (Priority)
+- [ ] Configure EventStore
+  ```elixir
+  config :game_bot, GameBot.EventStore,
+    serializer: GameBot.EventStore.JSONSerializer,
+    username: "postgres",
+    password: "postgres",
+    database: "game_bot_eventstore",
+    hostname: "localhost"
+  ```
+
+- [ ] Implement event serialization
+  ```elixir
+  defmodule GameBot.EventStore.JSONSerializer do
+    def serialize(term) do
+      Jason.encode!(term)
+    end
+
+    def deserialize(binary, type) do
+      Jason.decode!(binary)
+      |> to_struct(type)
+    end
+  end
+  ```
+
+- [ ] Set up event subscriptions
+  ```elixir
+  defmodule GameBot.EventStore.Subscriptions do
+    use GenServer
+
+    def start_link(opts) do
+      GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    end
+
+    def init(_opts) do
+      {:ok, %{subscriptions: %{}}}
+    end
+
+    def subscribe(stream_id, pid) do
+      GenServer.call(__MODULE__, {:subscribe, stream_id, pid})
+    end
+  end
+  ```
+
+### 1.2 Session Management (Priority)
+- [ ] Implement Session GenServer
+  ```elixir
+  defmodule GameBot.GameSessions.Session do
+    use GenServer
+
+    def start_link(opts) do
+      GenServer.start_link(__MODULE__, opts)
+    end
+
+    def init(opts) do
+      {:ok, build_initial_state(opts)}
+    end
+
+    def handle_call({:process_guess, team_id, guess}, _from, state) do
+      # Implementation
+    end
+  end
+  ```
+
+- [ ] Create Session Supervisor
+  ```elixir
+  defmodule GameBot.GameSessions.Supervisor do
+    use DynamicSupervisor
+
+    def start_link(opts) do
+      DynamicSupervisor.start_link(__MODULE__, opts, name: __MODULE__)
+    end
+
+    def init(_opts) do
+      DynamicSupervisor.init(strategy: :one_for_one)
+    end
+  end
+  ```
+
+### 1.3 Base Infrastructure
+- [ ] Implement state persistence
+- [ ] Add monitoring system
+- [ ] Create cleanup processes
+
+## Phase 2: Game Mode Testing (2-3 weeks)
+
+### 2.1 Two Player Mode Testing
+- [x] Core implementation complete
+- [ ] Add event handling
+- [ ] Implement state recovery
+- [ ] Create integration tests
+
+### 2.2 Knockout Mode Testing
+- [x] Core implementation complete
+- [ ] Add event handling
+- [ ] Implement state recovery
+- [ ] Create integration tests
+
+## Phase 3: Core Infrastructure (1-2 weeks)
+
+### 3.1 Base Game Mode Implementation
 - [x] Implement `GameBot.Domain.GameModes.BaseMode` behavior
   ```elixir
   defmodule GameBot.Domain.GameModes.BaseMode do
@@ -39,46 +139,22 @@
   end
   ```
 
-### 1.2 Event Store Setup
-- [ ] Configure EventStore for game events
-- [ ] Implement event serialization/deserialization
-- [ ] Set up event subscriptions for game reconstruction
-- [ ] Define core event structures:
-  ```elixir
-  defmodule GameBot.Domain.Events do
-    defmodule GameStarted do
-      defstruct [:game_id, :mode, :teams, :timestamp]
-    end
-
-    defmodule GuessProcessed do
-      defstruct [:game_id, :team_id, :player1_id, :player2_id, 
-                :player1_word, :player2_word, :guess_successful,
-                :guess_count, :timestamp]
-    end
-
-    defmodule GuessAbandoned do
-      defstruct [:game_id, :team_id, :reason, :last_guess, 
-                :guess_count, :timestamp]
-    end
-  end
-  ```
-
-### 1.3 Game Session Management
+### 3.2 Game Session Management
 - [ ] Implement `GameBot.GameSessions.Session` GenServer
 - [ ] Create session supervisor
 - [ ] Implement game state recovery from events
 - [ ] Add pending guess timeout handling
 - [ ] Implement paired guess processing
 
-## Phase 2: Two Player Mode (1 week)
+## Phase 4: Two Player Mode (1 week)
 
-### 2.1 Core Implementation
+### 4.1 Core Implementation
 - [ ] Implement `GameBot.Domain.GameModes.TwoPlayerMode`
 - [ ] Add mode-specific event handlers
 - [ ] Implement scoring and win condition logic
 - [ ] Ensure proper guess count tracking for perfect rounds
 
-### 2.2 Testing
+### 4.2 Testing
 - [ ] Unit tests for game logic
 - [ ] Integration tests with session management
 - [ ] Event reconstruction tests
@@ -88,35 +164,35 @@
   - Timeout handling
   - Abandoned guess cleanup
 
-## Phase 3: Knockout Mode (1-2 weeks)
+## Phase 5: Knockout Mode (1-2 weeks)
 
-### 3.1 Core Implementation
+### 5.1 Core Implementation
 - [ ] Create elimination system
 - [ ] Implement round timers
 - [ ] Add team progression
 - [ ] Handle guess count thresholds for elimination
 
-### 3.2 Timer Management
+### 5.2 Timer Management
 - [ ] Add round timer implementation
 - [ ] Handle timeout eliminations
 - [ ] Implement round delay mechanics
 
-## Phase 4: Race Mode (1 week)
+## Phase 6: Race Mode (1 week)
 
-### 4.1 Core Implementation
+### 6.1 Core Implementation
 - [ ] Create match counting
 - [ ] Implement game timer
 - [ ] Add scoring system
 - [ ] Track independent team progress
 
-### 4.2 Scoring System
+### 6.2 Scoring System
 - [ ] Implement match tracking
 - [ ] Add tiebreaker calculations based on average guess count
 - [ ] Create score display formatting
 
-## Phase 5: Golf Race Mode (1 week)
+## Phase 7: Golf Race Mode (1 week)
 
-### 5.1 Core Implementation
+### 7.1 Core Implementation
 - [ ] Create point system based on guess counts:
   - 1 guess = 4 points
   - 2-4 guesses = 3 points
@@ -126,47 +202,47 @@
 - [ ] Implement efficiency tracking
 - [ ] Add game timer
 
-### 5.2 Scoring System
+### 7.2 Scoring System
 - [ ] Implement point tracking
 - [ ] Add efficiency calculations
 - [ ] Create score display formatting
 
-## Phase 6: Longform Mode (1-2 weeks)
+## Phase 8: Longform Mode (1-2 weeks)
 
-### 6.1 Core Implementation
+### 8.1 Core Implementation
 - [ ] Create day-based rounds
 - [ ] Implement elimination system
 - [ ] Add persistence handling
 - [ ] Track cumulative team performance
 
-## Phase 7: Discord Integration (1 week)
+## Phase 9: Discord Integration (1 week)
 
-### 7.1 Command System
+### 9.1 Command System
 - [x] Implement command parsing
 - [x] Create command routing through CommandHandler
 - [x] Organize commands in dedicated modules
 - [x] Add basic response formatting
 - [ ] Add advanced response formatting
 
-### 7.2 DM Management
+### 9.2 DM Management
 - [ ] Implement word distribution
 - [ ] Create guess handling
 - [ ] Add player state tracking
 
-## Phase 8: Testing and Optimization (1-2 weeks)
+## Phase 10: Testing and Optimization (1-2 weeks)
 
-### 8.1 Comprehensive Testing
+### 10.1 Comprehensive Testing
 - [ ] Integration tests across all modes
 - [ ] Load testing with multiple concurrent games
 - [ ] Event reconstruction testing
 - [ ] Verify guess count consistency across modes
 
-### 8.2 Performance Optimization
+### 10.2 Performance Optimization
 - [ ] Add ETS caching where beneficial
 - [ ] Optimize event retrieval
 - [ ] Implement cleanup for completed games
 
-### 8.3 Monitoring
+### 10.3 Monitoring
 - [ ] Add session monitoring
 - [ ] Implement error tracking
 - [ ] Create performance metrics

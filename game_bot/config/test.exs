@@ -14,14 +14,20 @@ config :game_bot, GameBot.Infrastructure.Repo,
   pool_size: System.schedulers_online() * 2
 
 # Configure EventStore for testing
-config :game_bot, GameBot.Infrastructure.EventStore.Config,
-  serializer: EventStore.JsonSerializer,
-  username: "postgres",
-  password: "csstarahid",
-  database: "game_bot_eventstore_test#{System.get_env("MIX_TEST_PARTITION")}",
-  hostname: "localhost",
-  pool_size: 1,
-  schema: "public"
+config :game_bot, GameBot.Infrastructure.EventStore,
+  serializer: GameBot.Infrastructure.EventStore.Serializer,
+  username: System.get_env("EVENT_STORE_USER", "postgres"),
+  password: System.get_env("EVENT_STORE_PASS", "postgres"),
+  database: System.get_env("EVENT_STORE_DB", "game_bot_eventstore_test"),
+  hostname: System.get_env("EVENT_STORE_HOST", "localhost"),
+  schema_prefix: "game_events",
+  column_data_type: "jsonb",
+  types: EventStore.PostgresTypes,
+  pool_size: 5,
+  schema_wait: true,  # Wait for schema to be ready in tests
+  max_append_retries: 1,
+  max_stream_size: 100,
+  subscription_timeout: :timer.seconds(5)
 
 # Configure Commanded for testing
 config :game_bot, GameBot.Infrastructure.CommandedApp,
@@ -48,3 +54,8 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+config :game_bot, :event_store, GameBot.TestEventStore
+
+# Use in-memory store for tests
+config :game_bot, event_store_adapter: GameBot.TestEventStore

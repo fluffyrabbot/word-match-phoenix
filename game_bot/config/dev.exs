@@ -11,12 +11,15 @@ config :game_bot, GameBot.Infrastructure.Repo,
   pool_size: 10
 
 # Configure EventStore for development
-config :game_bot, GameBot.Infrastructure.EventStore.Config,
-  serializer: EventStore.JsonSerializer,
-  username: "postgres",
-  password: "csstarahid",
-  database: "game_bot_eventstore_dev",
-  hostname: "localhost",
+config :game_bot, GameBot.Infrastructure.EventStore,
+  serializer: GameBot.Infrastructure.EventStore.Serializer,
+  username: System.get_env("EVENT_STORE_USER", "postgres"),
+  password: System.get_env("EVENT_STORE_PASS", "csstarahid"),
+  database: System.get_env("EVENT_STORE_DB", "game_bot_eventstore_dev"),
+  hostname: System.get_env("EVENT_STORE_HOST", "localhost"),
+  schema_prefix: "game_events",
+  column_data_type: "jsonb",
+  types: EventStore.PostgresTypes,
   pool_size: 10
 
 # Configure Commanded for development

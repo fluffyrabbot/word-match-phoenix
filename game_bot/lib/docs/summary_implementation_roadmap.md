@@ -6,13 +6,14 @@ This document outlines the high-level roadmap for implementing the Word Match Bo
 
 - [x] **Game Logic Specification**
   - [x] Document core word matching mechanics
-  - [x] Define rules for all game modes (Two Player, Knockout, Race, Golf Race, Longform)
+  - [x] Define rules for all game modes
   - [x] Specify turn sequence, timing, and scoring systems
 
 - [x] **Team System Specification**
-  - [x] Define team formation, joining, leaving, and dissolution rules
+  - [x] Define team formation and invitation flow
   - [x] Document team identity systems (naming, member management)
   - [x] Specify team roles and permissions
+  - [x] Define command structure (no-space prefix, simplified accept)
 
 - [ ] **Replay System Specification**
   - [ ] Define replay data structures and retention policies
@@ -20,65 +21,93 @@ This document outlines the high-level roadmap for implementing the Word Match Bo
   - [ ] Specify replay formatting requirements
 
 - [ ] **User Statistics Specification**
-  - [ ] Define user stat tracking requirements (wins, matches, streaks)
+  - [ ] Define user stat tracking requirements
   - [ ] Specify rating algorithm and progression
   - [ ] Document leaderboard and ranking systems
 
 - [ ] **Team Statistics Specification**
   - [ ] Define team stat tracking scope
-  - [ ] Specify team performance metrics and calculations
-  - [ ] Document team history and trend analysis requirements
+  - [ ] Specify team performance metrics
+  - [ ] Document team history and trend analysis
 
-## Phase 2: Game Mode Implementation
-
-- [ ] **Team Management**
-  - [ ] Implement team creation and registration
-  - [ ] Add player management system
-  - [ ] Create role and permission system
-
-- [ ] **Game Mode Implementation**
-  - [ ] Implement base game mode behavior
-  - [ ] Build two-player mode
-  - [ ] Add knockout, race, golf race, and longform variants
-  - [ ] Integrate with WordService
-
-- [x] **Word Service Integration**
-  - [x] Implement GenServer with dictionary management
-  - [x] Create word matching with variations, plurals, and lemmatization 
-  - [x] Add ETS-based caching for performance
-  - [x] Optimize test setup and variation generation
-  - [x] Integrate with test framework
-  - [ ] Integrate with game modes
-
-## Phase 3: Core Architecture Implementation
+## Phase 2: Core Architecture Implementation
 
 - [ ] **Event Infrastructure**
-  - [x] Configure event store
-  - [x] Implement event serialization/deserialization
+  - [ ] Configure event store
+  - [ ] Implement event serialization
+  - [ ] Add event persistence layer
   - [ ] Set up event subscription system
+  - [ ] Add event replay capability
 
-- [x] **Command Processing Framework**
-  - [x] Implement command routing through CommandHandler
-  - [x] Create command validation framework
-  - [x] Set up dispatcher connection to domain
-  - [x] Organize game commands in dedicated module
+- [ ] **Session Management**
+  - [ ] Implement session GenServer
+  - [ ] Add session supervisor
+  - [ ] Implement state management
+  - [ ] Add event generation
+  - [ ] Add state recovery
+  - [ ] Implement cleanup
 
-- [ ] **Aggregate Root Implementation**
-  - [ ] Build base aggregate behavior
-  - [ ] Convert game modes to use events
-  - [ ] Convert team system to use events
+- [ ] **Base Infrastructure**
+  - [ ] Implement game state persistence
+  - [ ] Add state recovery mechanisms
+  - [ ] Create cleanup processes
+  - [ ] Add monitoring system
 
-- [ ] **Projection Framework**
-  - [ ] Create projection registry
-  - [ ] Implement base projection behavior
-  - [ ] Set up read model update mechanisms
+## Phase 3: Game Mode Implementation
+
+- [ ] **Base Mode Implementation**
+  - [x] Define behavior contract
+  - [x] Implement common functions
+  - [ ] Add event handling
+  - [ ] Add state recovery
+
+- [ ] **Two Player Mode**
+  - [x] Core implementation
+  - [ ] Event handling
+  - [ ] State recovery
+  - [ ] Integration tests
+
+- [ ] **Knockout Mode**
+  - [x] Core implementation
+  - [ ] Event handling
+  - [ ] State recovery
+  - [ ] Integration tests
 
 ## Phase 4: Discord Integration
 
-- [ ] **Discord Integration**
-  - [ ] Connect bot to Discord using Nostrum
-  - [ ] Implement command parsing and routing
-  - [ ] Set up direct message handling
+- [x] **Discord Integration**
+  - [x] Connect bot to Discord using Nostrum
+  - [x] **Command Interface Implementation**
+    - [x] Implement no-space prefix commands
+    - [x] Add simplified team acceptance ("ok")
+    - [x] Channel messages for game interaction
+    - [x] DM system for guesses
+  - [x] Set up direct message handling
+  - [x] Add rate limiting and validation
+  - [x] Implement error handling
+
+## Next Priority Tasks
+
+1. **Game Mode Expansion**
+   - Implement knockout mode
+   - Add race mode
+   - Develop golf race mode
+   - Create longform mode
+
+2. **State Recovery**
+   - Implement session state recovery
+   - Add team state reconstruction
+   - Create cleanup processes
+
+3. **Event Subscription**
+   - Set up event subscription system
+   - Implement real-time updates
+   - Add event replay capability
+
+4. **Statistics System**
+   - Implement user statistics tracking
+   - Add team performance metrics
+   - Create leaderboard system
 
 ## Phase 5: Feature Implementation
 

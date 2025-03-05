@@ -82,23 +82,33 @@ defmodule GameBot.Bot.Commands.GameCommands do
 
   # Private helpers
 
-  defp create_metadata(%Interaction{} = interaction, parent_metadata \\ nil, game_guild_id \\ nil) do
-    metadata = if parent_metadata do
-      Metadata.from_parent_event(parent_metadata, correlation_id: parent_metadata.correlation_id)
-    else
-      Metadata.from_discord_interaction(interaction, guild_id: game_guild_id)
-    end
+  defp create_metadata(message_or_interaction, parent_metadata \\ nil)
+  defp create_metadata(message_or_interaction, parent_metadata, game_guild_id)
 
-    {:ok, metadata}
-  end
-
-  defp create_metadata(%Message{} = message, parent_metadata \\ nil) do
+  defp create_metadata(%Message{} = message, parent_metadata) do
     metadata = if parent_metadata do
       Metadata.from_parent_event(parent_metadata, correlation_id: parent_metadata.correlation_id)
     else
       Metadata.from_discord_message(message)
     end
+    {:ok, metadata}
+  end
 
+  defp create_metadata(%Interaction{} = interaction, parent_metadata) do
+    metadata = if parent_metadata do
+      Metadata.from_parent_event(parent_metadata, correlation_id: parent_metadata.correlation_id)
+    else
+      Metadata.from_discord_interaction(interaction)
+    end
+    {:ok, metadata}
+  end
+
+  defp create_metadata(%Interaction{} = interaction, parent_metadata, game_guild_id) do
+    metadata = if parent_metadata do
+      Metadata.from_parent_event(parent_metadata, correlation_id: parent_metadata.correlation_id)
+    else
+      Metadata.from_discord_interaction(interaction, guild_id: game_guild_id)
+    end
     {:ok, metadata}
   end
 

@@ -53,7 +53,11 @@ defmodule GameBot.MixProject do
       {:commanded_eventstore_adapter, "~> 1.4"},
       {:eventstore, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:finch, "~> 0.13"}
+      {:finch, "~> 0.13"},
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
+      {:swoosh, "~> 1.3"},
+      {:bandit, ">= 0.0.0"}
     ]
   end
 
@@ -75,7 +79,11 @@ defmodule GameBot.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "event_store.setup": ["event_store.create", "event_store.init"]
+      "event_store.setup": ["event_store.create", "event_store.migrate"],
+      "event_store.reset": ["event_store.drop", "event_store.setup"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["tailwind default", "esbuild default"],
+      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
     ]
   end
 end

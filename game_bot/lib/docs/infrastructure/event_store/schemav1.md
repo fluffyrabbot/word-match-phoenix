@@ -19,7 +19,12 @@
 %{
   team_id: String.t(),
   player_ids: [String.t()],
-  team_state: map()
+  team_state: %{
+    guess_count: non_neg_integer(),
+    current_match_complete: boolean(),
+    pending_guess: map() | nil,
+    current_words: [String.t()]
+  }
 }
 ```
 
@@ -44,7 +49,12 @@
   team_ids: [String.t()],                  # Ordered list
   player_ids: [String.t()],                # Ordered list
   roles: %{String.t() => atom()},          # player_id => role
-  config: map(),                           # Mode-specific config
+  config: %{                               # Mode-specific config
+    round_time_limit: pos_integer(),       # Seconds
+    max_guesses: pos_integer() | nil,      # nil for modes without guess limits
+    forced_elimination_threshold: pos_integer() | nil,  # For knockout mode
+    teams_to_eliminate: pos_integer() | nil            # For knockout mode
+  },
   timestamp: DateTime.t(),
   metadata: metadata()
 }
@@ -56,7 +66,17 @@
   game_id: String.t(),
   mode: atom(),
   round_number: pos_integer(),
-  team_states: map(),                      # Initial round states
+  team_states: %{String.t() => %{         # Initial round states
+    guess_count: non_neg_integer(),
+    current_match_complete: boolean(),
+    pending_guess: map() | nil,
+    current_words: [String.t()]
+  }},
+  round_config: %{                        # Round-specific configuration
+    time_limit: pos_integer(),            # Seconds
+    max_guesses: pos_integer() | nil,     # nil for modes without guess limits
+    elimination_threshold: pos_integer() | nil  # For knockout mode
+  },
   timestamp: DateTime.t(),
   metadata: metadata()
 }
@@ -110,7 +130,13 @@
   mode: atom(),
   round_number: pos_integer(),
   team_id: String.t(),
-  reason: :timeout | :max_guesses | :round_loss | :forfeit,
+  reason: :guess_limit | :time_expired | :forced_elimination | :forfeit,
+  elimination_data: %{
+    guess_count: non_neg_integer(),
+    match_complete: boolean(),
+    round_position: pos_integer() | nil,  # Position in forced elimination (1-3)
+    time_remaining: integer() | nil       # Seconds remaining in round if applicable
+  },
   final_state: team_info(),
   final_score: integer(),
   player_stats: %{String.t() => %{
@@ -156,17 +182,28 @@
   game_id: String.t(),
   mode: atom(),
   round_number: pos_integer(),
-  eliminated_teams: [%{
-    team_id: String.t(),
-    reason: :timeout | :max_guesses | :round_loss | :forfeit,
-    final_score: integer(),
-    player_stats: %{String.t() => map()}
-  }],
+  eliminations: %{
+    time_expired: [%{                    # Teams that didn't match in time
+      team_id: String.t(),
+      guess_count: non_neg_integer(),
+      final_state: team_info()
+    }],
+    guess_limit: [%{                     # Teams that hit guess limit
+      team_id: String.t(),
+      guess_count: non_neg_integer(),
+      final_state: team_info()
+    }],
+    forced: [%{                          # Teams eliminated by performance
+      team_id: String.t(),
+      guess_count: non_neg_integer(),
+      rank: pos_integer(),               # 1-3 for worst performing
+      final_state: team_info()
+    }]
+  },
   advancing_teams: [%{
     team_id: String.t(),
-    score: integer(),
-    matches: integer(),
-    total_guesses: integer()
+    guess_count: non_neg_integer(),
+    match_complete: boolean()
   }],
   round_duration: integer(),
   timestamp: DateTime.t(),

@@ -49,6 +49,19 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Event Store Configuration
+config :game_bot, GameBot.Infrastructure.EventStore,
+  serializer: GameBot.Infrastructure.EventStore.Serializer,
+  username: "postgres",
+  password: "csstarahid",
+  database: "eventstore_dev",
+  hostname: "localhost",
+  max_append_retries: 3,
+  max_stream_size: 10_000,
+  subscription_timeout: :timer.seconds(30)
+
+config :game_bot, :event_store, GameBot.Infrastructure.EventStore
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

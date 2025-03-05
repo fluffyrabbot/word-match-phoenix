@@ -108,17 +108,211 @@ The session integrates with the event store for:
 
 3. **Word Processing**
    ```elixir
-   # Guess validation flow with events
-   validate_guess(word)
-   -> generate_validation_event()
-   -> check_forbidden(word)
-   -> record_guess(word)
-   -> process_guess_pair()
-   -> generate_result_event()
-   -> persist_events()
+   # Enhanced guess validation flow
+   validate_guess(word, player_id, state)
+   -> find_player_team()           # Locate player's team
+   -> check_existing_submission()  # Prevent duplicate guesses
+   -> validate_word()             # Check word validity
+   -> check_forbidden()           # Check forbidden status
+   -> record_guess()             # Store in pending state
+   -> process_guess_pair()       # If pair complete
+   -> generate_result_event()    # Create appropriate event
+   -> persist_events()           # Save to event store
    ```
 
-## Implementation Status
+### Guess State Management
+
+The session now implements a robust guess handling system with the following features:
+
+1. **Guess Validation Hierarchy**
+   - Team membership verification
+   - Duplicate submission prevention
+   - Word validity checking
+   - Forbidden word validation
+   - Special command handling (e.g., "give up")
+
+2. **Pending Guess States**
+   ```elixir
+   # First guess of a pair
+   %{
+     player_id: String.t(),
+     word: String.t(),
+     timestamp: DateTime.t()
+   }
+
+   # Complete guess pair
+   %{
+     player1_id: String.t(),
+     player2_id: String.t(),
+     player1_word: String.t(),
+     player2_word: String.t()
+   }
+   ```
+
+3. **Error Handling**
+   - `:guess_already_submitted` - Player already has an active guess
+   - `:invalid_word` - Word not in dictionary
+   - `:forbidden_word` - Word is forbidden for the player
+   - `:invalid_team` - Player not in a valid team
+   - `:invalid_player` - Player not authorized for team
+   - `:same_player` - Same player submitting both guesses
+
+### Edge Cases and Recommended Improvements
+
+1. **Out-of-Window Guesses**
+   ```elixir
+   # Recommended validation in validate_guess/3
+   defp validate_guess(word, player_id, state) do
+     cond do
+       not is_active_game?(state) ->
+         {:error, :game_not_active}
+       
+       not in_guess_window?(state, player_id) ->
+         {:error, :not_guess_window}
+         
+       # ... existing validation ...
+     end
+   end
+   ```
+
+2. **Guess Window Management**
+   ```elixir
+   # Proposed guess window tracking
+   %{
+     game_id: String.t(),
+     # ... existing state ...
+     guess_windows: %{
+       team_id => %{
+         active: boolean(),
+         starts_at: DateTime.t(),
+         expires_at: DateTime.t() | nil
+       }
+     }
+   }
+   ```
+
+3. **Rate Limiting**
+   ```elixir
+   # Recommended rate limiting structure
+   %{
+     player_guesses: %{
+       player_id => %{
+         last_guess: DateTime.t(),
+         guess_count: integer()
+       }
+     },
+     rate_limit: %{
+       window_seconds: integer(),
+       max_guesses: integer()
+     }
+   }
+   ```
+
+4. **Cleanup Recommendations**
+   - Implement periodic cleanup of stale pending guesses
+   - Add timeout for incomplete guess pairs
+   - Clear player guess history on round transitions
+   - Handle disconnected player scenarios
+
+5. **Additional Validations**
+   - Maximum word length checks
+   - Minimum word length requirements
+   - Character set validation
+   - Language detection
+   - Profanity filtering
+   - Spam detection
+
+### Architectural Validation Layers
+
+1. **Discord Listener Layer** (`GameBot.Bot.Listener`)
+   ```elixir
+   # First line of defense
+   def handle_message(msg) do
+     with :ok <- validate_rate_limit(msg.author_id),
+          :ok <- validate_message_format(msg.content),
+          :ok <- basic_spam_check(msg) do
+       forward_to_dispatcher(msg)
+     end
+   end
+   ```
+   Responsibilities:
+   - Rate limiting
+   - Basic message validation
+   - Spam detection
+   - Character set validation
+   - Message length checks
+   - Profanity filtering
+
+2. **Command Dispatcher** (`GameBot.Bot.Dispatcher`)
+   ```elixir
+   # Command routing and game state checks
+   def dispatch_command(msg) do
+     with {:ok, game_id} <- lookup_active_game(msg.author_id),
+          {:ok, game_state} <- verify_game_active(game_id),
+          {:ok, command} <- parse_command(msg.content) do
+       route_to_handler(command, game_state)
+     end
+   end
+   ```
+   Responsibilities:
+   - Command parsing
+   - Game existence validation
+   - Basic game state checks
+   - Player registration verification
+
+3. **Command Handler** (`GameBot.Bot.CommandHandler`)
+   ```elixir
+   # Game-specific command validation
+   def handle_guess(game_id, player_id, word) do
+     with {:ok, game} <- fetch_game(game_id),
+          :ok <- validate_player_in_game(game, player_id),
+          :ok <- validate_game_phase(game),
+          :ok <- validate_guess_window(game, player_id) do
+       forward_to_session(game_id, player_id, word)
+     end
+   end
+   ```
+   Responsibilities:
+   - Game phase validation
+   - Player participation checks
+   - Guess window validation
+   - Basic game rule enforcement
+
+4. **Session Layer** (`GameBot.GameSessions.Session`)
+   ```elixir
+   # Game state and rule enforcement
+   def submit_guess(game_id, team_id, player_id, word) do
+     with :ok <- validate_game_rules(state, team_id, player_id),
+          :ok <- validate_no_duplicate_guess(state, player_id),
+          {:ok, new_state} <- record_guess(state, team_id, player_id, word) do
+       process_game_state(new_state)
+     end
+   end
+   ```
+   Responsibilities:
+   - Game rule enforcement
+   - State management
+   - Guess pairing logic
+   - Team coordination
+   - Score tracking
+
+5. **Game Mode Layer** (`GameBot.Domain.GameModes.*`)
+   ```elixir
+   # Game mode specific logic
+   def process_guess_pair(state, team_id, guess_pair) do
+     with :ok <- validate_mode_rules(state, team_id),
+          {:ok, new_state} <- apply_guess_pair(state, team_id, guess_pair) do
+       calculate_results(new_state)
+     end
+   end
+   ```
+   Responsibilities:
+   - Mode-specific rules
+   - Scoring logic
+   - Win conditions
+   - Round management
+
+### Implementation Status
 
 ### Completed
 - [x] Basic GenServer structure

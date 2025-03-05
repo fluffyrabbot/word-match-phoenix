@@ -48,7 +48,7 @@ config :nostrum,
 ## Project Structure
 
 ```
-project-root/                             # Root directory of the project
+game_bot/                                 # Main directory of the project
 ├── config/                               # Configuration files for different environments
 │   ├── config.exs                        # General application configuration (including Ecto settings)
 │   ├── dev.exs                           # Development-specific configuration (DB credentials, logging, etc.)

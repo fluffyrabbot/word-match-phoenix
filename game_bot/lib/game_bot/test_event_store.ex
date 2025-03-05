@@ -1,95 +1,127 @@
 defmodule GameBot.TestEventStore do
   @moduledoc """
-  A simple in-memory event store for testing.
+  In-memory event store implementation for testing.
   """
+  alias GameBot.Infrastructure.EventStore.{Error, Serializer}
 
-  alias GameBot.Domain.Events.GameEvents.GameStarted
-  require EventStore
-  alias EventStore.RecordedEvent
+  @behaviour EventStore
 
-  # Define the struct fields explicitly
-  @recorded_event_fields [
-    :event_id,
-    :event_number,
-    :stream_id,
-    :stream_version,
-    :correlation_id,
-    :causation_id,
-    :event_type,
-    :data,
-    :metadata,
-    :created_at
-  ]
+  # State
+  @events_table :test_events
+  @streams_table :test_streams
 
-  def append_to_stream(stream_id, expected_version, events) do
-    # Store events in ETS
-    :ets.insert(:test_event_store, {stream_id, expected_version, events})
+  def start_link do
+    :ets.new(@events_table, [:set, :public, :named_table])
+    :ets.new(@streams_table, [:set, :public, :named_table])
+    {:ok, self()}
+  end
+
+  def reset do
+    :ets.delete_all_objects(@events_table)
+    :ets.delete_all_objects(@streams_table)
     :ok
   end
 
-  def read_stream_forward(stream_id) do
-    case :ets.lookup(:test_event_store, stream_id) do
-      [{^stream_id, version, events}] ->
-        # Convert events to recorded_events format
-        recorded_events = Enum.map(events, fn event ->
-          serialized = GameBot.Domain.Events.GameEvents.serialize(event)
-          struct(RecordedEvent, %{
-            event_id: UUID.uuid4(),
-            event_number: version,
-            stream_id: stream_id,
-            stream_version: version,
-            correlation_id: nil,
-            causation_id: nil,
-            event_type: serialized["event_type"],
-            data: serialized["data"],
-            metadata: %{},
-            created_at: DateTime.utc_now()
-          })
-        end)
-        {:ok, recorded_events}
-      [] ->
-        {:ok, []}
+  @impl true
+  def append_to_stream(stream_id, expected_version, events, _opts) when not is_list(events) do
+    {:error, %Error{
+      type: :validation,
+      message: "Events must be a list",
+      details: %{events: events}
+    }}
+  end
+
+  @impl true
+  def append_to_stream(stream_id, expected_version, events, _opts) do
+    with :ok <- validate_version(stream_id, expected_version),
+         {:ok, serialized} <- serialize_events(events) do
+      do_append(stream_id, serialized)
     end
   end
 
-  def read_all_streams_forward do
-    case :ets.tab2list(:test_event_store) do
-      [] ->
-        {:ok, []}
-      events ->
-        first_event = List.first(events)
-        case first_event do
-          {stream_id, version, event_list} ->
-            recorded_events = Enum.map(event_list, fn event ->
-              serialized = GameBot.Domain.Events.GameEvents.serialize(event)
-              struct(RecordedEvent, %{
-                event_id: UUID.uuid4(),
-                event_number: version,
-                stream_id: stream_id,
-                stream_version: version,
-                correlation_id: nil,
-                causation_id: nil,
-                event_type: serialized["event_type"],
-                data: serialized["data"],
-                metadata: %{},
-                created_at: DateTime.utc_now()
-              })
-            end)
-            {:ok, recorded_events}
-          _ ->
-            {:ok, []}
-        end
+  @impl true
+  def read_stream_forward(stream_id, start_version \\ 0, count \\ 1000, _opts \\ []) do
+    case get_stream_events(stream_id) do
+      [] -> {:error, %Error{type: :not_found, message: "Stream not found", details: stream_id}}
+      events -> {:ok, Enum.slice(events, start_version, count)}
     end
   end
 
-  def delete_stream(stream_id) do
-    :ets.delete(:test_event_store, stream_id)
-    :ok
+  @impl true
+  def subscribe_to_stream(stream_id, subscriber, _options \\ [], _opts \\ []) do
+    {:ok, spawn_link(fn -> stream_events(stream_id, subscriber) end)}
   end
 
-  # Initialize ETS table
-  def init do
-    :ets.new(:test_event_store, [:set, :public, :named_table])
-    :ok
+  # Private Functions
+
+  defp validate_version(stream_id, expected_version) do
+    current_version = get_stream_version(stream_id)
+
+    cond do
+      expected_version == :any -> :ok
+      expected_version == current_version -> :ok
+      true -> {:error, %Error{
+        type: :concurrency,
+        message: "Wrong expected version",
+        details: %{
+          stream_id: stream_id,
+          expected: expected_version,
+          actual: current_version
+        }
+      }}
+    end
+  end
+
+  defp get_stream_version(stream_id) do
+    case :ets.lookup(@streams_table, stream_id) do
+      [{^stream_id, version}] -> version
+      [] -> -1
+    end
+  end
+
+  defp get_stream_events(stream_id) do
+    :ets.match_object(@events_table, {stream_id, :_, :_})
+    |> Enum.sort_by(fn {_, version, _} -> version end)
+    |> Enum.map(fn {_, _, event} -> event end)
+  end
+
+  defp do_append(stream_id, events) do
+    version = get_stream_version(stream_id) + 1
+
+    Enum.with_index(events, version)
+    |> Enum.each(fn {event, v} ->
+      :ets.insert(@events_table, {stream_id, v, event})
+    end)
+
+    :ets.insert(@streams_table, {stream_id, version + length(events) - 1})
+    {:ok, events}
+  end
+
+  defp serialize_events(events) do
+    events
+    |> Enum.map(&Serializer.serialize/1)
+    |> collect_results()
+  end
+
+  defp collect_results(results) do
+    results
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, item}, {:ok, items} -> {:cont, {:ok, [item | items]}}
+      {:error, _} = error, _ -> {:halt, error}
+    end)
+    |> case do
+      {:ok, items} -> {:ok, Enum.reverse(items)}
+      error -> error
+    end
+  end
+
+  defp stream_events(stream_id, subscriber) do
+    receive do
+      {:append, events} ->
+        send(subscriber, {:events, events})
+        stream_events(stream_id, subscriber)
+      :stop ->
+        :ok
+    end
   end
 end

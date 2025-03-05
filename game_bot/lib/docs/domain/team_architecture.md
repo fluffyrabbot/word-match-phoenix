@@ -2,16 +2,33 @@
 
 ## Overview
 
-The team management system follows CQRS (Command Query Responsibility Segregation) and Event Sourcing patterns. Teams are fundamental units in the game system, consisting of exactly two players and maintaining persistent identities across games. The system includes comprehensive historical tracking of team changes, with optimized storage for name modifications.
+The team management system follows CQRS (Command Query Responsibility Segregation) and Event Sourcing patterns. Teams are fundamental units in the game system, consisting of exactly two players. Team formation requires explicit acceptance from both players, with a configurable command prefix (default: "wm") used without spaces before commands.
 
 ## Core Components
 
 ### 1. Events (`GameBot.Domain.Events.TeamEvents`)
 
-#### TeamCreated
-- **Purpose**: Records the creation of a new team
+#### TeamInvitationCreated
+- **Purpose**: Records a team invitation
 - **Properties**:
-  - `team_id`: Unique identifier for the team
+  - `invitation_id`: Unique identifier
+  - `inviter_id`: Player sending invitation
+  - `invitee_id`: Player receiving invitation
+  - `proposed_name`: Optional team name
+  - `created_at`: Timestamp
+  - `expires_at`: Expiration timestamp (5 minutes from creation)
+
+#### TeamInvitationAccepted
+- **Purpose**: Records acceptance of team invitation
+- **Properties**:
+  - `invitation_id`: Reference to invitation
+  - `team_id`: New team's ID
+  - `accepted_at`: Timestamp
+
+#### TeamCreated
+- **Purpose**: Records the creation of a team or new team membership
+- **Properties**:
+  - `team_id`: Unique identifier for the team (derived from sorted player IDs)
   - `name`: Team's display name
   - `player_ids`: List of exactly 2 player IDs
   - `created_at`: Timestamp of creation
@@ -27,24 +44,45 @@ The team management system follows CQRS (Command Query Responsibility Segregatio
 
 ### 2. Commands (`GameBot.Domain.Commands.TeamCommands`)
 
-#### CreateTeam
-- **Purpose**: Request to create a new team
+#### CreateTeamInvitation
+- **Purpose**: Initiate team formation
+- **Trigger**: `{prefix}team @mention [teamname]` (default: "wmteam")
+- **Behavior**: 
+  - Creates pending invitation
+  - Notifies mentioned player
+  - Expires after 5 minutes
 - **Validation Rules**:
-  - Team ID must be provided
-  - Name must be 3-32 characters
-  - Name must contain only alphanumeric characters, spaces, and hyphens
-  - Must have exactly 2 players
+  - Both players must exist
+  - Players must be different users
+  - No pending invitations between players
+  - Name validation if provided
 
-#### UpdateTeam
-- **Purpose**: Request to update team details
+#### AcceptTeamInvitation
+- **Purpose**: Accept pending team invitation
+- **Trigger**: `{prefix}ok` (default: "wmok")
+- **Behavior**:
+  - Validates invitation exists and hasn't expired
+  - Creates new team
+  - Previous team memberships are naturally superseded
+  - Uses default or proposed name
 - **Validation Rules**:
-  - Team ID must be provided
-  - Name must be 3-32 characters
-  - Name must contain only alphanumeric characters, spaces, and hyphens
+  - Valid invitation must exist
+  - Invitation must not be expired
+  - Accepting player must be invitee
+
+#### RenameTeam
+- **Purpose**: Update team name
+- **Trigger**: `{prefix}rename teamname` (default: "wmrename")
+- **Behavior**:
+  - Updates name of requester's current team
+  - Only team members can rename
+- **Validation Rules**:
+  - Requester must be in a team
+  - Name must meet validation rules
 
 ### 3. Aggregate (`GameBot.Domain.Aggregates.TeamAggregate`)
 
-The team aggregate is the consistency boundary for team-related operations.
+The team aggregate manages team consistency and handles command processing.
 
 #### State
 - Maintains current team state:
@@ -55,17 +93,17 @@ The team aggregate is the consistency boundary for team-related operations.
   - `updated_at`
 
 #### Command Handlers
-- **CreateTeam**:
-  - Validates team doesn't already exist
-  - Validates command data
+- **JoinTeam**:
+  - Validates player combination
+  - Generates team ID
   - Emits TeamCreated event
-- **UpdateTeam**:
-  - Validates team exists
-  - Validates command data
+- **RenameTeam**:
+  - Validates requester membership
+  - Validates name
   - Emits TeamUpdated event if name changed
 
 #### Event Handlers
-- **TeamCreated**: Initializes team state
+- **TeamCreated**: Initializes or reforms team
 - **TeamUpdated**: Updates team name and timestamp
 
 ### 4. Projection (`GameBot.Domain.Projections.TeamProjection`)
@@ -80,142 +118,73 @@ Builds and maintains read models for efficient querying of team data.
   - `created_at`
   - `updated_at`
 
+#### PendingInvitationView
+- Tracks active team invitations:
+  - `invitation_id`
+  - `inviter_id`
+  - `invitee_id`
+  - `proposed_name`
+  - `created_at`
+  - `expires_at`
+
+#### PlayerTeamView
+- Tracks current team membership:
+  - `player_id`
+  - `current_team_id`
+  - `joined_at`
+
 #### TeamNameHistory
 - Optimized historical record containing:
   - `team_id`: Team identifier
   - `previous_name`: Previous name (nil for creation)
   - `new_name`: New name after change
   - `changed_at`: When the change occurred
-  - `changed_by`: Who made the change (if available)
+  - `changed_by`: Who made the change
   - `sequence_no`: Ordered index of change
   - `event_type`: Type of change ("created" or "updated")
-
-#### Storage Optimizations
-- **Delta-Based Storage**: Only stores actual changes rather than full state
-- **Sequence Numbering**: Uses integer sequence for efficient ordering
-- **Change Validation**: Only creates history entries for actual name changes
-- **Efficient Reconstruction**: Can rebuild full timeline from change records
-- **Minimal Redundancy**: Previous name tracking eliminates need for lookups
-
-#### Event Handlers
-- Processes TeamCreated and TeamUpdated events
-- Maintains current state of teams
-- Records only actual name changes
-- Maintains sequential ordering of changes
-
-#### Query Interface
-- `get_team(team_id)`: Retrieve team by ID
-- `list_teams()`: List all teams
-- `find_team_by_player(player_id)`: Find team containing player
-- `get_team_name_history(team_id)`: Get complete name history
-- `get_team_name_history(team_id, opts)`: Get filtered history with options:
-  - `from`: Start of time range
-  - `to`: End of time range
-  - `limit`: Maximum number of entries
-  - `order`: Sort order (`:asc` or `:desc`)
-- `reconstruct_name_timeline(history)`: Build complete timeline from changes
-
-## Data Flow
-
-1. **Command Flow**:
-   ```
-   Command -> TeamAggregate -> Event(s) -> EventStore
-   ```
-
-2. **Query Flow**:
-   ```
-   Event -> TeamProjection -> {TeamView, TeamNameHistory} -> Query Result
-   ```
-
-## Historical Tracking
-
-### Name History
-- Changes are stored as transitions:
-  - From previous name to new name
-  - Sequential ordering for efficient retrieval
-  - Only actual changes are recorded
-  - Creation events marked with nil previous name
-
-### Storage Efficiency
-- **Space Optimization**:
-  - Only stores actual changes
-  - No redundant full state copies
-  - Integer-based sequence ordering
-  - Minimal metadata per change
-
-- **Query Optimization**:
-  - Fast ordering by sequence number
-  - Efficient filtering by timestamp
-  - Direct access to previous states
-  - Minimal reconstruction overhead
-
-### Query Capabilities
-- Full history retrieval
-- Time-range filtering
-- Result limiting
-- Chronological ordering
-- Attribution tracking
-- Timeline reconstruction
 
 ## Validation Rules
 
 ### Team Names
 - Minimum length: 3 characters
 - Maximum length: 32 characters
-- Allowed characters: alphanumeric, spaces, hyphens
-- Pattern: `^[a-zA-Z0-9\s-]+$`
+- Allowed characters: alphanumeric, spaces, hyphens, and emojis
+- Pattern: `^[\p{L}\p{N}\p{Emoji}\s-]+$`
 
 ### Team Composition
-- Exactly 2 players per team
-- Players must have valid IDs
-- Team IDs must be unique and persistent
+- Exactly 2 players
+- Players can only be in one active team
+- Joining a new team supersedes previous team membership
 
-## Event Versioning
-
-All events include:
-- `event_type()`: String identifier
-- `event_version()`: Integer version number
-- `validate()`: Validation rules
-- `to_map()`: Serialization
-- `from_map()`: Deserialization
+## Team ID Generation
+```elixir
+def generate_team_id(player1_id, player2_id) do
+  # Sort player IDs to ensure consistent team_id
+  [p1, p2] = Enum.sort([player1_id, player2_id])
+  "team-#{p1}-#{p2}"
+end
+```
 
 ## Usage Examples
 
-### Creating a Team
+### Forming a Team
 ```elixir
-command = %CreateTeam{
-  team_id: "team-123",
-  name: "Awesome Team",
-  player_ids: ["player1", "player2"]
+# User types: !team @partner Cool Team Name
+command = %JoinTeam{
+  initiator_id: "user1",
+  partner_id: "user2",
+  name: "Cool Team Name"  # Optional
 }
-TeamAggregate.execute(%State{}, command)
 ```
 
-### Updating a Team
+### Renaming a Team
 ```elixir
-command = %UpdateTeam{
-  team_id: "team-123",
-  name: "New Team Name"
+# User types: !rename Awesome Squad
+command = %RenameTeam{
+  team_id: "team-user1-user2",
+  new_name: "Awesome Squad",
+  requester_id: "user1"
 }
-TeamAggregate.execute(existing_state, command)
-```
-
-### Querying Name History
-```elixir
-# Get complete history
-TeamProjection.get_team_name_history("team-123")
-
-# Get filtered history
-TeamProjection.get_team_name_history("team-123", 
-  from: ~U[2024-01-01 00:00:00Z],
-  to: ~U[2024-12-31 23:59:59Z],
-  limit: 10,
-  order: :desc
-)
-
-# Reconstruct timeline
-history = TeamProjection.get_team_name_history("team-123")
-timeline = TeamProjection.reconstruct_name_timeline(history)
 ```
 
 ## Integration Points
@@ -226,8 +195,8 @@ timeline = TeamProjection.reconstruct_name_timeline(history)
    - Team state affects game mechanics
 
 2. **Player System**:
-   - Players are assigned to teams
-   - Player IDs are validated during team creation
+   - Players can only be in one active team
+   - New team formation invalidates previous teams
    - Team membership affects player capabilities
 
 3. **Event Store**:
@@ -235,29 +204,59 @@ timeline = TeamProjection.reconstruct_name_timeline(history)
    - Events are used for state reconstruction
    - Projections subscribe to team events
 
-## Future Considerations
+## Command Flow Examples
 
-1. **Storage Implementation**:
-   - Implement persistence with optimized indices
-   - Use materialized views for common queries
-   - Implement efficient archival strategy
-   - Consider compression for old records
+### Team Formation
+```
+1. Invitation Phase:
+User Command ({prefix}team @partner TeamName)
+  -> Parse mention and name
+  -> Validate invitation request
+  -> Create invitation
+  -> Emit TeamInvitationCreated event
+  -> Notify mentioned user with "Use {prefix}ok to accept"
+  -> Start 5-minute expiration timer
 
-2. **Performance Optimizations**:
-   - Cache frequently accessed histories
-   - Batch timeline reconstructions
-   - Implement pagination for large histories
-   - Add composite indices for common queries
+2. Acceptance Phase:
+User Command ({prefix}ok)
+  -> Validate invitation exists and is valid
+  -> Generate team_id from sorted user IDs
+  -> Create new team
+  -> Emit TeamCreated event
+  -> Projection updates player->team mappings
+  -> Send confirmation to both players
+```
 
-3. **Command Router Integration**:
-   - Add team commands to router
-   - Implement command middleware
-   - Add command logging
-   - Track command attribution for history
+### Team Rename
+```
+User Command ({prefix}rename NewName)
+  -> Find user's current team
+  -> Validate membership
+  -> Validate new name
+  -> Update team name
+  -> Emit TeamUpdated event
+  -> Update projections
+  -> Send confirmation
+```
 
-4. **Discord Integration**:
-   - Create team management commands
-   - Add team-related notifications
-   - Implement team permission checks
-   - Display team history in Discord
-   - Add timeline visualization 
+## Error Handling
+
+### Common Error Cases
+- Invalid team name format
+- User not found
+- Self-mention
+- No active team (for rename)
+- Invalid characters in name
+- No pending invitation
+- Invitation expired
+- Wrong invitee
+
+### Error Responses
+- "Team names must be 3-32 characters"
+- "You can't form a team with yourself"
+- "You need to be in a team to rename it"
+- "Couldn't find the mentioned user"
+- "Invalid characters in team name"
+- "No pending invitation"
+- "That invitation has expired"
+- "That invitation was for someone else" 

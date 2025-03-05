@@ -27,7 +27,6 @@ handle_player_stats(%Interaction{}, player_id)
   wins: integer(),
   average_score: float(),
   best_partner: String.t(),
-  favorite_role: :giver | :guesser,
   win_rate: float()
 }
 ```
