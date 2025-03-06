@@ -60,12 +60,14 @@ defmodule GameBot.Test.GameModes.TestHelpers do
   @doc """
   Adds a player to a test game.
   """
-  def add_test_player(guild_id, player_id, attrs \\ %{}) do
-    event = %PlayerJoined{
+  def add_test_player(game_id, guild_id, player_id, attrs \\ %{}) do
+    event = %GameBot.Domain.Events.GameEvents.PlayerJoined{
+      game_id: game_id,
       guild_id: guild_id,
       player_id: player_id,
       username: Map.get(attrs, :username, "TestUser"),
-      joined_at: DateTime.utc_now()
+      joined_at: DateTime.utc_now(),
+      metadata: %{}
     }
 
     {:ok, event}

@@ -31,6 +31,9 @@ defmodule GameBot.Application do
       # Start Commanded application (which manages its own EventStore)
       GameBot.Infrastructure.CommandedApp,
 
+      # Start the Registry for dynamic process naming
+      {Registry, keys: :unique, name: GameBot.Registry},
+
       # Start the Telemetry supervisor
       GameBotWeb.Telemetry,
 

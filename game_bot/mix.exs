@@ -57,7 +57,10 @@ defmodule GameBot.MixProject do
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
       {:swoosh, "~> 1.3"},
-      {:bandit, ">= 0.0.0"}
+      {:hackney, "~> 1.9"},
+      {:bandit, ">= 0.0.0"},
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+      {:mock, "~> 0.3.0", only: :test}
     ]
   end
 

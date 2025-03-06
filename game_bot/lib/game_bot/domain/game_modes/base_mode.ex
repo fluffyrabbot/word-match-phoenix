@@ -346,10 +346,10 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       player1_id == player2_id ->
         {:error, :same_player}
 
-      GameState.word_forbidden?(state, player1_id, player1_word) ->
+      GameState.word_forbidden?(state, state.guild_id, player1_id, player1_word) ->
         {:error, :word_forbidden}
 
-      GameState.word_forbidden?(state, player2_id, player2_word) ->
+      GameState.word_forbidden?(state, state.guild_id, player2_id, player2_word) ->
         {:error, :word_forbidden}
 
       true ->
@@ -425,7 +425,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
 
   defp add_forbidden_words(state, player1_id, word1, player2_id, word2) do
     state
-    |> GameState.add_forbidden_word(player1_id, word1)
-    |> GameState.add_forbidden_word(player2_id, word2)
+    |> GameState.add_forbidden_word(state.guild_id, player1_id, word1)
+    |> GameState.add_forbidden_word(state.guild_id, player2_id, word2)
   end
 end

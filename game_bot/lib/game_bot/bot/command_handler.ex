@@ -1,6 +1,6 @@
 defmodule GameBot.Bot.CommandHandler do
   @moduledoc """
-  Handles command processing for the bot.
+  Handles command processing for both interactions and messages.
   """
 
   require Logger
@@ -16,16 +16,13 @@ defmodule GameBot.Bot.CommandHandler do
   """
   def init do
     :ets.new(@active_games_table, [:named_table, :set, :public])
-    :ok
   end
 
   @doc """
   Set the active game for a user.
   """
   def set_active_game(user_id, game_id, guild_id) do
-    # Store as {user_id, guild_id} -> game_id to allow same user in different guilds
-    :ets.insert(@active_games_table, {{user_id, guild_id}, game_id})
-    :ok
+    :ets.insert(@active_games_table, {user_id, game_id, guild_id})
   end
 
   @doc """
@@ -33,7 +30,6 @@ defmodule GameBot.Bot.CommandHandler do
   """
   def clear_active_game(user_id, guild_id) do
     :ets.delete(@active_games_table, {user_id, guild_id})
-    :ok
   end
 
   @doc """
@@ -41,7 +37,7 @@ defmodule GameBot.Bot.CommandHandler do
   """
   def get_active_game(user_id, guild_id) do
     case :ets.lookup(@active_games_table, {user_id, guild_id}) do
-      [{{^user_id, ^guild_id}, game_id}] -> game_id
+      [{_, game_id, _}] -> game_id
       [] -> nil
     end
   end
@@ -60,6 +56,11 @@ defmodule GameBot.Bot.CommandHandler do
   end
 
   def handle_message(_message), do: :ok
+
+  def handle_interaction(interaction) do
+    # Stub for testing
+    :ok
+  end
 
   # Private Functions
 

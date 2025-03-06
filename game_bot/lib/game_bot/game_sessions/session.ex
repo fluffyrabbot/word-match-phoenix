@@ -91,7 +91,7 @@ defmodule GameBot.GameSessions.Session do
   @impl true
   def handle_continue(:post_init, state) do
     # Persist any initialization events
-    :ok = persist_events(state.pending_events)
+    :ok = persist_events(state.pending_events, state)
 
     # Register players in the active games ETS table
     register_players(state)
@@ -115,13 +115,13 @@ defmodule GameBot.GameSessions.Session do
 
         :pending ->
           # Persist events from recording the guess
-          :ok = persist_events(events)
+          :ok = persist_events(events, state)
           {:reply, {:ok, :pending}, %{state | mode_state: mode_state, pending_events: []}}
       end
     else
       {:error, reason} ->
         error_event = GuessError.new(state.game_id, team_id, player_id, word, reason)
-        :ok = persist_events([error_event])
+        :ok = persist_events([error_event], state)
         {:reply, {:error, reason}, state}
     end
   end
@@ -134,7 +134,7 @@ defmodule GameBot.GameSessions.Session do
         {updated_state, round_events} = update_round_results(state, winners)
 
         # Persist round end events
-        :ok = persist_events(events ++ round_events)
+        :ok = persist_events(events ++ round_events, updated_state)
 
         # Then check if game should end
         case apply(state.mode, :check_game_end, [updated_state.mode_state]) do
@@ -143,14 +143,14 @@ defmodule GameBot.GameSessions.Session do
           :continue ->
             # Start new round if game continues
             {new_state, new_round_events} = start_new_round(updated_state)
-            :ok = persist_events(new_round_events)
+            :ok = persist_events(new_round_events, new_state)
             {:reply, {:round_end, winners}, new_state}
         end
       :continue ->
         {:reply, :continue, state}
       {:error, reason} ->
         error_event = RoundCheckError.new(state.game_id, reason)
-        :ok = persist_events([error_event])
+        :ok = persist_events([error_event], state)
         {:reply, {:error, reason}, state}
     end
   end
@@ -174,7 +174,7 @@ defmodule GameBot.GameSessions.Session do
         all_events = [game_finished | events]
 
         # Persist events
-        :ok = persist_events(all_events)
+        :ok = persist_events(all_events, updated_state)
 
         # Return the complete game state
         {:reply, {:game_end, winners}, updated_state}
@@ -220,14 +220,14 @@ defmodule GameBot.GameSessions.Session do
   defp register_players(%{teams: teams, game_id: game_id}) do
     for {_team_id, %{player_ids: player_ids}} <- teams,
         player_id <- player_ids do
-      CommandHandler.set_active_game(player_id, game_id)
+      CommandHandler.set_active_game(player_id, game_id, game_id)
     end
   end
 
-  defp unregister_players(%{teams: teams}) do
+  defp unregister_players(%{teams: teams, game_id: game_id}) do
     for {_team_id, %{player_ids: player_ids}} <- teams,
         player_id <- player_ids do
-      CommandHandler.clear_active_game(player_id)
+      CommandHandler.clear_active_game(player_id, game_id)
     end
   end
 
@@ -302,23 +302,23 @@ defmodule GameBot.GameSessions.Session do
   defp has_player_submitted?(%{pending_guess: %{player1_id: p1, player2_id: p2}}, player_id), do: player_id in [p1, p2]
   defp has_player_submitted?(_, _), do: false
 
-  defp persist_events(events) when is_list(events) do
-    EventStore.append_events(events)
+  defp persist_events(events, %{game_id: game_id}) when is_list(events) do
+    EventStore.append_to_stream(game_id, :any, events)
   end
 
   defp handle_guess_pair(word1, word2, team_id, state, previous_events) do
     case state.mode.process_guess_pair(state.mode_state, team_id, {word1, word2}) do
       {:ok, new_mode_state, events} ->
         # Persist all events
-        :ok = persist_events(previous_events ++ events)
+        :ok = persist_events(previous_events ++ events, state)
 
         # Return result based on match status
-        result = if Enum.any?(events, &match?(%GuessMatched{}, &1)), do: :match, else: :no_match
+        result = if Enum.any?(events, &match?(%GameBot.Domain.Events.GuessMatched{}, &1)), do: :match, else: :no_match
         {:reply, {:ok, result}, %{state | mode_state: new_mode_state}}
 
       {:error, reason} ->
         error_event = GuessPairError.new(state.game_id, team_id, word1, word2, reason)
-        :ok = persist_events([error_event])
+        :ok = persist_events([error_event], state)
         {:reply, {:error, reason}, state}
     end
   end
@@ -355,7 +355,7 @@ defmodule GameBot.GameSessions.Session do
     unregister_players(state)
 
     # Persist game end events
-    :ok = persist_events(events)
+    :ok = persist_events(events, final_state)
 
     {:reply, {:game_end, winners}, final_state}
   end

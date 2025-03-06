@@ -8,7 +8,9 @@ defmodule GameBot.Bot.Dispatcher do
 
   alias GameBot.Bot.{CommandHandler, Commands.GameCommands}
   alias GameBot.GameSessions.Session
+  alias GameBot.Test.Mocks.NostrumApiMock
   alias Nostrum.Struct.{Interaction, Message}
+  alias GameBot.Bot.ErrorHandler
 
   @doc """
   Dispatches incoming Discord events to the appropriate handler.
@@ -79,8 +81,8 @@ defmodule GameBot.Bot.Dispatcher do
     end
   end
 
-  defp maybe_fetch_game_state_from_message(%Message{author: %{id: user_id}}) do
-    case CommandHandler.get_active_game(user_id) do
+  defp maybe_fetch_game_state_from_message(%Message{author: %{id: user_id}, guild_id: guild_id}) do
+    case CommandHandler.get_active_game(user_id, guild_id) do
       nil -> {:ok, nil}  # Not all messages need a game state
       game_id -> fetch_game_state(game_id)
     end
@@ -203,4 +205,82 @@ defmodule GameBot.Bot.Dispatcher do
   defp format_error_message(:unknown_command), do: "Unknown command."
   defp format_error_message(:unknown_subcommand), do: "Unknown subcommand."
   defp format_error_message(_), do: "An error occurred processing your request."
+
+  @doc """
+  Handles interaction events.
+  """
+  @spec handle_interaction(Interaction.t()) :: :ok | {:error, term()}
+  def handle_interaction(%Interaction{} = interaction) do
+    if NostrumApiMock.should_error?() do
+      Logger.error("Nostrum API error simulated for interaction: #{inspect(interaction)}")
+      {:error, :api_error}
+    else
+      with {:ok, command} <- extract_command(interaction),
+           {:ok, result} <- GameCommands.handle_command(command) do
+        Logger.debug("Interaction handled successfully. Command: #{inspect(command)}, Result: #{inspect(result)}")
+        :ok
+      else
+        {:error, reason} ->
+          ErrorHandler.notify_interaction_error(interaction, reason)
+          Logger.warning("Interaction handling failed. Reason: #{inspect(reason)}")
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Extracts the command from an interaction.  This is specific to slash commands.
+  """
+  @spec extract_command(Interaction.t()) :: {:ok, map()} | {:error, atom()}
+  def extract_command(%Interaction{data: data} = interaction) do
+    command = %{
+      type: :interaction,
+      name: data.name,
+      options: extract_options(data.options),
+      interaction: interaction
+    }
+    {:ok, command}
+  end
+
+  @doc """
+  Handles message events.
+  """
+  @spec handle_message(Message.t()) :: :ok | {:error, term()}
+  def handle_message(%Message{} = message) do
+    if NostrumApiMock.should_error?() do
+      Logger.error("Nostrum API error simulated for message: #{inspect(message)}")
+      {:error, :api_error}
+    else
+      with {:ok, command} <- CommandHandler.extract_command(message),
+           {:ok, result} <- GameCommands.handle_command(command) do
+        Logger.debug("Message handled successfully. Command: #{inspect(command)}, Result: #{inspect(result)}")
+        :ok
+      else
+        {:error, reason} ->
+          ErrorHandler.notify_user(message, reason)
+          Logger.warning("Message handling failed. Reason: #{inspect(reason)}")
+          {:error, reason}
+      end
+    end
+  end
+
+  # Add these functions to dispatcher.ex, mirroring Listener
+  @spec maybe_notify_interaction_error(Interaction.t(), term()) :: :ok
+  defp maybe_notify_interaction_error(%Interaction{} = interaction, reason) do
+    respond_with_error(interaction, reason)
+  end
+
+  @spec maybe_notify_user(Message.t(), term()) :: :ok
+  defp maybe_notify_user(%Message{channel_id: channel_id}, reason) do
+    message = %{
+      content: format_error_message(reason),
+      flags: 64  # Set the ephemeral flag
+    }
+    case Nostrum.Api.create_message(channel_id, message) do
+      {:ok, _} -> :ok
+      {:error, _} ->
+        Logger.warning("Failed to send message: #{inspect(reason)}")
+        :ok # We still return :ok, even if notification fails
+    end
+  end
 end

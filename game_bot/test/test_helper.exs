@@ -1,27 +1,32 @@
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Config module.
+
+# Start ExUnit
 ExUnit.start()
 
-# Stop any running applications
-Application.stop(:game_bot)
-Application.stop(:commanded)
-Application.stop(:eventstore)
-
-# Configure test environment to not start WordService automatically
+# Prevent automatic starts
 Application.put_env(:game_bot, :start_word_service, false)
+Application.put_env(:nostrum, :token, "mock_token")
+Application.put_env(:nostrum, :api_module, GameBot.Test.Mocks.NostrumApiMock)
 
-# Start applications in order
-{:ok, _} = Application.ensure_all_started(:commanded)
+# Start required applications in order
+{:ok, _} = Application.ensure_all_started(:logger)
+{:ok, _} = Application.ensure_all_started(:postgrex)
+{:ok, _} = Application.ensure_all_started(:ecto_sql)
+
+# Start the Repo
+{:ok, _} = GameBot.Infrastructure.Persistence.Repo.start_link()
+
+# Start EventStore
 {:ok, _} = Application.ensure_all_started(:eventstore)
+
+# Initialize EventStore database
+Mix.Task.run("event_store.drop", ["--quiet"])
+Mix.Task.run("event_store.create", ["--quiet"])
+Mix.Task.run("event_store.init", ["--quiet"])
+
+# Start the main application
 {:ok, _} = Application.ensure_all_started(:game_bot)
 
-# Configure Ecto sandbox mode
-Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Repo, :manual)
-
-# Configure EventStore sandbox mode
-config = Application.get_env(:game_bot, GameBot.Infrastructure.EventStore.Config)
-config = Keyword.put(config, :schema, "public")
-
-# Initialize EventStore
-:ok = EventStore.Tasks.Create.exec(config, [])
-:ok = EventStore.Tasks.Init.exec(config, [])
+# Configure sandbox mode for tests
+Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo, :manual)

@@ -1,14 +1,14 @@
 {
-    "color": ["colour"],
+    "color": ["colour", "colors", "colored"],
     "center": ["centre"],
     "gray": ["grey"],
     "dialog": ["dialogue"],
-    "analyze": ["analyse"],
+    "analyze": ["analyse", "analyzing", "analyses"],
     "defense": ["defence"],
     "license": ["licence"],
     "practice": ["practise"],
     "program": ["programme"],
-    "theater": ["theatre"],
+    "theater": ["theatre", "theatres"],
     "check": ["cheque"],
     "draft": ["draught"],
     "tire": ["tyre"],
@@ -102,5 +102,13 @@
     "amortize": ["amortise"],
     "archeology": ["archaeology"],
     "encyclopedia": ["encyclopaedia"],
-    "organizing": ["organising"]
+    "organizing": ["organising"],
+    "box": ["boxes"],
+    "match": ["matches"],
+    "word": ["words"],
+    "team": ["teams"],
+    "round": ["rounds"],
+    "score": ["scores"],
+    "win": ["winner", "winning"],
+    "lose": ["loser", "losing"]
 }

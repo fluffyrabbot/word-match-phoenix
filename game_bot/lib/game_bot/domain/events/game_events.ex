@@ -82,6 +82,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       "knockout_round_completed" -> __MODULE__.KnockoutRoundCompleted
       "race_mode_time_expired" -> __MODULE__.RaceModeTimeExpired
       "longform_day_ended" -> __MODULE__.LongformDayEnded
+      "player_joined" -> __MODULE__.PlayerJoined
       _ -> raise "Unknown event type: #{type}"
     end
   end
@@ -671,63 +672,39 @@ defmodule GameBot.Domain.Events.GameEvents do
   end
 
   defmodule GameFinished do
-    @moduledoc "Emitted when a game is completed"
-    @behaviour GameBot.Domain.Events.GameEvents
+    @derive Jason.Encoder
+    defstruct [
+      :game_id,
+      :guild_id,
+      :mode,
+      :round_number,
+      :final_score,
+      :winner_team_id,
+      :timestamp,
+      :metadata
+    ]
 
     @type t :: %__MODULE__{
       game_id: String.t(),
       guild_id: String.t(),
-      winner_team_id: String.t() | nil,
+      mode: atom(),
+      round_number: pos_integer(),
       final_score: map(),
+      winner_team_id: String.t(),
       timestamp: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
+      metadata: map()
     }
-    defstruct [:game_id, :guild_id, :winner_team_id, :final_score, :timestamp, :metadata]
 
-    def event_type(), do: "game_finished"
-    def event_version(), do: 1
-
-    def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.guild_id) -> {:error, "guild_id is required"}
-        is_nil(event.final_score) -> {:error, "final_score is required"}
-        is_nil(event.timestamp) -> {:error, "timestamp is required"}
-        true -> :ok
-      end
-    end
-
-    def to_map(%__MODULE__{} = event) do
-      %{
-        "game_id" => event.game_id,
-        "guild_id" => event.guild_id,
-        "winner_team_id" => event.winner_team_id,
-        "final_score" => event.final_score,
-        "timestamp" => DateTime.to_iso8601(event.timestamp),
-        "metadata" => event.metadata || %{}
-      }
-    end
-
-    def from_map(data) do
-      %__MODULE__{
-        game_id: data["game_id"],
-        guild_id: data["guild_id"],
-        winner_team_id: data["winner_team_id"],
-        final_score: data["final_score"],
-        timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
-        metadata: data["metadata"] || %{}
-      }
-    end
-
-    # Helper for creating a new event
-    def new(game_id, winner_team_id, final_score, guild_id) do
+    def new(game_id, guild_id, mode, round_number, final_score, winner_team_id, metadata \\ %{}) do
       %__MODULE__{
         game_id: game_id,
         guild_id: guild_id,
-        winner_team_id: winner_team_id,
+        mode: mode,
+        round_number: round_number,
         final_score: final_score,
+        winner_team_id: winner_team_id,
         timestamp: DateTime.utc_now(),
-        metadata: %{}
+        metadata: metadata
       }
     end
   end
@@ -813,11 +790,12 @@ defmodule GameBot.Domain.Events.GameEvents do
       guild_id: String.t(),
       mode: atom(),
       created_by: String.t(),
+      created_at: DateTime.t(),
       team_ids: [String.t()],  # Added missing field
       timestamp: DateTime.t(),
       metadata: GameBot.Domain.Events.GameEvents.metadata()
     }
-    defstruct [:game_id, :guild_id, :mode, :created_by, :team_ids, :timestamp, :metadata]
+    defstruct [:game_id, :guild_id, :mode, :created_by, :created_at, :team_ids, :timestamp, :metadata]
 
     def event_type(), do: "game_created"
     def event_version(), do: 1
@@ -828,6 +806,7 @@ defmodule GameBot.Domain.Events.GameEvents do
         is_nil(event.guild_id) -> {:error, "guild_id is required"}
         is_nil(event.mode) -> {:error, "mode is required"}
         is_nil(event.created_by) -> {:error, "created_by is required"}
+        is_nil(event.created_at) -> {:error, "created_at is required"}
         is_nil(event.team_ids) -> {:error, "team_ids is required"}
         true -> :ok
       end
@@ -839,6 +818,7 @@ defmodule GameBot.Domain.Events.GameEvents do
         "guild_id" => event.guild_id,
         "mode" => Atom.to_string(event.mode),
         "created_by" => event.created_by,
+        "created_at" => DateTime.to_iso8601(event.created_at),
         "team_ids" => event.team_ids,
         "timestamp" => DateTime.to_iso8601(event.timestamp),
         "metadata" => event.metadata || %{}
@@ -851,6 +831,7 @@ defmodule GameBot.Domain.Events.GameEvents do
         guild_id: data["guild_id"],
         mode: String.to_existing_atom(data["mode"]),
         created_by: data["created_by"],
+        created_at: GameBot.Domain.Events.GameEvents.parse_timestamp(data["created_at"]),
         team_ids: data["team_ids"],
         timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
         metadata: data["metadata"] || %{}
@@ -906,5 +887,56 @@ defmodule GameBot.Domain.Events.GameEvents do
     defstruct [:guild_id, :team_id, :invitation_id, :created_at, :created_by]
 
     def event_type, do: "team.invitation_created"
+  end
+
+  defmodule PlayerJoined do
+    @moduledoc "Emitted when a player joins a game"
+    @behaviour GameBot.Domain.Events.GameEvents
+
+    @type t :: %__MODULE__{
+      game_id: String.t(),
+      guild_id: String.t(),
+      player_id: String.t(),
+      username: String.t(),
+      joined_at: DateTime.t(),
+      metadata: GameBot.Domain.Events.GameEvents.metadata()
+    }
+    defstruct [:game_id, :guild_id, :player_id, :username, :joined_at, :metadata]
+
+    def event_type(), do: "player_joined"
+    def event_version(), do: 1
+
+    def validate(%__MODULE__{} = event) do
+      cond do
+        is_nil(event.game_id) -> {:error, "game_id is required"}
+        is_nil(event.guild_id) -> {:error, "guild_id is required"}
+        is_nil(event.player_id) -> {:error, "player_id is required"}
+        is_nil(event.username) -> {:error, "username is required"}
+        is_nil(event.joined_at) -> {:error, "joined_at is required"}
+        true -> :ok
+      end
+    end
+
+    def to_map(%__MODULE__{} = event) do
+      %{
+        "game_id" => event.game_id,
+        "guild_id" => event.guild_id,
+        "player_id" => event.player_id,
+        "username" => event.username,
+        "joined_at" => DateTime.to_iso8601(event.joined_at),
+        "metadata" => event.metadata || %{}
+      }
+    end
+
+    def from_map(data) do
+      %__MODULE__{
+        game_id: data["game_id"],
+        guild_id: data["guild_id"],
+        player_id: data["player_id"],
+        username: data["username"],
+        joined_at: GameBot.Domain.Events.GameEvents.parse_timestamp(data["joined_at"]),
+        metadata: data["metadata"] || %{}
+      }
+    end
   end
 end
