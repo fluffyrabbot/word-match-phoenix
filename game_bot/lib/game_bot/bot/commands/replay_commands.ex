@@ -9,7 +9,8 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
 
   def handle_view_replay(%Interaction{} = interaction, game_id) do
     with {:ok, metadata} <- create_metadata(interaction),
-         {:ok, game_events} <- fetch_game_events(game_id, metadata.guild_id),
+         guild_id = interaction.guild_id || metadata.guild_id,
+         {:ok, game_events} <- fetch_game_events(game_id, guild_id),
          :ok <- validate_permissions(interaction.user.id, game_events) do
 
       {:ok, format_replay(game_events)}
@@ -18,7 +19,8 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
 
   def handle_match_history(%Interaction{} = interaction, options \\ %{}) do
     with {:ok, metadata} <- create_metadata(interaction),
-         {:ok, matches} <- fetch_match_history(metadata.guild_id, options) do
+         guild_id = interaction.guild_id || metadata.guild_id,
+         {:ok, matches} <- fetch_match_history(guild_id, options) do
 
       {:ok, format_match_history(matches)}
     end
@@ -38,13 +40,13 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
   end
 
   defp fetch_game_events(game_id, guild_id) do
-    # Placeholder for fetching game events scoped to guild
-    {:ok, []}
+    opts = [guild_id: guild_id]
+    EventStore.read_stream_forward(game_id, 0, 1000, opts)
   end
 
   defp fetch_match_history(guild_id, options) do
-    # Placeholder for fetching match history scoped to guild
-    {:ok, []}
+    filtered_options = Map.put(options, :guild_id, guild_id)
+    {:ok, []} # Placeholder
   end
 
   defp fetch_game_summary(game_id, guild_id) do

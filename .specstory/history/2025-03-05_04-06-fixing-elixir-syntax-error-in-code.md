@@ -438,6 +438,114 @@ In summary, the series of fixes addressed syntax errors in the test data generat
 
 ---
 
+_**User**_
+
+@serializer_test.exs apply the above fixes one more time i accidentlaly broke it again
+
+---
+
+_**Assistant**_
+
+Okay, let's get this sorted out. I'll apply the fixes systematically, explaining each step, to ensure we get back to a working state and avoid introducing further errors. I will provide the full, corrected code block.
+
+Here's the corrected code, combining all the necessary fixes:
+
+```elixir:game_bot/test/game_bot/infrastructure/persistence/event_store/serializer_test.exs
+defmodule GameBot.Infrastructure.Persistence.EventStore.SerializerTest do
+  use GameBot.Test.RepositoryCase, async: true
+  use ExUnitProperties
+
+  alias GameBot.Infrastructure.Persistence.EventStore.Serializer
+  alias GameBot.Infrastructure.Persistence.Error
+
+  describe "serialize/1" do
+    test "successfully serializes valid event" do
+      event = build_test_event()
+      assert {:ok, serialized} = Serializer.serialize(event)
+      assert is_map(serialized)
+      assert serialized.event_type == event.event_type
+      assert serialized.event_version == event.event_version
+    end
+
+    test "returns error for invalid event structure" do
+      assert {:error, %Error{type: :validation}} = Serializer.serialize(%{invalid: "structure"})
+    end
+
+    property "serialization is reversible" do
+      check all event <- event_generator() do
+        assert {:ok, serialized} = Serializer.serialize(event)
+        assert {:ok, deserialized} = Serializer.deserialize(serialized)
+        assert event == deserialized
+      end
+    end
+  end
+
+  describe "deserialize/1" do
+    test "successfully deserializes valid event data" do
+      event = build_test_event()
+      {:ok, serialized} = Serializer.serialize(event)
+      assert {:ok, deserialized} = Serializer.deserialize(serialized)
+      assert deserialized.event_type == event.event_type
+    end
+
+    test "returns error for missing required fields" do
+      assert {:error, %Error{type: :validation}} =
+        Serializer.deserialize(%{"incomplete" => "data"})
+    end
+  end
+
+  describe "event_version/1" do
+    test "returns correct version for known event types" do
+      assert {:ok, version} = Serializer.event_version("game_started")
+      assert is_integer(version)
+    end
+
+    test "returns error for unknown event type" do
+      assert {:error, %Error{type: :validation}} =
+        Serializer.event_version("unknown_event_type")
+    end
+  end
+
+  # Generators for property testing
+  defp event_generator do
+    gen all(
+      type <- StreamData.string(:alphanumeric, min_length: 1),
+      version <- StreamData.positive_integer(),
+      data <- map_generator(),
+      do: %{
+        event_type: type,
+        event_version: version,
+        data: data,
+        stored_at: DateTime.utc_now()
+      }
+    )
+  end
+
+  defp map_generator do
+    gen all(
+      keys <- StreamData.list_of(StreamData.string(:alphanumeric), min_length: 1),
+      values <- StreamData.list_of(StreamData.string(:alphanumeric), min_length: 1),
+      pairs = Enum.zip(keys, values)
+    ) do
+      Map.new(pairs)
+    end
+  end
+end
+```
+
+Explanation of the fixes and why they are needed, combined:
+
+1.  **`event_generator`'s `do:`:** The `event_generator` function uses `ExUnitProperties.gen/2`. The `gen all` macro *requires* a `do...end` block.  The original code was missing the expression inside the `do` block. This was the first error.
+
+2.  **`event_generator`'s Closing `end`:**  The initial fix added the `do:` block's contents, but in the process, closed the `event_generator` function *too early*.  The second error was not having an `end` *after* the `gen all` block, but *before* `map_generator`.
+
+3.  **`map_generator`'s Closing `end`:** The `map_generator` function *also* uses `gen all`, and similarly had its `gen all` block closed, but the function itself was not closed. The third error was not having an `end` after the `gen all` block inside `map_generator`.
+
+The provided code now correctly nests the `do...end` blocks and ensures that both `event_generator` and `map_generator` are properly defined and closed. This should resolve all the syntax errors and restore the test file to a working state.
+
+
+---
+
 
 
 ---

@@ -39,6 +39,12 @@ defmodule GameBot.GameSessions.Recovery do
   alias GameBot.Domain.Events.{GameEvents, TeamEvents}
   alias GameBot.Infrastructure.EventStore
   alias GameBot.Domain.GameState
+  alias GameBot.Domain.Events.GameEvents.{
+    GameStarted,
+    RoundEnded,
+    RoundStarted,
+    GameCompleted
+  }
 
   # Configuration
   @default_timeout :timer.seconds(30)
@@ -109,15 +115,20 @@ defmodule GameBot.GameSessions.Recovery do
   def recover_session(game_id, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     retry_count = Keyword.get(opts, :retry_count, @max_retries)
+    guild_id = Keyword.get(opts, :guild_id)
 
     task = Task.async(fn ->
       try do
-        with {:ok, events} <- fetch_events_with_retry(game_id, retry_count),
+        with {:ok, events} <- fetch_events_with_retry(game_id, retry_count, guild_id),
              :ok <- validate_event_stream(events),
              {:ok, initial_state} <- build_initial_state(events),
              {:ok, recovered_state} <- apply_events(initial_state, events),
              :ok <- validate_recovered_state(recovered_state) do
-          {:ok, recovered_state}
+          if guild_id && recovered_state.guild_id != guild_id do
+            {:error, :guild_mismatch}
+          else
+            {:ok, recovered_state}
+          end
         end
       rescue
         e ->
@@ -205,7 +216,7 @@ defmodule GameBot.GameSessions.Recovery do
   @since "1.0.0"
   """
   @spec validate_event_stream([Event.t()]) :: :ok | {:error, validation_error()}
-  def validate_event_stream([%GameEvents.GameStarted{} | _] = events), do: validate_event_order(events)
+  def validate_event_stream([%GameStarted{} | _] = events), do: validate_event_order(events)
   def validate_event_stream([]), do: {:error, :no_events}
   def validate_event_stream(_), do: {:error, :invalid_stream_start}
 
@@ -235,7 +246,7 @@ defmodule GameBot.GameSessions.Recovery do
   @since "1.0.0"
   """
   @spec build_initial_state([Event.t()]) :: {:ok, map()} | {:error, error_reason()}
-  def build_initial_state([%GameEvents.GameStarted{
+  def build_initial_state([%GameStarted{
     game_id: game_id,
     mode: mode,
     teams: teams,
@@ -376,8 +387,10 @@ defmodule GameBot.GameSessions.Recovery do
 
   # Private Functions
 
-  defp fetch_events_with_retry(game_id, retries) do
-    case EventStore.read_stream_forward(game_id) do
+  defp fetch_events_with_retry(game_id, retries, guild_id \\ nil) do
+    opts = if guild_id, do: [guild_id: guild_id], else: []
+
+    case EventStore.read_stream_forward(game_id, 0, @max_events, opts) do
       {:ok, []} ->
         {:error, :no_events}
       {:ok, events} when length(events) > @max_events ->
@@ -424,6 +437,7 @@ defmodule GameBot.GameSessions.Recovery do
   defp validate_required_fields(state) do
     cond do
       is_nil(state.game_id) -> {:error, :missing_game_id}
+      is_nil(state.guild_id) -> {:error, :missing_guild_id}
       is_nil(state.mode) -> {:error, :missing_mode}
       is_nil(state.mode_state) -> {:error, :missing_mode_state}
       is_nil(state.teams) -> {:error, :missing_teams}
@@ -438,7 +452,7 @@ defmodule GameBot.GameSessions.Recovery do
 
   defp event_type(event), do: event.__struct__
 
-  defp apply_event(%GameEvents.GameStarted{}, state), do: state  # Already handled in build_initial_state
+  defp apply_event(%GameStarted{}, state), do: state  # Already handled in build_initial_state
 
   defp apply_event(%GameEvents.GuessProcessed{} = event, state) do
     Map.update!(state, :mode_state, fn mode_state ->
@@ -457,7 +471,7 @@ defmodule GameBot.GameSessions.Recovery do
     end)
   end
 
-  defp apply_event(%GameEvents.RoundEnded{} = event, state) do
+  defp apply_event(%RoundEnded{} = event, state) do
     Map.update!(state, :mode_state, fn mode_state ->
       %{mode_state |
         round_number: mode_state.round_number + 1,
@@ -466,7 +480,7 @@ defmodule GameBot.GameSessions.Recovery do
     end)
   end
 
-  defp apply_event(%GameEvents.GameCompleted{} = event, state) do
+  defp apply_event(%GameCompleted{} = event, state) do
     state
     |> Map.update!(:mode_state, fn mode_state ->
       %{mode_state |

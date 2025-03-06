@@ -5,8 +5,13 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
   Players can only be in one active team - joining a new team supersedes previous membership.
   """
 
-  alias GameBot.Domain.Commands.TeamCommands.{CreateTeamInvitation, AcceptInvitation, RenameTeam}
+  alias GameBot.Domain.Commands.TeamCommandStructs.{
+    CreateTeamInvitation,
+    AcceptInvitation,
+    RenameTeam
+  }
   alias GameBot.Domain.Events.TeamEvents.{TeamInvitationCreated, TeamInvitationAccepted, TeamCreated, TeamUpdated}
+  alias GameBot.Domain.Aggregates.Team.State
 
   defmodule State do
     @moduledoc "Internal state for team aggregate"

@@ -11,12 +11,16 @@ defmodule GameBot.Bot.Commands.GameCommands do
   """
   def handle_start_game(%Interaction{} = interaction, mode, options) do
     with {:ok, metadata} <- create_metadata(interaction),
+         guild_id = interaction.guild_id || metadata.guild_id,
+         # Validate we have a guild context
+         {:ok, _} <- validate_guild_context(guild_id),
          {:ok, game_id} <- generate_game_id(),
          {:ok, teams} <- validate_teams(options.teams),
          {:ok, config} <- build_game_config(mode, options) do
 
       event = %GameEvents.GameStarted{
         game_id: game_id,
+        guild_id: guild_id,  # Explicitly include guild_id
         mode: mode,
         round_number: 1,
         teams: teams.team_map,
@@ -168,4 +172,8 @@ defmodule GameBot.Bot.Commands.GameCommands do
       role: :guesser
     }
   end
+
+  # Add validation function for guild context
+  defp validate_guild_context(nil), do: {:error, :missing_guild_id}
+  defp validate_guild_context(_guild_id), do: {:ok, true}
 end

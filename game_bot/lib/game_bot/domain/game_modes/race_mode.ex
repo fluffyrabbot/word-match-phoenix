@@ -67,6 +67,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
 
   @type state :: %{
     game_id: String.t(),
+    guild_id: String.t(),
     time_limit: pos_integer(),
     start_time: DateTime.t(),
     matches_by_team: %{String.t() => non_neg_integer()},
@@ -100,16 +101,23 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state()} | {:error, term()}
   def init(game_id, teams, config) do
     config = Map.merge(default_config(), config)
-    {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
+    guild_id = Map.get(config, :guild_id)
 
-    state = %{state |
-      time_limit: config.time_limit,
-      start_time: DateTime.utc_now(),
-      matches_by_team: Map.new(Map.keys(teams), &{&1, 0}),
-      total_guesses_by_team: Map.new(Map.keys(teams), &{&1, 0})
-    }
+    if is_nil(guild_id) do
+      {:error, :missing_guild_id}
+    else
+      {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
 
-    {:ok, state}
+      state = %{state |
+        guild_id: guild_id,
+        time_limit: config.time_limit,
+        start_time: DateTime.utc_now(),
+        matches_by_team: Map.new(Map.keys(teams), &{&1, 0}),
+        total_guesses_by_team: Map.new(Map.keys(teams), &{&1, 0})
+      }
+
+      {:ok, state}
+    end
   end
 
   @doc """
@@ -174,6 +182,29 @@ defmodule GameBot.Domain.GameModes.RaceMode do
             else
               state
             end
+
+            event = %RoundRestarted{
+              game_id: state.game_id,
+              guild_id: state.guild_id,
+              team_id: team_id,
+              giving_up_player: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player1_id, else: guess_pair.player2_id),
+              teammate_word: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player2_word, else: guess_pair.player1_word),
+              guess_count: get_in(state.teams, [team_id, :guess_count]) + 1, # Count this as a failed attempt
+              timestamp: DateTime.utc_now()
+            }
+
+            # Update total guesses to count this as a failed attempt
+            state = update_in(state.total_guesses_by_team[team_id], &(&1 + 1))
+
+            # Clear the current words for the team and reset their guess count
+            # Note: The session manager will handle getting new words
+            state = update_in(state.teams[team_id], fn team_state ->
+              %{team_state |
+                current_words: [],
+                guess_count: 0,
+                pending_guess: nil
+              }
+            end)
 
             {:ok, state, event}
           end
@@ -306,6 +337,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
     # Create a round restart event with both players' information
     event = %RoundRestarted{
       game_id: state.game_id,
+      guild_id: state.guild_id,
       team_id: team_id,
       giving_up_player: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player1_id, else: guess_pair.player2_id),
       teammate_word: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player2_word, else: guess_pair.player1_word),

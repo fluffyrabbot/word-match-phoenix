@@ -17,12 +17,25 @@ defmodule GameBot.Test.Mocks.EventStore do
     GenServer.call(__MODULE__, {:set_failure_count, count})
   end
 
+  def get_failure_count do
+    GenServer.call(__MODULE__, :get_failure_count)
+  end
+
   def set_delay(milliseconds) do
     GenServer.call(__MODULE__, {:set_delay, milliseconds})
   end
 
   def reset_state do
     GenServer.call(__MODULE__, :reset_state)
+  end
+
+  # For testing retry mechanism
+  def set_track_retries(enable) do
+    GenServer.call(__MODULE__, {:set_track_retries, enable})
+  end
+
+  def get_retry_delays do
+    GenServer.call(__MODULE__, :get_retry_delays)
   end
 
   # Behaviour Implementation
@@ -55,7 +68,10 @@ defmodule GameBot.Test.Mocks.EventStore do
       streams: %{},
       failure_count: 0,
       delay: 0,
-      subscriptions: %{}
+      track_retries: false,
+      retry_delays: [],
+      subscriptions: %{},
+      last_attempt_time: System.monotonic_time(:millisecond)
     }}
   end
 
@@ -64,12 +80,55 @@ defmodule GameBot.Test.Mocks.EventStore do
     {:reply, :ok, %{state | failure_count: count}}
   end
 
+  def handle_call(:get_failure_count, _from, state) do
+    {:reply, state.failure_count, state}
+  end
+
   def handle_call({:set_delay, delay}, _from, state) do
     {:reply, :ok, %{state | delay: delay}}
   end
 
   def handle_call(:reset_state, _from, _state) do
-    {:reply, :ok, %{streams: %{}, failure_count: 0, delay: 0, subscriptions: %{}}}
+    {:reply, :ok, %{
+      streams: %{},
+      failure_count: 0,
+      delay: 0,
+      track_retries: false,
+      retry_delays: [],
+      subscriptions: %{},
+      last_attempt_time: System.monotonic_time(:millisecond)
+    }}
+  end
+
+  def handle_call({:set_track_retries, enable}, _from, state) do
+    {:reply, :ok, %{state |
+      track_retries: enable,
+      retry_delays: [],
+      last_attempt_time: System.monotonic_time(:millisecond)
+    }}
+  end
+
+  def handle_call(:get_retry_delays, _from, state) do
+    {:reply, state.retry_delays, state}
+  end
+
+  # Enhanced for handling retry tracking
+  def handle_call({:append, stream_id, version, events, _opts}, _from,
+                 %{failure_count: failure_count, track_retries: true} = state) when failure_count > 0 do
+    # Record the delay and then process normally
+    now = System.monotonic_time(:millisecond)
+    last_time = Map.get(state, :last_attempt_time, now)
+    delay = now - last_time
+
+    retry_delays = [delay | state.retry_delays]
+    state = %{state |
+      failure_count: failure_count - 1,
+      retry_delays: retry_delays,
+      last_attempt_time: now
+    }
+
+    # Return connection error
+    {:reply, {:error, connection_error()}, state}
   end
 
   def handle_call({:append, stream_id, version, events, _opts}, _from, state) do

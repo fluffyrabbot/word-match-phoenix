@@ -9,7 +9,8 @@ defmodule GameBot.Bot.Commands.StatsCommands do
 
   def handle_player_stats(%Interaction{} = interaction, player_id) do
     with {:ok, metadata} <- create_metadata(interaction),
-         {:ok, stats} <- fetch_player_stats(player_id, metadata.guild_id) do
+         guild_id = interaction.guild_id || metadata.guild_id,
+         {:ok, stats} <- fetch_player_stats(player_id, guild_id) do
 
       {:ok, format_player_stats(stats)}
     end
@@ -17,7 +18,8 @@ defmodule GameBot.Bot.Commands.StatsCommands do
 
   def handle_team_stats(%Interaction{} = interaction, team_id) do
     with {:ok, metadata} <- create_metadata(interaction),
-         {:ok, stats} <- fetch_team_stats(team_id, metadata.guild_id) do
+         guild_id = interaction.guild_id || metadata.guild_id,
+         {:ok, stats} <- fetch_team_stats(team_id, guild_id) do
 
       {:ok, format_team_stats(stats)}
     end
@@ -25,7 +27,9 @@ defmodule GameBot.Bot.Commands.StatsCommands do
 
   def handle_leaderboard(%Interaction{} = interaction, type, options \\ %{}) do
     with {:ok, metadata} <- create_metadata(interaction),
-         {:ok, entries} <- fetch_leaderboard(type, metadata.guild_id, options) do
+         guild_id = interaction.guild_id || metadata.guild_id,
+         filtered_options = Map.put(options, :guild_id, guild_id),
+         {:ok, entries} <- fetch_leaderboard(type, guild_id, filtered_options) do
 
       {:ok, format_leaderboard(type, entries)}
     end

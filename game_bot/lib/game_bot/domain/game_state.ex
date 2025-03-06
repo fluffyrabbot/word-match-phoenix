@@ -37,7 +37,6 @@ defmodule GameBot.Domain.GameState do
   # Configuration
   @min_team_size 2
   @max_team_size 2
-  @max_teams 12
   @max_forbidden_words 12
   @min_word_length 2
   @max_word_length 50
@@ -48,7 +47,6 @@ defmodule GameBot.Domain.GameState do
     :invalid_player |
     :duplicate_player_guess |
     :invalid_team_size |
-    :too_many_teams |
     :invalid_word_length
 
   @type team_state :: %{
@@ -159,6 +157,17 @@ defmodule GameBot.Domain.GameState do
   end
 
   @doc """
+  Validates that an operation is taking place in the correct guild context.
+  """
+  def validate_guild_context(%__MODULE__{guild_id: state_guild_id}, request_guild_id) do
+    if state_guild_id == request_guild_id do
+      :ok
+    else
+      {:error, :guild_mismatch}
+    end
+  end
+
+  @doc """
   Validates that an operation is being performed in the correct guild.
 
   ## Parameters
@@ -217,7 +226,7 @@ defmodule GameBot.Domain.GameState do
   """
   @spec add_forbidden_word(t(), String.t(), String.t(), String.t()) :: {:ok, t()} | {:error, validation_error()}
   def add_forbidden_word(state, guild_id, player_id, word) when is_binary(word) do
-    with :ok <- validate_guild(state, guild_id),
+    with :ok <- validate_guild_context(state, guild_id),
          :ok <- validate_word_length(word) do
       updated_state = update_in(state.forbidden_words[player_id], fn words ->
         [word | words]
@@ -251,7 +260,7 @@ defmodule GameBot.Domain.GameState do
   """
   @spec word_forbidden?(t(), String.t(), String.t(), String.t()) :: {:ok, boolean()} | {:error, validation_error()}
   def word_forbidden?(state, guild_id, player_id, word) do
-    with :ok <- validate_guild(state, guild_id) do
+    with :ok <- validate_guild_context(state, guild_id) do
       player_words = Map.get(state.forbidden_words, player_id, [])
       {:ok, word in player_words}
     end
@@ -387,9 +396,6 @@ defmodule GameBot.Domain.GameState do
 
   defp validate_teams(teams) do
     cond do
-      map_size(teams) > @max_teams ->
-        {:error, :too_many_teams}
-
       Enum.any?(teams, fn {_id, players} ->
         length(players) < @min_team_size or length(players) > @max_team_size
       end) ->

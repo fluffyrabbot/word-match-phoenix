@@ -1,107 +1,46 @@
 defmodule GameBot.Infrastructure.Persistence.Repo.Postgres do
   @moduledoc """
-  PostgreSQL repository implementation with standardized error handling.
+  PostgreSQL implementation of the repository behavior.
   """
 
   use Ecto.Repo,
     otp_app: :game_bot,
     adapter: Ecto.Adapters.Postgres
 
-  @behaviour GameBot.Infrastructure.Persistence.Repo.Behaviour
-
   alias GameBot.Infrastructure.Persistence.Error
 
-  @impl GameBot.Infrastructure.Persistence.Repo.Behaviour
-  def transaction(fun) do
+  # Define a different function name to avoid conflicts with the one from Ecto.Repo
+  def execute_transaction(fun, opts \\ []) do
     try do
-      super(fun)
+      case Ecto.Repo.transaction(__MODULE__, fun, opts) do
+        {:ok, result} -> {:ok, result}
+        {:error, reason} -> {:error, transaction_error(reason)}
+      end
     rescue
-      e in Ecto.ConstraintError ->
-        {:error, %Error{
-          type: :validation,
-          context: __MODULE__,
-          message: "Constraint violation",
-          details: %{
-            constraint: e.constraint,
-            type: e.type,
-            message: e.message
-          }
-        }}
-      e in Ecto.InvalidChangesetError ->
-        {:error, %Error{
-          type: :validation,
-          context: __MODULE__,
-          message: "Invalid changeset",
-          details: e.changeset
-        }}
+      e in DBConnection.ConnectionError ->
+        {:error, connection_error(e)}
       e ->
-        {:error, %Error{
-          type: :system,
-          context: __MODULE__,
-          message: "Transaction failed",
-          details: e
-        }}
-    end
-  end
-
-  @impl GameBot.Infrastructure.Persistence.Repo.Behaviour
-  def insert(struct, opts \\ []) do
-    try do
-      super(struct, opts)
-    rescue
-      e in Ecto.ConstraintError ->
-        {:error, constraint_error(e)}
-      e ->
-        {:error, system_error("Insert failed", e)}
-    end
-  end
-
-  @impl GameBot.Infrastructure.Persistence.Repo.Behaviour
-  def update(struct, opts \\ []) do
-    try do
-      super(struct, opts)
-    rescue
-      e in Ecto.StaleEntryError ->
-        {:error, %Error{
-          type: :concurrency,
-          context: __MODULE__,
-          message: "Concurrent modification",
-          details: %{struct: e.struct, attempted_value: e.attempted_value}
-        }}
-      e ->
-        {:error, system_error("Update failed", e)}
-    end
-  end
-
-  @impl GameBot.Infrastructure.Persistence.Repo.Behaviour
-  def delete(struct, opts \\ []) do
-    try do
-      super(struct, opts)
-    rescue
-      e in Ecto.StaleEntryError ->
-        {:error, %Error{
-          type: :concurrency,
-          context: __MODULE__,
-          message: "Concurrent deletion",
-          details: %{struct: e.struct}
-        }}
-      e ->
-        {:error, system_error("Delete failed", e)}
+        {:error, system_error("Transaction failed", e)}
     end
   end
 
   # Private Functions
 
-  defp constraint_error(%{constraint: constraint, type: type} = e) do
+  defp transaction_error(reason) do
     %Error{
-      type: :validation,
+      type: :transaction,
       context: __MODULE__,
-      message: "Constraint violation",
-      details: %{
-        constraint: constraint,
-        type: type,
-        message: e.message
-      }
+      message: "Transaction failed",
+      details: %{reason: reason}
+    }
+  end
+
+  defp connection_error(error) do
+    %Error{
+      type: :connection,
+      context: __MODULE__,
+      message: "Database connection error",
+      details: %{error: error, retryable: true}
     }
   end
 

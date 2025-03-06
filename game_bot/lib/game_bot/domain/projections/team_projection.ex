@@ -4,10 +4,12 @@ defmodule GameBot.Domain.Projections.TeamProjection do
   """
 
   alias GameBot.Domain.Events.TeamEvents.{
+    TeamCreated,
+    TeamMemberAdded,
+    TeamMemberRemoved,
     TeamInvitationCreated,
     TeamInvitationAccepted,
-    TeamCreated,
-    TeamUpdated
+    TeamInvitationDeclined
   }
 
   defmodule TeamView do
@@ -17,9 +19,10 @@ defmodule GameBot.Domain.Projections.TeamProjection do
       name: String.t(),
       player_ids: [String.t()],
       created_at: DateTime.t(),
-      updated_at: DateTime.t()
+      updated_at: DateTime.t(),
+      guild_id: String.t()
     }
-    defstruct [:team_id, :name, :player_ids, :created_at, :updated_at]
+    defstruct [:team_id, :name, :player_ids, :created_at, :updated_at, :guild_id]
   end
 
   defmodule PendingInvitationView do
@@ -32,9 +35,10 @@ defmodule GameBot.Domain.Projections.TeamProjection do
       invitee_id: String.t(),
       proposed_name: String.t() | nil,
       created_at: DateTime.t(),
-      expires_at: DateTime.t()
+      expires_at: DateTime.t(),
+      guild_id: String.t()
     }
-    defstruct [:invitation_id, :inviter_id, :invitee_id, :proposed_name, :created_at, :expires_at]
+    defstruct [:invitation_id, :inviter_id, :invitee_id, :proposed_name, :created_at, :expires_at, :guild_id]
   end
 
   defmodule TeamNameHistory do
@@ -61,7 +65,8 @@ defmodule GameBot.Domain.Projections.TeamProjection do
       invitee_id: event.invitee_id,
       proposed_name: event.proposed_name,
       created_at: event.created_at,
-      expires_at: event.expires_at
+      expires_at: event.expires_at,
+      guild_id: event.guild_id
     }
     {:ok, {:invitation_created, invitation}}
   end
@@ -76,7 +81,8 @@ defmodule GameBot.Domain.Projections.TeamProjection do
       name: event.name,
       player_ids: event.player_ids,
       created_at: event.created_at,
-      updated_at: event.created_at
+      updated_at: event.created_at,
+      guild_id: event.guild_id
     }
 
     history_entry = %TeamNameHistory{
@@ -120,14 +126,14 @@ defmodule GameBot.Domain.Projections.TeamProjection do
 
   # Query functions
 
-  def get_pending_invitation(invitee_id) do
-    # To be implemented with actual storage
-    # Returns most recent non-expired invitation for the invitee
+  def get_pending_invitation(invitee_id, guild_id) do
+    # Filter by both invitee_id and guild_id
+    # This is a placeholder - actual implementation would depend on your storage
     {:error, :not_implemented}
   end
 
-  def get_team(team_id) do
-    # To be implemented with actual storage
+  def get_team(team_id, guild_id) do
+    # Filter by both team_id and guild_id
     {:error, :not_implemented}
   end
 
@@ -136,8 +142,8 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     {:error, :not_implemented}
   end
 
-  def find_team_by_player(player_id) do
-    # To be implemented with actual storage
+  def find_team_by_player(player_id, guild_id) do
+    # Filter by both player_id and guild_id
     {:error, :not_implemented}
   end
 

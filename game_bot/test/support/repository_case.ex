@@ -1,6 +1,6 @@
 defmodule GameBot.Test.RepositoryCase do
   @moduledoc """
-  Helper module for testing repository and event store implementations.
+  This module defines common utilities for testing repositories.
   """
 
   use ExUnit.CaseTemplate
@@ -22,26 +22,39 @@ defmodule GameBot.Test.RepositoryCase do
       Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo.Postgres, {:shared, self()})
     end
 
+    # Start the mock EventStore if it's not running
+    unless Process.whereis(GameBot.Test.Mocks.EventStore) do
+      start_supervised!(GameBot.Test.Mocks.EventStore)
+    end
+
+    # Reset the mock state for each test
+    if Process.whereis(GameBot.Test.Mocks.EventStore) do
+      GameBot.Test.Mocks.EventStore.reset_state()
+    end
+
     :ok
   end
 
   @doc """
   Creates a test event for serialization testing.
   """
-  def build_test_event(type \\ "test_event") do
-    %{
-      event_type: type,
+  def build_test_event(attrs \\ %{}) do
+    Map.merge(%{
+      event_type: "test_event",
       event_version: 1,
       data: %{
-        "test_field" => "test_value",
-        "timestamp" => DateTime.utc_now()
-      },
-      stored_at: DateTime.utc_now()
-    }
+        game_id: "game-#{System.unique_integer([:positive])}",
+        mode: :test,
+        round_number: 1,
+        timestamp: DateTime.utc_now()
+      }
+    }, attrs)
   end
 
   @doc """
   Creates a unique stream ID for testing.
   """
-  def unique_stream_id, do: "test-#{:erlang.unique_integer([:positive])}"
+  def unique_stream_id do
+    "test-stream-#{System.unique_integer([:positive])}"
+  end
 end

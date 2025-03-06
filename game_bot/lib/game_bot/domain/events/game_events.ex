@@ -103,6 +103,7 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     @type t :: %__MODULE__{
       game_id: String.t(),
+      guild_id: String.t(),
       mode: atom(),
       round_number: pos_integer(),           # Always 1 for game start
       teams: %{String.t() => [String.t()]},  # team_id => [player_ids]
@@ -113,7 +114,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       timestamp: DateTime.t(),
       metadata: GameBot.Domain.Events.GameEvents.metadata()
     }
-    defstruct [:game_id, :mode, :round_number, :teams, :team_ids, :player_ids, :roles, :config, :timestamp, :metadata]
+    defstruct [:game_id, :guild_id, :mode, :round_number, :teams, :team_ids, :player_ids, :roles, :config, :timestamp, :metadata]
 
     def event_type(), do: "game_started"
     def event_version(), do: 1
@@ -121,6 +122,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def validate(%__MODULE__{} = event) do
       cond do
         is_nil(event.game_id) -> {:error, "game_id is required"}
+        is_nil(event.guild_id) -> {:error, "guild_id is required"}
         is_nil(event.mode) -> {:error, "mode is required"}
         is_nil(event.teams) -> {:error, "teams is required"}
         is_nil(event.team_ids) -> {:error, "team_ids is required"}
@@ -138,6 +140,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
+        "guild_id" => event.guild_id,
         "mode" => Atom.to_string(event.mode),
         "round_number" => 1,
         "teams" => event.teams,
@@ -153,6 +156,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
+        guild_id: data["guild_id"],
         mode: String.to_existing_atom(data["mode"]),
         round_number: 1,
         teams: data["teams"],
@@ -730,5 +734,55 @@ defmodule GameBot.Domain.Events.GameEvents do
         metadata: data["metadata"] || %{}
       }
     end
+  end
+
+  defmodule GameCreated do
+    @derive Jason.Encoder
+    defstruct [:guild_id, :game_id, :mode, :created_at, :created_by]
+
+    def event_type, do: "game.created"
+  end
+
+  defmodule RoundEnded do
+    @derive Jason.Encoder
+    defstruct [:game_id, :round_number, :winners, :timestamp]
+
+    def event_type, do: "game.round_ended"
+  end
+
+  defmodule RoundRestarted do
+    @derive Jason.Encoder
+    defstruct [:game_id, :team_id, :giving_up_player, :teammate_word, :guess_count, :timestamp]
+
+    def event_type, do: "game.round_restarted"
+  end
+
+  defmodule GuessMatched do
+    @derive Jason.Encoder
+    defstruct [:game_id, :team_id, :player1_info, :player2_info, :player1_word,
+               :player2_word, :guess_successful, :match_score, :guess_count]
+
+    def event_type, do: "game.guess_matched"
+  end
+
+  defmodule TeamInvitationCreated do
+    @derive Jason.Encoder
+    defstruct [:guild_id, :team_id, :invitation_id, :created_at, :created_by]
+
+    def event_type, do: "team.invitation_created"
+  end
+
+  defmodule TeamEvents.TeamInvitationCreated do
+    @derive Jason.Encoder
+    defstruct [:guild_id, :team_id, :invitation_id, :created_at, :created_by]
+
+    def event_type, do: "team.invitation_created"
+  end
+
+  defmodule Commands.TeamCommands.CreateTeamInvitation do
+    @derive Jason.Encoder
+    defstruct [:guild_id, :team_id, :invitation_id, :created_at, :created_by]
+
+    def event_type, do: "team.invitation_created"
   end
 end

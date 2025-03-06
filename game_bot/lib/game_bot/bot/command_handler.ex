@@ -7,7 +7,7 @@ defmodule GameBot.Bot.CommandHandler do
   alias Nostrum.Struct.Message
   alias GameBot.Bot.Commands.{GameCommands, StatsCommands, ReplayCommands}
 
-  # ETS table for tracking active games per user
+  # ETS table for tracking active games
   @active_games_table :active_games
 
   @doc """
@@ -22,25 +22,26 @@ defmodule GameBot.Bot.CommandHandler do
   @doc """
   Set the active game for a user.
   """
-  def set_active_game(user_id, game_id) do
-    :ets.insert(@active_games_table, {user_id, game_id})
+  def set_active_game(user_id, game_id, guild_id) do
+    # Store as {user_id, guild_id} -> game_id to allow same user in different guilds
+    :ets.insert(@active_games_table, {{user_id, guild_id}, game_id})
     :ok
   end
 
   @doc """
   Clear the active game for a user.
   """
-  def clear_active_game(user_id) do
-    :ets.delete(@active_games_table, user_id)
+  def clear_active_game(user_id, guild_id) do
+    :ets.delete(@active_games_table, {user_id, guild_id})
     :ok
   end
 
   @doc """
   Get the active game for a user.
   """
-  def get_active_game(user_id) do
-    case :ets.lookup(@active_games_table, user_id) do
-      [{^user_id, game_id}] -> game_id
+  def get_active_game(user_id, guild_id) do
+    case :ets.lookup(@active_games_table, {user_id, guild_id}) do
+      [{{^user_id, ^guild_id}, game_id}] -> game_id
       [] -> nil
     end
   end
@@ -63,7 +64,7 @@ defmodule GameBot.Bot.CommandHandler do
   # Private Functions
 
   defp handle_dm_message(message) do
-    case get_active_game(message.author.id) do
+    case get_active_game(message.author.id, message.guild_id) do
       nil ->
         :ok  # No active game, ignore DM
       game_id ->

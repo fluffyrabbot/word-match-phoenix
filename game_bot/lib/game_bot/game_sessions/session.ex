@@ -10,6 +10,7 @@ defmodule GameBot.GameSessions.Session do
   alias GameBot.Bot.CommandHandler
   alias GameBot.Domain.{GameState, WordService, Events}
   alias GameBot.Infrastructure.EventStore
+  alias GameBot.Domain.Events.{GuessMatched, GuessNotMatched}
 
   # Constants for timeouts
   @round_check_interval :timer.seconds(5)  # How often to check round status
@@ -98,7 +99,8 @@ defmodule GameBot.GameSessions.Session do
 
   @impl true
   def handle_call({:submit_guess, team_id, player_id, word}, _from, state) do
-    with :ok <- validate_guess(word, player_id, state),
+    with :ok <- validate_guild_context(word, player_id, state),
+         :ok <- validate_guess(word, player_id, state),
          {:ok, mode_state, events} <- record_guess(team_id, player_id, word, state) do
 
       # Process complete guess pair if available
@@ -293,7 +295,7 @@ defmodule GameBot.GameSessions.Session do
         :ok = persist_events(previous_events ++ events)
 
         # Return result based on match status
-        result = if Enum.any?(events, &match?(%Events.GuessMatched{}, &1)), do: :match, else: :no_match
+        result = if Enum.any?(events, &match?(%GuessMatched{}, &1)), do: :match, else: :no_match
         {:reply, {:ok, result}, %{state | mode_state: new_mode_state}}
 
       {:error, reason} ->
@@ -338,5 +340,21 @@ defmodule GameBot.GameSessions.Session do
     :ok = persist_events(events)
 
     {:reply, {:game_end, winners}, final_state}
+  end
+
+  defp validate_guild_context(word, player_id, %{guild_id: guild_id} = state) do
+    # Check if this player belongs to this guild
+    # This is a simplified check - you would need to implement actual guild membership validation
+    if player_in_guild?(player_id, guild_id) do
+      :ok
+    else
+      {:error, :not_in_guild}
+    end
+  end
+
+  defp player_in_guild?(player_id, guild_id) do
+    # Implementation would depend on how you store guild memberships
+    # This is a placeholder
+    true
   end
 end
