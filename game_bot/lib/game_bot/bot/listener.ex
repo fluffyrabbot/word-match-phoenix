@@ -160,8 +160,15 @@ defmodule GameBot.Bot.Listener do
   end
 
   defp maybe_notify_user(%Message{channel_id: channel_id}, :rate_limited) do
-    # Only notify for rate limiting
-    Nostrum.Api.create_message(channel_id, "You're sending messages too quickly. Please wait a moment.")
+    case Nostrum.Api.Message.create(channel_id, "You're sending messages too quickly. Please wait a moment.") do
+      {:ok, _msg} -> :ok
+      {:error, error} ->
+        Logger.warning("Failed to send rate limit notification",
+          error: error,
+          channel_id: channel_id
+        )
+        :error
+    end
   end
   defp maybe_notify_user(_, _), do: :ok
 

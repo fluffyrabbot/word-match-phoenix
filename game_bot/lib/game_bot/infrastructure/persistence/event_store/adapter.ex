@@ -250,21 +250,15 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
     try do
       apply(func, args)
     rescue
-      e ->
-        error = Error.from_exception(e, __MODULE__)
-
-        cond do
-          # Only retry on retryable connection errors
-          error.type == :connection &&
-          Map.get(error.details || %{}, :retryable, false) &&
-          retry_count < @max_retries ->
-            delay = calculate_backoff(retry_count)
-            Logger.warning("#{operation} failed with connection error, retrying in #{delay}ms (attempt #{retry_count + 1}/#{@max_retries})")
-            Process.sleep(delay)
-            with_retries(operation, func, args, retry_count + 1)
-
-          true ->
-            {:error, error}
+      e in DBConnection.ConnectionError ->
+        if retry_count < @max_retries do
+          delay = calculate_backoff(retry_count)
+          Logger.warning("#{operation} failed with connection error, retrying in #{delay}ms (attempt #{retry_count + 1}/#{@max_retries})")
+          Process.sleep(delay)
+          with_retries(operation, func, args, retry_count + 1)
+        else
+          error = Error.from_exception(e, __MODULE__)
+          {:error, error}
         end
     end
   end

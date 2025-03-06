@@ -492,10 +492,7 @@ defmodule GameBot.GameSessions.Recovery do
   end
 
   defp apply_event(event, state) do
-    Logger.warning("Unhandled event type",
-      event_type: event.__struct__,
-      game_id: state.game_id
-    )
+    Logger.warning("Unhandled event type", event_type: event.__struct__)
     state
   end
 end

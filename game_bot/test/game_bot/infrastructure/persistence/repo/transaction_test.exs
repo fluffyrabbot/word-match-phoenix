@@ -117,4 +117,120 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
       assert {:ok, _} = Postgres.get(TestSchema, 2)
     end
   end
+
+  describe "execute/3" do
+    test "logs guild context when provided" do
+      # Temporarily override the Postgres module with our mock
+      original_postgres = Transaction.Postgres
+      :meck.new(Transaction, [:passthrough])
+      :meck.expect(Transaction, :__get_module__, fn :Postgres -> MockPostgres end)
+
+      guild_id = "guild_123"
+
+      log = capture_log(fn ->
+        Transaction.execute(fn -> "test result" end, guild_id)
+      end)
+
+      # Verify log contains guild context
+      assert log =~ "[Guild: #{guild_id}]"
+      assert log =~ "Transaction completed successfully"
+
+      # Clean up mock
+      :meck.unload(Transaction)
+    end
+
+    test "logs without guild context when not provided" do
+      # Temporarily override the Postgres module with our mock
+      original_postgres = Transaction.Postgres
+      :meck.new(Transaction, [:passthrough])
+      :meck.expect(Transaction, :__get_module__, fn :Postgres -> MockPostgres end)
+
+      log = capture_log(fn ->
+        Transaction.execute(fn -> "test result" end)
+      end)
+
+      # Verify log shows no guild context
+      assert log =~ "[No Guild]"
+      assert log =~ "Transaction completed successfully"
+
+      # Clean up mock
+      :meck.unload(Transaction)
+    end
+
+    test "adds guild_id to error context on failure" do
+      # Temporarily override the Postgres module with our mock
+      original_postgres = Transaction.Postgres
+      :meck.new(Transaction, [:passthrough])
+      :meck.expect(Transaction, :__get_module__, fn :Postgres -> MockPostgres end)
+
+      guild_id = "guild_456"
+
+      log = capture_log(fn ->
+        result = Transaction.execute(fn -> raise "Forced error" end, guild_id)
+        assert {:error, error} = result
+        assert error.details.guild_id == guild_id
+      end)
+
+      # Verify log contains guild context and error
+      assert log =~ "[Guild: #{guild_id}]"
+      assert log =~ "Transaction failed"
+
+      # Clean up mock
+      :meck.unload(Transaction)
+    end
+  end
+
+  describe "execute_steps/3" do
+    test "executes multiple steps with guild context" do
+      # Temporarily override the Postgres module with our mock
+      original_postgres = Transaction.Postgres
+      :meck.new(Transaction, [:passthrough])
+      :meck.expect(Transaction, :__get_module__, fn :Postgres -> MockPostgres end)
+
+      guild_id = "guild_789"
+
+      steps = [
+        fn -> {:ok, 1} end,
+        fn val -> {:ok, val + 1} end,
+        fn val -> {:ok, val * 2} end
+      ]
+
+      log = capture_log(fn ->
+        result = Transaction.execute_steps(steps, guild_id)
+        assert {:ok, 4} = result
+      end)
+
+      # Verify log contains guild context
+      assert log =~ "[Guild: #{guild_id}]"
+
+      # Clean up mock
+      :meck.unload(Transaction)
+    end
+
+    test "stops execution on first error" do
+      # Temporarily override the Postgres module with our mock
+      original_postgres = Transaction.Postgres
+      :meck.new(Transaction, [:passthrough])
+      :meck.expect(Transaction, :__get_module__, fn :Postgres -> MockPostgres end)
+
+      guild_id = "guild_123"
+
+      steps = [
+        fn -> {:ok, 1} end,
+        fn _ -> {:error, "Step 2 failed"} end,
+        fn _ -> {:ok, "Should not execute"} end
+      ]
+
+      log = capture_log(fn ->
+        result = Transaction.execute_steps(steps, guild_id)
+        assert {:error, "Step 2 failed"} = result
+      end)
+
+      # Verify log contains guild context and error
+      assert log =~ "[Guild: #{guild_id}]"
+
+      # Clean up mock
+      :meck.unload(Transaction)
+    end
+  end
 end

@@ -49,7 +49,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
 
   defmodule TeamUpdated do
     @derive Jason.Encoder
-    defstruct [:team_id, :name, :updated_at, :metadata]
+    defstruct [:team_id, :name, :updated_at, :metadata, :guild_id]
 
     def event_type, do: "team.updated"
 
@@ -57,6 +57,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
       cond do
         is_nil(event.team_id) -> {:error, "team_id is required"}
         is_nil(event.name) -> {:error, "name is required"}
+        is_nil(event.guild_id) -> {:error, "guild_id is required"}
         is_nil(event.metadata) -> {:error, "metadata is required"}
         is_nil(event.metadata["guild_id"]) -> {:error, "guild_id is required in metadata"}
         true -> :ok
@@ -67,6 +68,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
       %{
         "team_id" => event.team_id,
         "name" => event.name,
+        "guild_id" => event.guild_id,
         "updated_at" => DateTime.to_iso8601(event.updated_at),
         "metadata" => event.metadata || %{}
       }
@@ -77,7 +79,8 @@ defmodule GameBot.Domain.Events.TeamEvents do
         team_id: data["team_id"],
         name: data["name"],
         updated_at: GameEvents.parse_timestamp(data["updated_at"]),
-        metadata: data["metadata"] || %{}
+        metadata: data["metadata"] || %{},
+        guild_id: data["guild_id"]
       }
     end
   end

@@ -150,13 +150,49 @@ defmodule GameBot.Bot.Dispatcher do
   defp maybe_notify_user(%Message{channel_id: channel_id}, reason) do
     case reason do
       :game_completed ->
-        Nostrum.Api.create_message(channel_id, "This game has already ended.")
+        handle_game_error(channel_id, :game_ended)
       :game_not_found ->
-        Nostrum.Api.create_message(channel_id, "No active game found.")
+        handle_game_error(channel_id, :no_active_game)
       :invalid_game_state ->
-        Nostrum.Api.create_message(channel_id, "The game is not in a valid state for that action.")
+        handle_game_error(channel_id, :invalid_state)
       _ ->
         :ok  # Don't notify for other errors
+    end
+  end
+
+  defp handle_game_error(channel_id, :game_ended) do
+    case Nostrum.Api.Message.create(channel_id, "This game has already ended.") do
+      {:ok, _msg} -> :ok
+      {:error, error} ->
+        Logger.warning("Failed to send game ended notification",
+          error: error,
+          channel_id: channel_id
+        )
+        :error
+    end
+  end
+
+  defp handle_game_error(channel_id, :no_active_game) do
+    case Nostrum.Api.Message.create(channel_id, "No active game found.") do
+      {:ok, _msg} -> :ok
+      {:error, error} ->
+        Logger.warning("Failed to send no active game notification",
+          error: error,
+          channel_id: channel_id
+        )
+        :error
+    end
+  end
+
+  defp handle_game_error(channel_id, :invalid_state) do
+    case Nostrum.Api.Message.create(channel_id, "The game is not in a valid state for that action.") do
+      {:ok, _msg} -> :ok
+      {:error, error} ->
+        Logger.warning("Failed to send invalid state notification",
+          error: error,
+          channel_id: channel_id
+        )
+        :error
     end
   end
 

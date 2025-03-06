@@ -10,7 +10,12 @@ defmodule GameBot.GameSessions.Session do
   alias GameBot.Bot.CommandHandler
   alias GameBot.Domain.{GameState, WordService, Events}
   alias GameBot.Infrastructure.EventStore
-  alias GameBot.Domain.Events.{GuessMatched, GuessNotMatched}
+  alias GameBot.Domain.Events.{
+    GameEvents,
+    ErrorEvents.GuessError,
+    ErrorEvents.GuessPairError,
+    ErrorEvents.RoundCheckError
+  }
 
   # Constants for timeouts
   @round_check_interval :timer.seconds(5)  # How often to check round status
@@ -115,8 +120,7 @@ defmodule GameBot.GameSessions.Session do
       end
     else
       {:error, reason} ->
-        # Create and persist error event
-        error_event = Events.GuessError.new(state.game_id, team_id, player_id, word, reason)
+        error_event = GuessError.new(state.game_id, team_id, player_id, word, reason)
         :ok = persist_events([error_event])
         {:reply, {:error, reason}, state}
     end
@@ -124,7 +128,7 @@ defmodule GameBot.GameSessions.Session do
 
   @impl true
   def handle_call(:check_round_end, _from, state) do
-    case apply(state.mode, :check_round_end, [state.mode_state]) do
+    case state.mode.check_round_end(state.mode_state) do
       {:round_end, winners, events} ->
         # First update state with round results
         {updated_state, round_events} = update_round_results(state, winners)
@@ -145,7 +149,7 @@ defmodule GameBot.GameSessions.Session do
       :continue ->
         {:reply, :continue, state}
       {:error, reason} ->
-        error_event = Events.RoundCheckError.new(state.game_id, reason)
+        error_event = RoundCheckError.new(state.game_id, reason)
         :ok = persist_events([error_event])
         {:reply, {:error, reason}, state}
     end
@@ -154,8 +158,26 @@ defmodule GameBot.GameSessions.Session do
   @impl true
   def handle_call(:check_game_end, _from, state) do
     case apply(state.mode, :check_game_end, [state.mode_state]) do
-      {:game_end, winners} ->
-        handle_game_end(winners, state)
+      {:game_end, winners, events} ->
+        # Process game end events
+        updated_state = %{state | status: :completed}
+
+        # Create the game finished event
+        game_finished = Events.GameFinished.new(
+          state.game_id,
+          winners,
+          compute_final_score(state),
+          state.guild_id
+        )
+
+        # Combine all events
+        all_events = [game_finished | events]
+
+        # Persist events
+        :ok = persist_events(all_events)
+
+        # Return the complete game state
+        {:reply, {:game_end, winners}, updated_state}
       :continue ->
         {:reply, :continue, state}
     end
@@ -285,11 +307,7 @@ defmodule GameBot.GameSessions.Session do
   end
 
   defp handle_guess_pair(word1, word2, team_id, state, previous_events) do
-    # Get result from mode
-    case apply(state.mode, :process_guess_pair, [state.mode_state, team_id, %{
-      player1_word: word1,
-      player2_word: word2
-    }]) do
+    case state.mode.process_guess_pair(state.mode_state, team_id, {word1, word2}) do
       {:ok, new_mode_state, events} ->
         # Persist all events
         :ok = persist_events(previous_events ++ events)
@@ -299,7 +317,7 @@ defmodule GameBot.GameSessions.Session do
         {:reply, {:ok, result}, %{state | mode_state: new_mode_state}}
 
       {:error, reason} ->
-        error_event = Events.GuessPairError.new(state.game_id, team_id, word1, word2, reason)
+        error_event = GuessPairError.new(state.game_id, team_id, word1, word2, reason)
         :ok = persist_events([error_event])
         {:reply, {:error, reason}, state}
     end
@@ -356,5 +374,16 @@ defmodule GameBot.GameSessions.Session do
     # Implementation would depend on how you store guild memberships
     # This is a placeholder
     true
+  end
+
+  # Calculate final score from state
+  defp compute_final_score(state) do
+    # Extract scores from state - implementation depends on game state structure
+    # This is a placeholder implementation
+    state.teams
+    |> Enum.map(fn {team_id, team_state} ->
+      {team_id, team_state[:score] || 0}
+    end)
+    |> Enum.into(%{})
   end
 end

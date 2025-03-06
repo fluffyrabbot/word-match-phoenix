@@ -7,6 +7,14 @@ defmodule GameBot.Domain.Commands.TeamCommandStructs do
     @enforce_keys [:inviter_id, :invitee_id]
     defstruct [:inviter_id, :invitee_id, :name, :guild_id]
 
+    @typedoc "Command to create a team invitation"
+    @type t :: %__MODULE__{
+      inviter_id: String.t(),
+      invitee_id: String.t(),
+      name: String.t() | nil,
+      guild_id: String.t()
+    }
+
     @spec validate(t()) :: :ok | {:error, atom()}
     def validate(%__MODULE__{inviter_id: inviter_id, invitee_id: invitee_id, guild_id: guild_id}) do
       cond do
@@ -26,11 +34,25 @@ defmodule GameBot.Domain.Commands.TeamCommandStructs do
   defmodule AcceptInvitation do
     @enforce_keys [:invitee_id]
     defstruct [:invitee_id, :guild_id]
+
+    @typedoc "Command to accept a team invitation"
+    @type t :: %__MODULE__{
+      invitee_id: String.t(),
+      guild_id: String.t()
+    }
   end
 
   defmodule RenameTeam do
     @enforce_keys [:team_id, :requester_id, :new_name]
     defstruct [:team_id, :requester_id, :new_name, :guild_id]
+
+    @typedoc "Command to rename a team"
+    @type t :: %__MODULE__{
+      team_id: String.t(),
+      requester_id: String.t(),
+      new_name: String.t(),
+      guild_id: String.t()
+    }
 
     @spec validate(t()) :: :ok | {:error, atom()}
     def validate(%__MODULE__{new_name: new_name, guild_id: guild_id}) do

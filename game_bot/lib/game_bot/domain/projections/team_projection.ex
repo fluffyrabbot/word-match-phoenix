@@ -9,7 +9,8 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     TeamMemberRemoved,
     TeamInvitationCreated,
     TeamInvitationAccepted,
-    TeamInvitationDeclined
+    TeamInvitationDeclined,
+    TeamUpdated
   }
 
   defmodule TeamView do

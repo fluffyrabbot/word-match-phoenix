@@ -131,6 +131,126 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Postgres do
     end
   end
 
+  @impl EventStore
+  def ack(subscription, events) do
+    EventStore.ack(subscription, events)
+  end
+
+  @impl EventStore
+  def config do
+    Application.get_env(:game_bot, :event_store, [])
+  end
+
+  @impl EventStore
+  def delete_all_streams_subscription(subscription_name, opts \\ []) do
+    EventStore.delete_all_streams_subscription(subscription_name, opts)
+  end
+
+  @impl EventStore
+  def delete_snapshot(source_uuid, opts \\ []) do
+    EventStore.delete_snapshot(source_uuid, opts)
+  end
+
+  @impl EventStore
+  def delete_stream(stream_id, expected_version \\ :any, hard_delete \\ false, opts \\ []) do
+    EventStore.delete_stream(stream_id, expected_version, hard_delete, opts)
+  end
+
+  @impl EventStore
+  def delete_subscription(stream_id, subscription_name, opts \\ []) do
+    EventStore.delete_subscription(stream_id, subscription_name, opts)
+  end
+
+  @impl EventStore
+  def link_to_stream(stream_id, expected_version, event_numbers, opts \\ []) do
+    EventStore.link_to_stream(stream_id, expected_version, event_numbers, opts)
+  end
+
+  @impl EventStore
+  def paginate_streams(opts \\ []) do
+    EventStore.paginate_streams(opts)
+  end
+
+  @impl EventStore
+  def read_all_streams_backward(start_from \\ :end, count \\ 1000, opts \\ []) do
+    EventStore.read_all_streams_backward(start_from, count, opts)
+  end
+
+  @impl EventStore
+  def read_all_streams_forward(start_from \\ :start, count \\ 1000, opts \\ []) do
+    EventStore.read_all_streams_forward(start_from, count, opts)
+  end
+
+  @impl EventStore
+  def read_snapshot(source_uuid, opts \\ []) do
+    EventStore.read_snapshot(source_uuid, opts)
+  end
+
+  @impl EventStore
+  def read_stream_backward(stream_id, start_version \\ 0, count \\ 1000, opts \\ []) do
+    EventStore.read_stream_backward(stream_id, start_version, count, opts)
+  end
+
+  @impl EventStore
+  def record_snapshot(snapshot, opts \\ []) do
+    EventStore.record_snapshot(snapshot, opts)
+  end
+
+  @impl EventStore
+  def start_link(opts \\ []) do
+    EventStore.start_link(opts)
+  end
+
+  @impl EventStore
+  def stop(server, timeout \\ :infinity) do
+    EventStore.stop(server, timeout)
+  end
+
+  @impl EventStore
+  def stream_all_backward(start_from \\ :end, opts \\ []) do
+    EventStore.stream_all_backward(start_from, opts)
+  end
+
+  @impl EventStore
+  def stream_all_forward(start_from \\ :start, opts \\ []) do
+    EventStore.stream_all_forward(start_from, opts)
+  end
+
+  @impl EventStore
+  def stream_backward(stream_id, start_version \\ 0, opts \\ []) do
+    EventStore.stream_backward(stream_id, start_version, opts)
+  end
+
+  @impl EventStore
+  def stream_forward(stream_id, start_version \\ 0, opts \\ []) do
+    EventStore.stream_forward(stream_id, start_version, opts)
+  end
+
+  @impl EventStore
+  def stream_info(stream_id, opts \\ []) do
+    EventStore.stream_info(stream_id, opts)
+  end
+
+  @impl EventStore
+  def subscribe(subscriber, opts \\ []) do
+    EventStore.subscribe(subscriber, opts)
+  end
+
+  @impl EventStore
+  def subscribe_to_all_streams(subscription_name, subscriber, subscription_options \\ [], opts \\ []) do
+    EventStore.subscribe_to_all_streams(subscription_name, subscriber, subscription_options, opts)
+  end
+
+  @impl EventStore
+  def unsubscribe_from_all_streams(subscription, opts \\ []) do
+    EventStore.unsubscribe_from_all_streams(subscription, opts)
+  end
+
+  @impl EventStore
+  def unsubscribe_from_stream(stream_id, subscription, opts \\ []) do
+    EventStore.unsubscribe_from_stream(stream_id, subscription, opts)
+  end
+
   # Private Functions
 
   defp handle_telemetry_event(@telemetry_prefix ++ [:event], measurements, metadata, _config) do
