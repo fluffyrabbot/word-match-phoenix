@@ -30,8 +30,7 @@ defmodule GameBot.Bot.CommandHandlerTest do
         teams: %{
           team_map: %{"team_1" => ["user_1", "user_2"]},
           team_ids: ["team_1"],
-          player_ids: ["user_1", "user_2"],
-          roles: %{"user_1" => :giver, "user_2" => :guesser}
+          player_ids: ["user_1", "user_2"]
         }
       }
 
@@ -45,7 +44,6 @@ defmodule GameBot.Bot.CommandHandlerTest do
       assert event.teams == options.teams.team_map
       assert event.team_ids == options.teams.team_ids
       assert event.player_ids == options.teams.player_ids
-      assert event.roles == options.teams.roles
     end
   end
 
@@ -96,8 +94,7 @@ defmodule GameBot.Bot.CommandHandlerTest do
         teams: %{
           team_map: %{"team_1" => ["user_1", "user_2"]},
           team_ids: ["team_1"],
-          player_ids: ["user_1", "user_2"],
-          roles: %{"user_1" => :giver, "user_2" => :guesser}
+          player_ids: ["user_1", "user_2"]
         }
       })
 

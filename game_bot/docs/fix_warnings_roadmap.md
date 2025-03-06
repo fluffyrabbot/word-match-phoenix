@@ -50,6 +50,8 @@
 ### Nostrum API Updates
 - [x] Update `create_message/2` to `Message.create/2` in listener module
 - [x] Update `create_message/2` to `Message.create/2` in dispatcher module
+- [x] Update `create_interaction_response/3` to `Interaction.create_response/3` in error handler
+- [x] Fix test mocking for Nostrum API modules
 - [x] Test message creation in development environment
 - [x] Add error handling for API calls
 
@@ -70,20 +72,36 @@
 ## Phase 5: Cleanup
 
 ### Unused Variable Fixes
-- [ ] Add underscore prefix to unused variables in game projection
-- [ ] Add underscore prefix to unused variables in command handlers
+- [x] Add underscore prefix to unused variables in game_sessions/session.ex
+- [x] Add underscore prefix to unused variables in domain/game_modes.ex
+- [x] Add underscore prefix to unused variables in game projection
+- [x] Add underscore prefix to unused variables in replay commands
+- [ ] Add underscore prefix to unused variables in other command handlers
 - [ ] Add underscore prefix to unused variables in event handlers
 - [ ] Review and document intentionally unused variables
 
 ### Unused Alias Cleanup
-- [ ] Remove unused aliases from game modes
+- [x] Remove unused aliases from game modes
+- [x] Remove unused aliases from game sessions
 - [ ] Remove unused aliases from event store
 - [ ] Remove unused aliases from command handlers
 - [ ] Update documentation to reflect removed aliases
 
+### Application.get_env Fixes
+- [x] Replace `Application.get_env/3` with `Application.compile_env/3` in listener module
+- [ ] Replace `Application.get_env/3` with `Application.compile_env/3` in other modules
+- [ ] Document configuration values in a central location
+- [ ] Ensure consistent configuration access patterns
+
+### Unused Function Cleanup
+- [x] Remove unused functions from listener module
+- [ ] Remove unused functions from other modules
+- [ ] Document functions that appear unused but are needed
+
 ## Testing and Deployment
 
 ### Testing
+- [x] Fix test mocking for Nostrum API
 - [ ] Create baseline test suite
 - [ ] Add tests for each phase
 - [ ] Create integration tests
@@ -113,10 +131,22 @@
 - Updated Nostrum.Api.create_message to Nostrum.Api.Message.create in listener and dispatcher modules
 - Added proper error handling for Nostrum API calls with logging
 - Completed all Logger deprecation fixes with proper context
+- Fixed test mocking for Nostrum API by creating proper mock modules for Nostrum.Api.Message and Nostrum.Api.Interaction
+- Updated error handler to use proper Nostrum API module aliases
+- Replaced Application.get_env with Application.compile_env in listener module
+- Removed unused functions from listener module
+- Added underscore prefix to unused variables in game_sessions/session.ex
+- Added underscore prefix to unused variables in domain/game_modes.ex
+- Added underscore prefix to unused variables in game projection
+- Added underscore prefix to unused variables in replay commands
+- Removed unused aliases from game modes and game sessions
 
 ### In Progress
 - Test coverage for new events and EventStore operations
 - Function grouping and organization
+- Addressing Application.get_env deprecation warnings in other modules
+- Adding underscore prefix to unused variables in other modules
+- Removing unused aliases from other modules
 
 ### Blocked Items
 - None
@@ -135,4 +165,12 @@
 - All critical Logger.warn usages have been updated to Logger.warning
 - Nostrum API deprecation fixes have been completed for message creation
 - Added proper error handling for Nostrum API calls with structured logging
-- All Logger calls now include proper context for better debugging 
+- All Logger calls now include proper context for better debugging
+- Fixed test mocking for Nostrum API by creating proper mock modules that delegate to the existing NostrumApiMock
+- Added a new section for Application.get_env deprecation fixes
+- Tests are now passing after fixing the Nostrum API mocking issues
+- Removed unused functions from listener module to reduce maintenance burden
+- Added underscore prefix to unused variables to make it clear they are intentionally unused
+- Removed unused aliases to improve code clarity and reduce compilation overhead
+- Added a new section for unused function cleanup
+- Fixed unused variables in game projection and replay commands modules 

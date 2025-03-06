@@ -11,24 +11,98 @@ defmodule GameBot.TestEventStore do
   defmodule State do
     defstruct streams: %{},              # stream_id => [event]
               subscriptions: %{},         # {stream_id, subscriber} => subscription_ref
-              subscribers: %{}            # subscription_ref => subscriber
+              subscribers: %{},           # subscription_ref => subscriber
+              failure_count: 0,           # Number of times to fail before succeeding
+              track_retries: false,       # Whether to track retry attempts
+              retry_delays: [],           # List of delays between retry attempts
+              last_attempt_time: nil      # Timestamp of last attempt for tracking delays
   end
 
   # Client API
 
+  @impl EventStore
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @impl EventStore
   def stop(server, timeout \\ :infinity) do
-    GenServer.stop(server, :normal, timeout)
+    case server do
+      pid when is_pid(pid) ->
+        if Process.alive?(pid) do
+          GenServer.stop(pid, :normal, timeout)
+        else
+          :ok
+        end
+      name when is_atom(name) ->
+        case Process.whereis(name) do
+          nil -> :ok
+          pid -> GenServer.stop(pid, :normal, timeout)
+        end
+      _ ->
+        :ok
+    end
+  end
+
+  @doc """
+  Sets the number of times operations should fail before succeeding.
+  Used for testing retry mechanisms.
+  """
+  def set_failure_count(count) when is_integer(count) and count >= 0 do
+    GenServer.call(__MODULE__, {:set_failure_count, count})
+  end
+
+  @doc """
+  Gets the current failure count.
+  """
+  def get_failure_count do
+    GenServer.call(__MODULE__, :get_failure_count)
+  end
+
+  @doc """
+  Resets the state of the test event store.
+  """
+  def reset_state do
+    GenServer.call(__MODULE__, :reset_state)
+  end
+
+  @doc """
+  Enables or disables tracking of retries.
+  """
+  def set_track_retries(enable) when is_boolean(enable) do
+    GenServer.call(__MODULE__, {:set_track_retries, enable})
+  end
+
+  @doc """
+  Returns the delays between retry attempts.
+  """
+  def get_retry_delays do
+    GenServer.call(__MODULE__, :get_retry_delays)
+  end
+
+  @doc """
+  Gets the current version of a stream.
+  """
+  def stream_version(stream_id) do
+    GenServer.call(__MODULE__, {:version, stream_id})
   end
 
   # EventStore Callbacks
 
   @impl EventStore
-  def init(_opts) do
-    {:ok, %State{}}
+  def config do
+    # Return test configuration for the in-memory event store
+    Application.get_env(:game_bot, __MODULE__, [])
+  end
+
+  @impl EventStore
+  def subscribe(subscriber, subscription_options) do
+    GenServer.call(__MODULE__, {:subscribe_all, subscriber, subscription_options})
+  end
+
+  @impl EventStore
+  def unsubscribe_from_all_streams(subscription, _opts \\ []) do
+    GenServer.call(__MODULE__, {:unsubscribe_all, subscription})
   end
 
   @impl EventStore
@@ -57,12 +131,12 @@ defmodule GameBot.TestEventStore do
   end
 
   @impl EventStore
-  def subscribe_to_stream(stream_id, subscriber, subscription_options \\ []) do
+  def subscribe_to_stream(stream_id, subscriber, subscription_options \\ [], _opts \\ []) do
     GenServer.call(__MODULE__, {:subscribe, stream_id, subscriber, subscription_options})
   end
 
   @impl EventStore
-  def subscribe_to_all_streams(subscription_name, subscriber, subscription_options \\ []) do
+  def subscribe_to_all_streams(subscription_name, subscriber, subscription_options) do
     GenServer.call(__MODULE__, {:subscribe_all, subscription_name, subscriber, subscription_options})
   end
 
@@ -72,12 +146,12 @@ defmodule GameBot.TestEventStore do
   end
 
   @impl EventStore
-  def unsubscribe_from_stream(stream_id, subscription) do
+  def unsubscribe_from_stream(stream_id, subscription, _opts \\ []) do
     GenServer.call(__MODULE__, {:unsubscribe, stream_id, subscription})
   end
 
   @impl EventStore
-  def delete_subscription(stream_id, subscription_name, _opts \\ []) do
+  def delete_subscription(stream_id, subscription_name, opts) do
     GenServer.call(__MODULE__, {:delete_subscription, stream_id, subscription_name})
   end
 
@@ -144,26 +218,95 @@ defmodule GameBot.TestEventStore do
   # Server Callbacks
 
   @impl GenServer
+  def init(_opts) do
+    {:ok, %State{}}
+  end
+
+  @impl GenServer
+  def handle_call({:set_failure_count, count}, _from, state) do
+    {:reply, :ok, %{state | failure_count: count}}
+  end
+
+  @impl GenServer
+  def handle_call(:get_failure_count, _from, state) do
+    {:reply, state.failure_count, state}
+  end
+
+  @impl GenServer
+  def handle_call(:reset_state, _from, _state) do
+    {:reply, :ok, %State{}}
+  end
+
+  @impl GenServer
+  def handle_call({:set_track_retries, enable}, _from, state) do
+    new_state = Map.put(state, :track_retries, enable)
+    new_state = Map.put(new_state, :retry_delays, [])
+    new_state = Map.put(new_state, :last_attempt_time, System.monotonic_time(:millisecond))
+    {:reply, :ok, new_state}
+  end
+
+  @impl GenServer
+  def handle_call(:get_retry_delays, _from, state) do
+    delays = Map.get(state, :retry_delays, [])
+    {:reply, delays, state}
+  end
+
+  @impl GenServer
+  def handle_call({:version, stream_id}, _from, state) do
+    case Map.get(state.streams, stream_id) do
+      nil -> {:reply, {:ok, 0}, state}
+      events -> {:reply, {:ok, length(events)}, state}
+    end
+  end
+
+  @impl GenServer
+  def handle_call({:append, stream_id, expected_version, events}, _from, %{track_retries: true, failure_count: failure_count} = state) when failure_count > 0 do
+    # Record the delay since the last attempt
+    now = System.monotonic_time(:millisecond)
+    last_time = Map.get(state, :last_attempt_time, now)
+    delay = now - last_time
+
+    # Update retry tracking state
+    retry_delays = [delay | Map.get(state, :retry_delays, [])]
+    new_state = %{state |
+      failure_count: failure_count - 1,
+      retry_delays: retry_delays,
+      last_attempt_time: now
+    }
+
+    # Return connection error
+    {:reply, {:error, :connection_error}, new_state}
+  end
+
+  @impl GenServer
   def handle_call({:append, stream_id, expected_version, events}, _from, state) do
-    stream = Map.get(state.streams, stream_id, [])
-    current_version = length(stream)
+    if state.failure_count > 0 do
+      {:reply, {:error, :connection_error}, %{state | failure_count: state.failure_count - 1}}
+    else
+      stream = Map.get(state.streams, stream_id, [])
+      current_version = length(stream)
 
-    cond do
-      expected_version != current_version ->
-        {:reply, {:error, :wrong_expected_version}, state}
+      cond do
+        expected_version != current_version and expected_version != :any ->
+          {:reply, {:error, :wrong_expected_version}, state}
 
-      true ->
-        new_stream = stream ++ events
-        new_state = %{state | streams: Map.put(state.streams, stream_id, new_stream)}
-        {:reply, :ok, new_state}
+        true ->
+          new_stream = stream ++ events
+          new_state = %{state | streams: Map.put(state.streams, stream_id, new_stream)}
+          {:reply, :ok, new_state}
+      end
     end
   end
 
   @impl GenServer
   def handle_call({:read_forward, stream_id, start_version, count}, _from, state) do
-    stream = Map.get(state.streams, stream_id, [])
-    events = Enum.slice(stream, start_version, count)
-    {:reply, {:ok, events}, state}
+    if state.failure_count > 0 do
+      {:reply, {:error, :connection_error}, %{state | failure_count: state.failure_count - 1}}
+    else
+      stream = Map.get(state.streams, stream_id, [])
+      events = Enum.slice(stream, start_version, count)
+      {:reply, {:ok, events}, state}
+    end
   end
 
   @impl GenServer
@@ -301,5 +444,14 @@ defmodule GameBot.TestEventStore do
   @impl GenServer
   def handle_call({:delete_snapshot, _source_uuid}, _from, state) do
     {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call({:unsubscribe_all, subscription}, _from, state) do
+    new_state = %{state |
+      subscriptions: Map.delete(state.subscriptions, subscription),
+      subscribers: Map.delete(state.subscribers, subscription)
+    }
+    {:reply, :ok, new_state}
   end
 end

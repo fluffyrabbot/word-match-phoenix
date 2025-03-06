@@ -119,33 +119,33 @@ defmodule GameBot.Domain.Projections.GameProjection do
 
   # Query functions - all filter by guild_id for data segregation
 
-  def get_game(game_id, guild_id) do
+  def get_game(_game_id, _guild_id) do
     # Filter by both game_id and guild_id
     # This is a placeholder - actual implementation would depend on your storage
     {:error, :not_implemented}
   end
 
-  def list_active_games(guild_id) do
+  def list_active_games(_guild_id) do
     # Filter by guild_id and status: active
     {:error, :not_implemented}
   end
 
-  def list_recent_games(guild_id, limit \\ 10) do
+  def list_recent_games(_guild_id, _limit \\ 10) do
     # Filter by guild_id and sort by created_at
     {:error, :not_implemented}
   end
 
-  def get_user_games(user_id, guild_id, limit \\ 10) do
+  def get_user_games(_user_id, _guild_id, _limit \\ 10) do
     # Filter by guild_id and games where user participated
     {:error, :not_implemented}
   end
 
-  def get_game_rounds(game_id, guild_id) do
+  def get_game_rounds(_game_id, _guild_id) do
     # Filter by game_id and guild_id
     {:error, :not_implemented}
   end
 
-  def get_game_statistics(guild_id, time_range \\ nil) do
+  def get_game_statistics(_guild_id, _time_range \\ nil) do
     # Aggregate statistics filtered by guild_id
     {:error, :not_implemented}
   end

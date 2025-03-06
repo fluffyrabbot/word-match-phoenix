@@ -1,7 +1,8 @@
 defmodule GameBot.Bot.ErrorHandler do
   require Logger
   alias Nostrum.Struct.{Message, Interaction}
-  alias Nostrum.Api
+  alias Nostrum.Api.Message, as: MessageApi
+  alias Nostrum.Api.Interaction, as: InteractionApi
 
   @spec format_error_message(atom()) :: String.t()
   def format_error_message(:rate_limited), do: "You're sending commands too quickly. Please wait a moment."
@@ -26,7 +27,7 @@ defmodule GameBot.Bot.ErrorHandler do
       content: format_error_message(reason),
       flags: 64  # Set the ephemeral flag
     }
-    case Api.create_message(channel_id, message) do
+    case MessageApi.create(channel_id, message) do
       {:ok, _} -> :ok
       {:error, _} ->
         Logger.warning("Failed to send message: #{inspect(reason)}")
@@ -48,7 +49,7 @@ defmodule GameBot.Bot.ErrorHandler do
           }
         }
 
-        case Api.create_interaction_response(
+        case InteractionApi.create_response(
                interaction.id,
                interaction.token,
                response

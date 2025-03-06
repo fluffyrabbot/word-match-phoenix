@@ -24,7 +24,6 @@ defmodule GameBot.Bot.Listener do
   require Logger
 
   alias GameBot.Bot.Dispatcher
-  alias Nostrum.Api
   alias Nostrum.Struct.{Message, Interaction}
   alias GameBot.Bot.ErrorHandler
 
@@ -47,10 +46,10 @@ defmodule GameBot.Bot.Listener do
     :suspicious_content
 
   # Rate limiting configuration
-  @rate_limit_window_seconds Application.get_env(:game_bot, :rate_limit_window_seconds, 60)
-  @max_messages_per_window Application.get_env(:game_bot, :max_messages_per_window, 30)
-  @max_word_length Application.get_env(:game_bot, :max_word_length, 50)
-  @min_word_length Application.get_env(:game_bot, :min_word_length, 2)
+  @rate_limit_window_seconds Application.compile_env(:game_bot, :rate_limit_window_seconds, 60)
+  @max_messages_per_window Application.compile_env(:game_bot, :max_messages_per_window, 30)
+  @max_word_length Application.compile_env(:game_bot, :max_word_length, 50)
+  @min_word_length Application.compile_env(:game_bot, :min_word_length, 2)
   @max_message_length 2000
   @min_message_length 1
   @max_mentions 5
@@ -229,7 +228,7 @@ defmodule GameBot.Bot.Listener do
   @spec has_suspicious_mentions?(Message.t()) :: boolean()
   defp has_suspicious_mentions?(%Message{mentions: nil}), do: false
   defp has_suspicious_mentions?(%Message{mentions: mentions}) do
-    length(mentions) > 5
+    length(mentions) > @max_mentions
   end
 
   @spec has_suspicious_content?(String.t()) :: boolean()
@@ -240,49 +239,8 @@ defmodule GameBot.Bot.Listener do
     String.match?(content, ~r/(.{3,})\1{2,}/)               # Repeated patterns
   end
 
-  #
-  # Error Handling & Notifications
-  #
-
-  @spec maybe_notify_user(Message.t(), validation_error()) :: :ok | :error
-  defp maybe_notify_user(%Message{} = message, reason) do
-    ErrorHandler.notify_user(message, reason)
-  end
-
-  @spec maybe_notify_interaction_error(Interaction.t(), term()) :: :ok | :error
-  defp maybe_notify_interaction_error(%Interaction{} = interaction, reason) do
-    ErrorHandler.notify_interaction_error(interaction, reason)
-  end
-
-  #
-  # Helper Functions
-  #
-
-  @spec format_error_message(validation_error() | term()) :: String.t()
-  defp format_error_message(:rate_limited), do: "You're sending commands too quickly. Please wait a moment."
-  defp format_error_message(:message_too_long), do: "Your message is too long. Maximum length is #{@max_message_length} characters."
-  defp format_error_message(:message_too_short), do: "Your message is too short. Minimum length is #{@min_message_length} characters."
-  defp format_error_message(:word_too_long), do: "Word is too long. Maximum length is #{@max_word_length} characters."
-  defp format_error_message(:word_too_short), do: "Word is too short. Minimum length is #{@min_word_length} characters."
-  defp format_error_message(:invalid_characters), do: "Your message contains invalid characters."
-  defp format_error_message(:excessive_mentions), do: "Too many mentions in your message."
-  defp format_error_message(:suspicious_content), do: "Your message was flagged as potentially suspicious."
-  defp format_error_message(_), do: "An error occurred processing your request."
-
-  # Helper to determine validation type for logging
-  @spec get_validation_type(validation_error() | term()) :: atom()
-  defp get_validation_type(:rate_limited), do: :rate_limit
-  defp get_validation_type(:empty_message), do: :format
-  defp get_validation_type(:invalid_encoding), do: :format
-  defp get_validation_type(:invalid_characters), do: :format
-  defp get_validation_type(:message_too_long), do: :length
-  defp get_validation_type(:message_too_short), do: :length
-  defp get_validation_type(:excessive_mentions), do: :spam
-  defp get_validation_type(:suspicious_content), do: :spam
-  defp get_validation_type(_), do: :unknown
-
-  @spec contains_control_chars?(String.t()) :: boolean()
-  defp contains_control_chars?(str) do
-    String.match?(str, ~r/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/)
+  # Helper function to check for control characters
+  defp contains_control_chars?(content) do
+    String.match?(content, ~r/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/)
   end
 end

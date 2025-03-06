@@ -7,7 +7,8 @@ config :game_bot, GameBot.Infrastructure.EventStore.Config,
   password: "csstarahid",
   database: "game_bot_eventstore_test",
   hostname: "localhost",
-  pool_size: 1
+  pool_size: 1,
+  pool_overflow: 0
 
 # Configure Commanded for event sourcing
 config :game_bot, :commanded,

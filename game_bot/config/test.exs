@@ -11,10 +11,11 @@ config :game_bot, GameBot.Infrastructure.Repo,
   hostname: "localhost",
   database: "game_bot_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: 2
 
 # Configure EventStore for testing
 config :game_bot, GameBot.Infrastructure.EventStore,
+  implementation: GameBot.TestEventStore,
   serializer: GameBot.Infrastructure.EventStore.Serializer,
   username: System.get_env("EVENT_STORE_USER", "postgres"),
   password: System.get_env("EVENT_STORE_PASS", "csstarahid"),
@@ -23,7 +24,7 @@ config :game_bot, GameBot.Infrastructure.EventStore,
   schema_prefix: "game_events",
   column_data_type: "jsonb",
   types: EventStore.PostgresTypes,
-  pool_size: 5,
+  pool_size: 2,
   schema_wait: true,  # Wait for schema to be ready in tests
   max_append_retries: 1,
   max_stream_size: 100,
@@ -71,7 +72,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo,
   database: "game_bot_test",
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: 2
 
 # Configure EventStore for tests
 config :game_bot, :event_store,
@@ -82,7 +83,8 @@ config :game_bot, :event_store,
   serializer: GameBot.Infrastructure.EventStore.Serializer,
   schema_prefix: "game_events",
   column_data_type: "jsonb",
-  types: EventStore.PostgresTypes
+  types: EventStore.PostgresTypes,
+  pool_size: 2
 
 # Configure Nostrum for tests
 config :game_bot, :start_word_service, false

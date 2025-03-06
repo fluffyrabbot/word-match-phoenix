@@ -134,16 +134,10 @@ defmodule GameBot.Bot.CommandRegistry do
     %{
       team_map: teams |> Enum.into(%{}, &{&1.id, &1.players}),
       team_ids: Enum.map(teams, & &1.id),
-      player_ids: teams |> Enum.flat_map(& &1.players),
-      roles: teams |> Enum.flat_map(&assign_roles/1) |> Enum.into(%{})
+      player_ids: teams |> Enum.flat_map(& &1.players)
     }
   end
   defp parse_teams_option(_), do: %{}
-
-  defp assign_roles(team) do
-    [giver | guessers] = team.players
-    [{giver, :giver} | Enum.map(guessers, &{&1, :guesser})]
-  end
 
   defp parse_leaderboard_options(interaction) do
     %{

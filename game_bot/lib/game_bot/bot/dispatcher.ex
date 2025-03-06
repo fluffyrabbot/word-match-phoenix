@@ -276,7 +276,7 @@ defmodule GameBot.Bot.Dispatcher do
       content: format_error_message(reason),
       flags: 64  # Set the ephemeral flag
     }
-    case Nostrum.Api.create_message(channel_id, message) do
+    case Nostrum.Api.Message.create(channel_id, message) do
       {:ok, _} -> :ok
       {:error, _} ->
         Logger.warning("Failed to send message: #{inspect(reason)}")

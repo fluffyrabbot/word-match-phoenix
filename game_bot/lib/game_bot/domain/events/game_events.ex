@@ -16,8 +16,7 @@ defmodule GameBot.Domain.Events.GameEvents do
 
   @type player_info :: %{
     player_id: String.t(),
-    team_id: String.t(),
-    role: atom()
+    team_id: String.t()
   }
 
   @doc """
@@ -276,8 +275,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "team_id" => event.team_id,
-        "player1_info" => Map.update!(event.player1_info, :role, &Atom.to_string/1),
-        "player2_info" => Map.update!(event.player2_info, :role, &Atom.to_string/1),
+        "player1_info" => event.player1_info,
+        "player2_info" => event.player2_info,
         "player1_word" => event.player1_word,
         "player2_word" => event.player2_word,
         "guess_successful" => event.guess_successful,
@@ -294,8 +293,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         team_id: data["team_id"],
-        player1_info: Map.update!(data["player1_info"], "role", &String.to_existing_atom/1),
-        player2_info: Map.update!(data["player2_info"], "role", &String.to_existing_atom/1),
+        player1_info: data["player1_info"],
+        player2_info: data["player2_info"],
         player1_word: data["player1_word"],
         player2_word: data["player2_word"],
         guess_successful: data["guess_successful"],
@@ -357,8 +356,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "team_id" => event.team_id,
-        "player1_info" => Map.update!(event.player1_info, :role, &Atom.to_string/1),
-        "player2_info" => Map.update!(event.player2_info, :role, &Atom.to_string/1),
+        "player1_info" => event.player1_info,
+        "player2_info" => event.player2_info,
         "reason" => Atom.to_string(event.reason),
         "abandoning_player_id" => event.abandoning_player_id,
         "last_guess" => if(event.last_guess, do: Map.update!(event.last_guess, :timestamp, &DateTime.to_iso8601/1)),
@@ -374,8 +373,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         team_id: data["team_id"],
-        player1_info: Map.update!(data["player1_info"], "role", &String.to_existing_atom/1),
-        player2_info: Map.update!(data["player2_info"], "role", &String.to_existing_atom/1),
+        player1_info: data["player1_info"],
+        player2_info: data["player2_info"],
         reason: String.to_existing_atom(data["reason"]),
         abandoning_player_id: data["abandoning_player_id"],
         last_guess: if(data["last_guess"], do: Map.update!(data["last_guess"], "timestamp", &GameBot.Domain.Events.GameEvents.parse_timestamp/1)),

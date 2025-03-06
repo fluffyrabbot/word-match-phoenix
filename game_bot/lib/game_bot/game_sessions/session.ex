@@ -6,7 +6,6 @@ defmodule GameBot.GameSessions.Session do
   use GenServer
   require Logger
 
-  alias GameBot.Domain.GameModes.BaseMode
   alias GameBot.Bot.CommandHandler
   alias GameBot.Domain.{GameState, WordService, Events}
   alias GameBot.Infrastructure.EventStore
@@ -28,6 +27,22 @@ defmodule GameBot.GameSessions.Session do
   def start_link(opts) do
     game_id = Keyword.fetch!(opts, :game_id)
     GenServer.start_link(__MODULE__, opts, name: via_tuple(game_id))
+  end
+
+  @doc """
+  Creates a new game session from a GameStarted event.
+  """
+  @spec create_game(GameEvents.GameStarted.t()) :: {:ok, pid()} | {:error, term()}
+  def create_game(%GameEvents.GameStarted{} = event) do
+    opts = [
+      game_id: event.game_id,
+      mode: event.mode,
+      mode_config: event.config,
+      guild_id: event.guild_id,
+      teams: event.teams
+    ]
+
+    GameBot.GameSessions.Supervisor.start_game(opts)
   end
 
   @doc """
@@ -66,16 +81,17 @@ defmodule GameBot.GameSessions.Session do
     mode = Keyword.fetch!(opts, :mode)
     mode_config = Keyword.fetch!(opts, :mode_config)
     guild_id = Keyword.fetch!(opts, :guild_id)
+    teams = Keyword.fetch!(opts, :teams)
 
     # Initialize the game mode
-    case apply(mode, :init, [game_id, mode_config]) do
+    case apply(mode, :init, [game_id, teams, mode_config]) do
       {:ok, mode_state, events} ->
         state = %{
           game_id: game_id,
           guild_id: guild_id,
           mode: mode,
           mode_state: mode_state,
-          teams: %{},
+          teams: teams,
           started_at: DateTime.utc_now(),
           status: :initializing,
           round_timer_ref: nil,
@@ -195,7 +211,7 @@ defmodule GameBot.GameSessions.Session do
       {:reply, :continue, state} ->
         ref = schedule_round_check()
         {:noreply, %{state | round_timer_ref: ref}}
-      {:reply, {:round_end, _}, _} = result ->
+      {:reply, {:round_end, _}, _} = _result ->
         # Round ended, don't reschedule
         {:noreply, %{state | round_timer_ref: nil}}
     end
@@ -360,7 +376,7 @@ defmodule GameBot.GameSessions.Session do
     {:reply, {:game_end, winners}, final_state}
   end
 
-  defp validate_guild_context(word, player_id, %{guild_id: guild_id} = state) do
+  defp validate_guild_context(_word, player_id, %{guild_id: guild_id} = _state) do
     # Check if this player belongs to this guild
     # This is a simplified check - you would need to implement actual guild membership validation
     if player_in_guild?(player_id, guild_id) do
@@ -370,7 +386,7 @@ defmodule GameBot.GameSessions.Session do
     end
   end
 
-  defp player_in_guild?(player_id, guild_id) do
+  defp player_in_guild?(_player_id, _guild_id) do
     # Implementation would depend on how you store guild memberships
     # This is a placeholder
     true

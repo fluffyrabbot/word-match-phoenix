@@ -45,11 +45,11 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
   end
 
   defp fetch_match_history(guild_id, options) do
-    filtered_options = Map.put(options, :guild_id, guild_id)
+    _filtered_options = Map.put(options, :guild_id, guild_id)
     {:ok, []} # Placeholder
   end
 
-  defp fetch_game_summary(game_id, guild_id) do
+  defp fetch_game_summary(game_id, _guild_id) do
     # Placeholder for fetching game summary scoped to guild
     {:ok, %{
       game_id: game_id,
@@ -59,12 +59,12 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
     }}
   end
 
-  defp validate_permissions(user_id, game_events) do
+  defp validate_permissions(_user_id, _game_events) do
     # Placeholder for validating user can view this replay
     :ok
   end
 
-  defp format_replay(game_events) do
+  defp format_replay(_game_events) do
     # Placeholder for formatting replay for Discord display
     %{
       content: "Game Replay",
@@ -72,7 +72,7 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
     }
   end
 
-  defp format_match_history(matches) do
+  defp format_match_history(_matches) do
     # Placeholder for formatting match history for Discord display
     %{
       content: "Match History",
@@ -80,7 +80,7 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
     }
   end
 
-  defp format_game_summary(game) do
+  defp format_game_summary(_game) do
     # Placeholder for formatting game summary for Discord display
     %{
       content: "Game Summary",

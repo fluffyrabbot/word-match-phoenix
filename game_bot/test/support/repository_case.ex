@@ -1,4 +1,4 @@
-defmodule GameBot.Test.RepositoryCase do
+defmodule GameBot.RepositoryCase do
   @moduledoc """
   This module defines common utilities for testing repositories.
   """
@@ -7,29 +7,34 @@ defmodule GameBot.Test.RepositoryCase do
 
   using do
     quote do
-      alias GameBot.Infrastructure.Persistence.Error
-      alias GameBot.Infrastructure.Persistence.{Repo, EventStore}
-      alias GameBot.Infrastructure.Persistence.EventStore.{Adapter, Serializer}
-
-      import GameBot.Test.RepositoryCase
+      alias GameBot.Infrastructure.Persistence.Repo
+      import Ecto
+      import Ecto.Query
+      import GameBot.RepositoryCase
     end
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(GameBot.Infrastructure.Persistence.Repo.Postgres)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(GameBot.Infrastructure.Persistence.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo.Postgres, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo, {:shared, self()})
     end
 
-    # Start the mock EventStore if it's not running
-    unless Process.whereis(GameBot.Test.Mocks.EventStore) do
-      start_supervised!(GameBot.Test.Mocks.EventStore)
-    end
-
-    # Reset the mock state for each test
-    if Process.whereis(GameBot.Test.Mocks.EventStore) do
-      GameBot.Test.Mocks.EventStore.reset_state()
+    # Start the test event store if not already started
+    case Process.whereis(GameBot.TestEventStore) do
+      nil ->
+        {:ok, pid} = GameBot.TestEventStore.start_link()
+        on_exit(fn ->
+          if Process.alive?(pid) do
+            GameBot.TestEventStore.stop(GameBot.TestEventStore)
+          end
+        end)
+      pid ->
+        # Reset state if store already exists
+        GameBot.TestEventStore.set_failure_count(0)
+        # Clear any existing streams
+        :sys.replace_state(pid, fn _ -> %GameBot.TestEventStore.State{} end)
     end
 
     :ok

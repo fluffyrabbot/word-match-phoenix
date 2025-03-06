@@ -82,9 +82,11 @@ defmodule GameBot.Bot.ListenerTest do
   # Define common mocks to reduce duplication
   defp with_success_api_mock(test_func) do
     mocks = [
-      {Nostrum.Api, [], [
-        create_interaction_response: fn _, _, _ -> {:ok, %{}} end,
-        create_message: fn _, _ -> {:ok, %{}} end
+      {Nostrum.Api.Interaction, [], [
+        create_response: fn _, _, _ -> {:ok, %{}} end
+      ]},
+      {Nostrum.Api.Message, [], [
+        create: fn _, _ -> {:ok, %{}} end
       ]},
       {GameBot.Bot.Dispatcher, [], [
         handle_interaction: fn _ -> :ok end,
@@ -97,9 +99,11 @@ defmodule GameBot.Bot.ListenerTest do
 
   defp with_error_api_mock(test_func) do
     mocks = [
-      {Nostrum.Api, [], [
-        create_interaction_response: fn _, _, _ -> {:error, %{}} end,
-        create_message: fn _, _ -> {:error, %{}} end
+      {Nostrum.Api.Interaction, [], [
+        create_response: fn _, _, _ -> {:error, %{}} end
+      ]},
+      {Nostrum.Api.Message, [], [
+        create: fn _, _ -> {:error, %{}} end
       ]},
       {GameBot.Bot.Dispatcher, [], [
         handle_interaction: fn _ -> {:error, :dispatcher_error} end,
@@ -119,7 +123,7 @@ defmodule GameBot.Bot.ListenerTest do
 
     test "rejects invalid interaction types" do
       with_mocks([
-        {Nostrum.Api, [], [create_interaction_response: fn _, _, _ -> {:ok, %{}} end]}
+        {Nostrum.Api.Interaction, [], [create_response: fn _, _, _ -> {:ok, %{}} end]}
       ]) do
         log = capture_log(fn ->
           assert Listener.handle_event({:INTERACTION_CREATE, @invalid_interaction, nil}) == :error
@@ -149,7 +153,7 @@ defmodule GameBot.Bot.ListenerTest do
 
     test "rejects empty messages" do
       with_mocks([
-        {Nostrum.Api, [], [create_message: fn _, _ -> {:ok, %{}} end]}
+        {Nostrum.Api.Message, [], [create: fn _, _ -> {:ok, %{}} end]}
       ]) do
         log = capture_log(fn ->
           assert Listener.handle_event({:MESSAGE_CREATE, @empty_message, nil}) == :error
@@ -173,7 +177,7 @@ defmodule GameBot.Bot.ListenerTest do
       :ets.insert(:rate_limit, {user_id, timestamps})
 
       with_mocks([
-        {Nostrum.Api, [], [create_message: fn _, _ -> {:ok, %{}} end]}
+        {Nostrum.Api.Message, [], [create: fn _, _ -> {:ok, %{}} end]}
       ]) do
         log = capture_log(fn ->
           assert Listener.handle_event({:MESSAGE_CREATE, @valid_message, nil}) == :error
@@ -189,7 +193,7 @@ defmodule GameBot.Bot.ListenerTest do
       spam_message = %{@valid_message | content: String.duplicate("a", 2001)}
 
       with_mocks([
-        {Nostrum.Api, [], [create_message: fn _, _ -> {:ok, %{}} end]}
+        {Nostrum.Api.Message, [], [create: fn _, _ -> {:ok, %{}} end]}
       ]) do
         log = capture_log(fn ->
           assert Listener.handle_event({:MESSAGE_CREATE, spam_message, nil}) == :error

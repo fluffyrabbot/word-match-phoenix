@@ -2538,6 +2538,483 @@ After updating Elixir (or confirming it's already correct) and recompiling, run 
 
 ---
 
+_**User**_
+
+@game_commands.ex help fix this error
+
+---
+
+_**Assistant**_
+
+Okay, let's break down this compilation error and fix it. The error message:
+
+```
+error: undefined function handle_guess/3 (expected GameBot.Bot.Commands.GameCommands to define such a function or for it to be imported, but none are available)
+      │
+  130 │         handle_guess(game_id, author_id, content)
+      │         ^^^^^^^^^^^^
+```
+
+tells us that the `handle_guess/3` function is being called, but the compiler can't find it defined *or* imported within the `GameBot.Bot.Commands.GameCommands` module.  Looking at your provided code snippets, we can see the problem and the solution.
+
+**The Problem:**
+
+You have defined `handle_guess/4` (taking an interaction, game\_id, word, and parent\_metadata) and `handle_guess/2` taking an interaction, game\_id, word, and parent\_metadata. You are calling `handle_guess/3` in two places:
+
+1.  Inside `handle_command/1` for interaction commands (line 123):
+
+    ```elixir
+    handle_guess(game_id, user_id, guess, command.interaction)
+    ```
+    This should be calling `handle_guess/4`.
+
+2.  Inside `handle_command/1` for message commands (line 131):
+
+    ```elixir
+    handle_guess(game_id, author_id, content)
+    ```
+    This call *is* intended to be `handle_guess/3`, but that function doesn't exist. You need a separate `handle_guess` function to handle message-based guesses. The message based guess does not have an interaction, so it cannot call the interaction based `handle_guess`.
+
+**The Solution:**
+
+1.  **Fix the interaction call:** Change line 123 to call `handle_guess/4`, passing the interaction:
+
+    ```elixir:game_bot/lib/game_bot/bot/commands/game_commands.ex
+    {{ edit_1 }}
+        handle_guess(game_id, user_id, guess, command.interaction)
+    {{ edit_2 }}
+        handle_guess(command.interaction, game_id, guess, %{})
+    ```
+
+2.  **Create `handle_guess/3` for messages:** Create a new `handle_guess/3` function that takes `game_id`, `author_id`, and `content` (the guess word). This function will handle guesses that come from message commands (not slash commands).  It will need to construct the metadata differently, as it doesn't have an `Interaction` object.
+
+    ```elixir:game_bot/lib/game_bot/bot/commands/game_commands.ex
+    {{ edit_3 }}
+      end
+    {{ edit_4 }}
+      end
+
+      @doc """
+      Handles a guess submission in an active game from a message.
+      """
+      def handle_guess(game_id, author_id, word) do
+        with {:ok, game} <- Session.get_state(game_id),
+             {:ok, player_info} <- GameModes.get_player_info(game, author_id) do
+
+          metadata = %{
+            source_id: author_id,
+            source_type: :message,
+            timestamp: DateTime.utc_now(),
+            correlation_id: generate_correlation_id(),
+            guild_id: game.guild_id
+          }
+
+          event = %GameEvents.GuessProcessed{
+            game_id: game_id,
+            mode: game.mode,
+            round_number: game.current_round,
+            team_id: player_info.team_id,
+            player1_info: player_info,
+            player2_info: GameModes.get_partner_info(game, player_info),
+            player1_word: word,
+            player2_word: nil,
+            guess_successful: false,
+            guess_count: game.guess_count + 1,
+            match_score: 0,
+            timestamp: DateTime.utc_now(),
+            metadata: metadata
+          }
+
+          {:ok, event}
+        else
+          error -> error
+        end
+      end
+    ```
+
+    Key differences in this new `handle_guess/3`:
+
+    *   It takes `game_id`, `author_id`, and `word` as arguments.
+    *   It *doesn't* take an `Interaction`.
+    *   It constructs the `metadata` directly, since it's coming from a message, not an interaction.  It sets `source_type` to `:message`.
+    *   It retrieves the `guild_id` from the game state, as there's no interaction to get it from.
+    * It calls `Session.get_state` to get the game.
+    * It calls `GameModes.get_player_info` to get the player.
+
+3. **Correct the call in handle\_command/1 for messages:**
+    * Line 131 is now correct, as it calls the newly created `handle_guess/3`.
+
+**Complete Changes (Combined):**
+
+```elixir:game_bot/lib/game_bot/bot/commands/game_commands.ex
+defmodule GameBot.Bot.Commands.GameCommands do
+  @moduledoc """
+  Handles game-related commands and generates appropriate game events.
+  """
+
+  alias GameBot.Domain.Events.{GameEvents, TeamEvents}
+  alias GameBot.GameSessions.Session
+  alias GameBot.Domain.GameModes
+  alias Nostrum.Struct.{Interaction, Message}
+
+  @doc """
+  Handles the /start command to begin a new game.
+  """
+  def handle_start_game(%Interaction{} = interaction, mode_name, options) do
+    # Create metadata directly
+    metadata = create_basic_metadata(interaction, nil)
+    guild_id = interaction.guild_id || Map.get(metadata, :guild_id)
+
+    # Validate guild context
+    case validate_guild_context(guild_id) do
+      {:ok, _} ->
+        # Generate game ID
+        with {:ok, game_id} <- generate_game_id(),
+             {:ok, teams} <- validate_teams(options.teams),
+             {:ok, mode} <- GameModes.get_mode(mode_name),
+             {:ok, config} <- build_game_config(mode, options) do
+
+          # Create the event
+          event = %GameEvents.GameStarted{
+            game_id: game_id,
+            guild_id: guild_id,
+            mode: mode,
+            round_number: 1,
+            teams: teams.team_map,
+            team_ids: teams.team_ids,
+            player_ids: teams.player_ids,
+            roles: teams.roles,
+            config: config,
+            timestamp: DateTime.utc_now(),
+            metadata: metadata
+          }
+
+          {:ok, event}
+        end
+      error -> error
+    end
+  end
+
+  @doc """
+  Handles the /team create command to create a new team.
+  """
+  def handle_team_create(%Interaction{} = interaction, %{name: name, players: players}) do
+    # Create metadata directly
+    metadata = create_basic_metadata(interaction, nil)
+
+    # Generate team ID and validate players
+    with {:ok, team_id} <- generate_team_id(),
+         {:ok, player_ids} <- validate_players(players) do
+
+      # Create the event
+      event = %TeamEvents.TeamCreated{
+        team_id: team_id,
+        name: name,
+        player_ids: player_ids,
+        created_at: DateTime.utc_now(),
+        metadata: metadata
+      }
+
+      {:ok, event}
+    end
+  end
+
+  @doc """
+  Handles a guess submission in an active game.
+  """
+  def handle_guess(%Interaction{} = interaction, game_id, word, parent_metadata) do
+    # Create basic metadata from the interaction
+    metadata = create_basic_metadata(interaction, parent_metadata)
+
+    with {:ok, game} <- Session.get_state(game_id),
+         metadata = Map.put(metadata, :guild_id, game.guild_id),
+         {:ok, player_info} <- GameModes.get_player_info(game, interaction.user.id) do
+
+      event = %GameEvents.GuessProcessed{
+        game_id: game_id,
+        mode: game.mode,
+        round_number: game.current_round,
+        team_id: player_info.team_id,
+        player1_info: player_info,
+        player2_info: GameModes.get_partner_info(game, player_info),
+        player1_word: word,
+        player2_word: nil,
+        guess_successful: false,
+        guess_count: game.guess_count + 1,
+        match_score: 0,
+        timestamp: DateTime.utc_now(),
+        metadata: metadata
+      }
+
+      {:ok, event}
+    end
+  end
+
+    @doc """
+    Handles a guess submission in an active game from a message.
+    """
+    def handle_guess(game_id, author_id, word) do
+      with {:ok, game} <- Session.get_state(game_id),
+           {:ok, player_info} <- GameModes.get_player_info(game, author_id) do
+
+        metadata = %{
+          source_id: author_id,
+          source_type: :message,
+          timestamp: DateTime.utc_now(),
+          correlation_id: generate_correlation_id(),
+          guild_id: game.guild_id
+        }
+
+        event = %GameEvents.GuessProcessed{
+          game_id: game_id,
+          mode: game.mode,
+          round_number: game.current_round,
+          team_id: player_info.team_id,
+          player1_info: player_info,
+          player2_info: GameModes.get_partner_info(game, player_info),
+          player1_word: word,
+          player2_word: nil,
+          guess_successful: false,
+          guess_count: game.guess_count + 1,
+          match_score: 0,
+          timestamp: DateTime.utc_now(),
+          metadata: metadata
+        }
+
+        {:ok, event}
+      else
+        error -> error
+      end
+    end
+
+  @doc """
+  Main command handler that processes commands from both interactions and messages.
+  """
+  @spec handle_command(map()) :: {:ok, term()} | {:error, term()}
+  def handle_command(%{type: :interaction, name: "start"} = command) do
+    # Extract mode and options from the command
+    mode_option = get_in(command, [:options, "mode"]) || "two_player"
+    options = Map.get(command, :options, %{})
+
+    # Handle start game command
+    handle_start_game(command.interaction, mode_option, options)
+  end
+
+  def handle_command(%{type: :interaction, name: "guess"} = command) do
+    game_id = get_in(command, [:options, "game_id"])
+    guess = get_in(command, [:options, "word"])
+    user_id = command.interaction.user.id
+
+    handle_guess(command.interaction, game_id, guess, %{})
+  end
+
+  def handle_command(%{type: :message} = command) do
+    # Process message-based commands
+    case command do
+      %{content: content, author_id: author_id} when is_binary(content) ->
+        game_id = Map.get(command, :game_id)
+        handle_guess(game_id, author_id, content)
+      _ ->
+        {:error, :invalid_command}
+    end
+  end
+
+  def handle_command(_command) do
+    {:error, :unknown_command}
+  end
+
+  # Private helpers
+
+  # Helper to create basic metadata from different sources
+  defp create_basic_metadata(%Message{} = message, parent_metadata) do
+    if parent_metadata do
+      # Copy from parent but keep correlation_id
+      Map.merge(%{
+        source_id: message.author.id,
+        source_type: :message,
+        timestamp: DateTime.utc_now()
+      }, parent_metadata)
+    else
+      # Create new metadata
+      %{
+        source_id: message.author.id,
+        source_type: :message,
+        timestamp: DateTime.utc_now(),
+        correlation_id: generate_correlation_id(),
+        guild_id: message.guild_id
+      }
+    end
+  end
+
+  # Generate a simple correlation ID without UUID dependency
+  defp generate_correlation_id do
+    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+  end
+
+  defp generate_game_id do
+    id = :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+    {:ok, "game_" <> id}
+  end
+
+  defp generate_team_id do
+    id = :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+    {:ok, "team_" <> id}
+  end
+
+  defp validate_teams(teams) do
+    # Placeholder for team validation logic
+    # Should verify team structure, player counts, etc.
+    {:ok, teams}
+  end
+
+  defp validate_players(players) do
+    # Placeholder for player validation logic
+    # Should verify player existence, permissions, etc.
+    {:ok, players}
+  end
+
+  defp build_game_config(mode, options) do
+    # Placeholder for building mode-specific configuration
+    {:ok, %{
+      mode: mode,
+      settings: options
+    }}
+  end
+
+  # Add validation function for guild context
+  defp validate_guild_context(nil), do: {:error, :missing_guild_id}
+  defp validate_guild_context(_guild_id), do: {:ok, true}
+end
+```
+
+With these changes, your code should compile and handle both interaction-based and message-based guesses correctly.  The key is having separate `handle_guess` functions for the different input types (interaction vs. message). Remember to run `mix compile` and `mix test` to verify.
+
+
+---
+
+_**User**_
+
+analyze these errors in the listener test 
+
+---
+
+_**Assistant**_
+
+Okay, all these test failures in `test/game_bot/bot/listener_test.exs` point to the same root cause: a problem with how Nostrum's API mocking is being handled, or potentially a version incompatibility. Let's analyze the error and then look at the solutions.
+
+**The Error:**
+
+All the failing tests show this error:
+
+```
+** (UndefinedFunctionError) function Nostrum.Api.request/3 is undefined (module Nostrum.Api is not available). Did you mean:
+
+          * Nostrum.Api.request/3
+```
+
+This indicates that within the context of your tests, the `Nostrum.Api.request/3` function is not available.  The "Did you mean: * Nostrum.Api.request/3" part is a bit misleading; it *is* suggesting the correct function, but the underlying issue is that the *module* `Nostrum.Api` isn't behaving as expected during the test.
+
+**Why This Happens (and the Solutions):**
+
+There are a few primary reasons why this could be happening, and we'll go through them in order of likelihood:
+
+1.  **Mocking Issue (Most Likely):** Your tests are likely using a mocking library (like Mox) to replace `Nostrum.Api` with a mock for testing purposes.  The error suggests that either:
+
+    *   The mock isn't being set up correctly.
+    *   The mock is being *un*-set or overridden unexpectedly.
+    *   The mock is not defined for the `request/3` arity that is being called.
+
+    **Solution:** Carefully review your test setup (`test/game_bot/bot/listener_test.exs`) and how you're using your mocking library.  Make sure:
+
+    *   You're using `Mox.defmock` to define a mock for `Nostrum.Api`.
+    *   You're using `Mox.expect` *within each test case* (or a setup block that runs *before each test*) to define the expected behavior of `Nostrum.Api.request/3`.  It's crucial that expectations are set up *before* the code under test (which calls `Nostrum.Api.request`) is executed.
+    *   You are *not* calling `Mox.reset_mocks()` or similar *before* the code under test runs.  This would remove your mock definitions.
+    *   You are calling `Mox.verify!()` at the *end* of each test case to ensure that the mocked functions were called as expected. This can help catch setup issues.
+
+2.  **Nostrum Version Incompatibility:** Although less likely given the specific error, it's *possible* that there's a version mismatch between the Nostrum version your code expects and the one installed.  The stack trace shows `(nostrum 0.10.4)`.
+
+    **Solution:**
+
+    *   **Check `mix.exs`:** Verify that your `mix.exs` file specifies a compatible Nostrum version.  If it's significantly different from 0.10.4, that *could* be a problem (though unlikely to cause *this* specific error).
+    *   **Run `mix deps.get` and `mix deps.update nostrum`:**  Ensure you have the correct dependencies installed and updated.
+
+3.  **Application Not Started:** In very rare cases, if the Nostrum application (or a part of your application that Nostrum depends on) isn't started correctly in your test environment, you might see this.
+
+    **Solution:**
+
+    *   **Check `test/test_helper.exs`:** Make sure your test helper starts your application and any necessary dependencies, including Nostrum.  It should usually include a line like `ExUnit.start(autorun: false)`. You may also need to explicitly start your application with `Application.ensure_all_started(:your_app_name)`.
+
+**Debugging Steps (Focus on Mocking):**
+
+1.  **Examine `listener_test.exs`:**  Look closely at the failing tests and the surrounding setup code.  Pay very close attention to how `Nostrum.Api` is being mocked (or *not* mocked) in those tests.
+
+2.  **Add `IO.inspect`:**  Temporarily add `IO.inspect` statements to your test code to see what's happening:
+
+    ```elixir
+    # Inside your test, before the code that calls Nostrum.Api.request:
+    IO.inspect(Nostrum.Api, label: "Nostrum.Api before call")
+    IO.inspect(function_exported?(Nostrum.Api, :request, 3), label: "Nostrum.Api.request/3 exported?")
+
+    # ... your code that calls Nostrum.Api.request ...
+
+    # At the end of your test:
+    Mox.verify!()
+    ```
+
+    This will print out the value of `Nostrum.Api` (which should be your mock) and whether the `request/3` function is considered "exported" at that point.  This can help pinpoint if the mock is being replaced or if the function isn't defined in the mock.
+
+3.  **Simplify:** If you're still stuck, try creating a *very* minimal test case that *only* tries to mock `Nostrum.Api.request/3` and call it.  This can help isolate the problem.
+
+**Example Test Fix (Illustrative - Adapt to Your Code):**
+
+Let's assume you're using Mox. Here's a simplified example of how a test *should* look, with proper mocking:
+
+```elixir
+defmodule GameBot.Bot.ListenerTest do
+  use ExUnit.Case, async: true
+  import Mox
+
+  # Define the mock in your test file (or a shared helper)
+  defmock NostrumApiMock, for: Nostrum.Api
+
+  describe "handle_event/1" do
+    # Setup that runs BEFORE EACH test
+    setup :set_mox_global
+    setup :verify_on_exit!
+
+    test "a test that uses Nostrum.Api" do
+      # Set up the EXPECTATION for Nostrum.Api.request/3
+      expect(NostrumApiMock, :request, 3, fn _, _, _ ->
+        # Return a fake response (or :ok, or whatever is appropriate)
+        {:ok, %{}}
+      end)
+
+      # Now, call the code that USES Nostrum.Api.request
+      # ... your code that calls Listener.handle_event, etc. ...
+      Listener.handle_event(...)
+
+      # Verify that the mock was called as expected (at the END of the test)
+      verify!()
+    end
+
+     test "another test" do
+        expect(NostrumApiMock, :request, 3, fn _, _, _ ->
+          {:ok, %{}}
+        end)
+        Listener.handle_event(...)
+        verify!()
+     end
+  end
+end
+```
+
+**Key Points:**
+
+*   **`defmock`:** Defines the mock module.
+*   **`setup :set_mox_global` and `setup :verify_on_exit!`:** These are good practice for Mox. `set_mox_global` makes the mock available globally (be careful with this in concurrent tests), and `verify_on_
+
+---
+
 
 
 ---

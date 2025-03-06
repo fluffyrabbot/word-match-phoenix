@@ -72,3 +72,24 @@ defmodule GameBot.Test.Mocks.NostrumApiMock do
     {:reply, state.error, state}
   end
 end
+
+# Define mock modules for Nostrum.Api.Message and Nostrum.Api.Interaction
+defmodule Nostrum.Api.Message do
+  @moduledoc """
+  Mock implementation of Nostrum.Api.Message for testing.
+  """
+
+  def create(channel_id, message) do
+    GameBot.Test.Mocks.NostrumApiMock.create_message(channel_id, message)
+  end
+end
+
+defmodule Nostrum.Api.Interaction do
+  @moduledoc """
+  Mock implementation of Nostrum.Api.Interaction for testing.
+  """
+
+  def create_response(interaction_id, interaction_token, response) do
+    GameBot.Test.Mocks.NostrumApiMock.create_interaction_response(interaction_id, interaction_token, response)
+  end
+end
