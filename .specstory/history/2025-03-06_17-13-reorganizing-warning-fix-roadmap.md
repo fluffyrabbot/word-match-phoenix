@@ -4869,7 +4869,1378 @@ Based on my analysis of the current state of the game modes implementation and d
 
 _****_
 
+```diff
+  The game modes system is built on a modular architecture that separates common game functionality from mode-specific behavior. This design allows for maximum code reuse while maintaining flexibility for different game modes.
+  
++ ## Core Principles
++ 
++ 1. **Event-Driven Architecture**
++    - All game state changes are driven by events
++    - Events are immutable and versioned
++    - State can be reconstructed from event stream
++ 
++ 2. **Mode Isolation**
++    - Each mode is self-contained
++    - Common functionality in BaseMode
++    - Mode-specific logic properly encapsulated
++ 
++ 3. **Validation First**
++    - All events validated before processing
++    - State transitions explicitly validated
++    - Team and player validation standardized
++ 
++ 4. **Consistent Error Handling**
++    - Error types standardized across modes
++    - Clear error messages for debugging
++    - Graceful failure handling
++ 
+  ## Module Structure
+  
+  ├── behaviours/
+  │   ├── game_mode.ex         # Behaviour specification
+- │   ├── round_manager.ex     # Round management behaviour
+- │   └── scoring.ex           # Scoring behaviour
++ │   └── round_manager.ex     # Round management behaviour
+  ├── implementations/
+  │   ├── two_player_mode.ex   # Standard two-player implementation
+  │   ├── knockout_mode.ex     # Tournament-style elimination mode
+- │   ├── race_mode.ex         # Time-based racing mode
+- │   ├── golf_mode.ex         # Score optimization mode
+- │   └── longform_mode.ex     # Extended duration mode
++ │   └── race_mode.ex         # Time-based racing mode
+  └── shared/
+      ├── state.ex             # Common state management
+  ```elixir
+  defmodule GameBot.Domain.GameModes.Behaviour.GameMode do
+-   @moduledoc """
+-   Defines the core behavior that all game modes must implement.
+-   """
+- 
+-   @type game_id :: String.t()
+-   @type team_id :: String.t()
+-   @type player_id :: String.t()
+-   @type error :: {:error, term()}
+- 
+-   @callback init(game_id(), teams(), roles(), config()) ::
+-     {:ok, GameState.t()} | error()
++   @callback init(game_id(), teams(), config()) ::
++     {:ok, state(), [Event.t()]} | {:error, term()}
+  
+-   @callback handle_guess(GameState.t(), team_id(), guess()) ::
+-     {:ok, GameState.t(), [Event.t()]} | error()
++   @callback process_guess_pair(state(), team_id(), guess_pair()) ::
++     {:ok, state(), [Event.t()]} | {:error, term()}
+  
+-   @callback handle_timeout(GameState.t(), team_id()) ::
+-     {:ok, GameState.t(), [Event.t()]} | error()
++   @callback check_round_end(state()) ::
++     {:round_end, state()} | :continue | {:error, term()}
+  
+-   @callback check_completion(GameState.t()) ::
+-     {:complete, winners(), GameState.t()} | {:continue, GameState.t()} | error()
++   @callback check_game_end(state()) ::
++     {:game_end, [winner_id()]} | :continue
+  end
+  ```
+  ```elixir
+  defmodule GameBot.Domain.GameModes.Behaviour.RoundManager do
+-   @moduledoc """
+-   Defines round management behavior. Different for each mode.
+-   """
+- 
+-   @callback start_round(GameState.t()) ::
+-     {:ok, GameState.t(), [Event.t()]} | error()
++   @callback start_round(state()) ::
++     {:ok, state(), [Event.t()]} | {:error, term()}
+  
+-   @callback end_round(GameState.t()) ::
+-     {:ok, GameState.t(), [Event.t()]} | error()
+- 
+-   @callback check_round_completion(GameState.t()) ::
+-     {:complete, GameState.t()} | {:continue, GameState.t()} | error()
+- end
+- ```
+- 
+- ### Scoring Behavior
+- ```elixir
+- defmodule GameBot.Domain.GameModes.Behaviour.Scoring do
+-   @moduledoc """
+-   Defines scoring behavior. Implementation varies by mode.
+-   """
+- 
+-   @callback calculate_score(GameState.t(), team_id(), guess_result()) ::
+-     {:ok, score(), GameState.t()} | error()
+- 
+-   @callback update_rankings(GameState.t(), team_id(), score()) ::
+-     {:ok, GameState.t()} | error()
++   @callback end_round(state()) ::
++     {:ok, state(), [Event.t()]} | {:error, term()}
+  end
+  ```
+  
+  ## Base Mode Implementation
+  
++ The BaseMode provides core functionality used by all game modes:
++ 
++ 1. **Event Generation**
++    - Common event building
++    - Metadata generation
++    - Event validation
++ 
++ 2. **State Management**
++    - Team state tracking
++    - Round management
++    - Game progression
++ 
++ 3. **Validation**
++    - Team requirements
++    - Event structure
++    - State transitions
++ 
+  ```elixir
+  defmodule GameBot.Domain.GameModes.BaseMode do
+-   @moduledoc """
+-   Provides core functionality and common implementations for all game modes.
+-   """
+- 
+-   # Common Event Building
+-   def build_game_started_event(state, game_id, teams, roles, config) do
+-     %GameStarted{
+-       game_id: game_id,
+-       mode: state.mode,
+-       teams: teams,
+-       roles: roles,
+-       config: config,
+-       timestamp: DateTime.utc_now(),
+-       metadata: build_metadata(state)
+-     }
+-   end
+- 
+-   # Common Validation
+-   def validate_guess_pair(state, team_id, guess_pair) do
+-     with :ok <- validate_team(state, team_id),
+-          :ok <- validate_players(state, team_id, guess_pair),
+-          :ok <- validate_words(guess_pair) do
++   # Common validation for all modes
++   def validate_teams(teams, :exact, team_count, mode_name) do
++     if map_size(teams) != team_count do
++       {:error, {:invalid_team_count, "#{mode_name} mode requires exactly #{team_count} team(s)"}}
++     else
++       :ok
++     end
++   end
++ 
++   def validate_teams(teams, :minimum, team_count, mode_name) do
++     if map_size(teams) < team_count do
++       {:error, {:invalid_team_count, "#{mode_name} mode requires at least #{team_count} team(s)"}}
++     else
+        :ok
+      end
+    end
+  
+-   # Common State Management
+-   def update_state_after_guess(state, team_id, guess_result) do
+-     state
+-     |> increment_guess_count(team_id)
+-     |> update_last_activity()
+-     |> maybe_record_match(team_id, guess_result)
+-   end
+- 
+-   # Protected Helpers - Available to implementing modules
+-   defmacro __using__(_opts) do
+-     quote do
+-       @behaviour GameBot.Domain.GameModes.Behaviour.GameMode
+-       @behaviour GameBot.Domain.GameModes.Behaviour.RoundManager
+-       @behaviour GameBot.Domain.GameModes.Behaviour.Scoring
+- 
+-       import GameBot.Domain.GameModes.BaseMode
+-       alias GameBot.Domain.Events.GameEvents
++   # Event validation for all modes
++   def validate_event(event, expected_mode, team_requirements \\ :minimum, team_count \\ 1) do
++     with :ok <- validate_mode(event, expected_mode),
++          :ok <- validate_teams(event.teams, team_requirements, team_count) do
++       :ok
+      end
+    end
+  
+  ### Two Player Mode
+- ```elixir
+- defmodule GameBot.Domain.GameModes.TwoPlayerMode do
+-   use GameBot.Domain.GameModes.BaseMode
+- 
+-   @impl true
+-   def init(game_id, teams, roles, config) do
+-     with :ok <- validate_team_size(teams, 2),
+-          state <- GameState.new(:two_player, teams),
+-          event <- build_game_started_event(state, game_id, teams, roles, config) do
+-       {:ok, state, [event]}
+-     end
+-   end
+- 
+-   @impl true
+-   def check_completion(%{round_number: round, scores: scores} = state) do
+-     cond do
+-       round > 5 -> determine_winner(state)
+-       highest_score(scores) >= 10 -> determine_winner(state)
+-       true -> {:continue, state}
+-     end
+-   end
+- 
+-   @impl true
+-   def calculate_score(_state, _team_id, %{match?: false}), do: {:ok, 0}
+-   def calculate_score(_state, _team_id, %{guess_count: count}) do
+-     score = max(5 - count, 1)
+-     {:ok, score}
+-   end
+- end
+- ```
++ - Fixed number of rounds
++ - Success threshold for average guesses
++ - Both players must participate
++ - Simple scoring based on guess count
+  
+  ### Knockout Mode
+- ```elixir
+- defmodule GameBot.Domain.GameModes.KnockoutMode do
+-   use GameBot.Domain.GameModes.BaseMode
+- 
+-   @impl true
+-   def check_round_completion(%{teams: teams} = state) do
+-     eliminated = find_eliminated_teams(state)
+-     case {map_size(teams), eliminated} do
+-       {1, _} -> {:complete, state}
+-       {_, []} -> {:continue, state}
+-       {_, _} -> {:complete, remove_teams(state, eliminated)}
+-     end
+-   end
+- 
+-   @impl true
+-   def calculate_score(_state, _team_id, %{match?: true, guess_count: count}) do
+-     base_score = 2
+-     time_bonus = max(10 - count, 0)
+-     {:ok, base_score + time_bonus}
+-   end
+- end
+- ```
+- 
+- ## Event Flow Examples
+- 
+- ### Two Player Mode Round
+- ```mermaid
+- sequenceDiagram
+-     participant GM as Game Manager
+-     participant TPM as TwoPlayerMode
+-     participant ES as Event Store
+- 
+-     GM->>TPM: start_round(state)
+-     TPM->>ES: emit(RoundStarted)
+-     loop Until Round Complete
+-         GM->>TPM: handle_guess(state, team, guess)
+-         TPM->>ES: emit(GuessProcessed)
+-         TPM->>TPM: check_round_completion()
+-     end
+-     TPM->>ES: emit(RoundCompleted)
+- ```
+- 
+- ### Knockout Mode Round
+- ```mermaid
+- sequenceDiagram
+-     participant GM as Game Manager
+-     participant KM as KnockoutMode
+-     participant ES as Event Store
+- 
+-     GM->>KM: start_round(state)
+-     KM->>ES: emit(RoundStarted)
+-     loop Until Time Expires
+-         GM->>KM: handle_guess(state, team, guess)
+-         KM->>ES: emit(GuessProcessed)
+-         KM->>KM: check_eliminations()
+-     end
+-     KM->>ES: emit(TeamEliminated)
+-     KM->>ES: emit(KnockoutRoundCompleted)
++ - Tournament-style elimination
++ - Time-based rounds
++ - Progressive difficulty
++ - Team elimination mechanics
++ 
++ ### Race Mode
++ - Time-based competition
++ - Asynchronous team play
++ - Points for successful matches
++ - Speed-based scoring
++ 
++ ## Event Flow
++ 
++ 1. **Game Initialization**
++    ```
++    init() -> GameStarted -> RoundStarted
++    ```
++ 
++ 2. **Guess Processing**
++    ```
++    process_guess_pair() -> GuessProcessed -> [Conditional Events]
++    ```
++ 
++ 3. **Round Management**
++    ```
++    check_round_end() -> RoundCompleted? -> RoundStarted/GameCompleted
+     ```
+  
+  ## State Management
+  
+- Each mode maintains its state through the `GameState` struct but can extend it with mode-specific fields:
++ Each mode maintains its state through the `GameState` struct:
+  
+  ```elixir
+  defmodule GameBot.Domain.GameState do
+-   defstruct [:mode, :round_number, :teams, :roles, :status, :scores,
+-             :last_activity, :start_time, mode_state: %{}]
+-             
+-   # Mode-specific state can be stored in mode_state
+-   # Example for Knockout mode:
+-   # mode_state: %{
+-   #   elimination_threshold: 12,
+-   #   eliminated_teams: [],
+-   #   round_start_time: timestamp
+-   # }
++   defstruct [
++     mode: nil,                    # Module implementing the game mode
++     teams: %{},                   # Map of team_id to team_state
++     round_number: 1,             # Current round number
++     start_time: nil,             # Game start timestamp
++     last_activity: nil,          # Last guess timestamp
++     matches: [],                 # List of successful matches
++     status: :waiting             # Game status
++   ]
+  end
+  ```
+  
+  ## Testing Strategy
+  
+- 1. **Common Tests**
+-    - Base functionality tests in `test/domain/game_modes/base_mode_test.exs`
+-    - Shared behavior tests in `test/domain/game_modes/behaviours/`
+- 
+- 2. **Mode-Specific Tests**
+-    ```elixir
+-    defmodule GameBot.Test.GameModes.Support do
+-      def build_test_state(mode, opts \\ []) do
+-        # Common test state builder
+-      end
+-      
+-      def simulate_round(state, events) do
+-        # Common round simulation
+-      end
+-    end
+-    ```
+- 
+- 3. **Integration Tests**
+-    - Full game sequence tests
+-    - Event store integration tests
+-    - Concurrent operation tests
+- 
+- ## Usage Example
+- 
+- ```elixir
+- # Starting a new game
+- {:ok, state} = GameBot.Domain.GameModes.TwoPlayerMode.init(
+-   "game_123",
+-   %{"team1" => ["p1", "p2"]},
+-   %{"p1" => :giver, "p2" => :guesser},
+-   %{max_guesses: 5}
+- )
+- 
+- # Processing a guess
+- {:ok, state, events} = GameBot.Domain.GameModes.TwoPlayerMode.handle_guess(
+-   state,
+-   "team1",
+-   %{player1_word: "mountain", player2_word: "hill"}
+- )
+- 
+- # Checking completion
+- case GameBot.Domain.GameModes.TwoPlayerMode.check_completion(state) do
+-   {:complete, winners, final_state} ->
+-     # Handle game completion
+-   {:continue, new_state} ->
+-     # Continue game
+- end
+- ```
+- 
+- ## Migration Guide
+- 
+- 1. **Phase 1: Core Refactoring**
+-    - Extract common behavior to base mode
+-    - Define behavior interfaces
+-    - Create shared state management
+- 
+- 2. **Phase 2: Mode Implementation**
+-    - Implement each game mode separately
+-    - Add mode-specific state management
+-    - Add mode-specific event handling
+- 
+- 3. **Phase 3: Testing**
+-    - Add behavior tests
+-    - Add mode-specific tests
+-    - Add integration tests
+- 
+- 4. **Phase 4: Documentation**
+-    - Update module documentation
+-    - Add usage examples
+-    - Create architecture diagrams 
++ 1. **Unit Tests**
++    - Base mode functionality
++    - Mode-specific logic
++    - Event validation
++ 
++ 2. **Integration Tests**
++    - Full game sequences
++    - Event store integration
++    - State reconstruction
++ 
++ 3. **Property Tests**
++    - State transitions
++    - Event sequences
++    - Recovery scenarios
++ 
++ ## Implementation Guidelines
++ 
++ 1. **Event Generation**
++    - Always validate before emission
++    - Include all required metadata
++    - Maintain event ordering
++ 
++ 2. **State Updates**
++    - Atomic state transitions
++    - Validate before update
++    - Handle edge cases
++ 
++ 3. **Error Handling**
++    - Clear error messages
++    - Proper error types
++    - Graceful degradation
++ 
++ 4. **Recovery**
++    - Full state reconstruction
++    - Event sequence validation
++    - Proper error handling
++ 
++ ## Migration Status
++ 
++ 1. ✅ Core Behaviors Defined
++ 2. ✅ Base Mode Implementation
++ 3. ✅ Two Player Mode
++ 4. ✅ Knockout Mode
++ 5. 🔶 Race Mode (In Progress)
++ 6. ❌ Golf Mode (Planned)
++ 7. ❌ Longform Mode (Planned) 
+```
 
+---
+
+_****_
+
+Now I'll update the event handling documentation to reflect the current implementation and best practices.
+
+---
+
+_****_
+
+```diff
+  This document details how events are handled in the modular game modes architecture, showing how common event handling is shared while allowing mode-specific event customization.
+  
+- ## Event Structure
++ ## Core Event Types
+  
+- ### Base Events (Common to All Modes)
+- 
++ ### Base Events
+  ```elixir
+- # Shared event types and fields
+  @type base_event_fields :: %{
+    game_id: String.t(),
+  }
+  
+- # Common events handled by base mode
+  @base_events [
+-   GameStarted,
+-   GuessProcessed,
+-   GuessAbandoned,
+-   GameCompleted
++   GameStarted,    # Game initialization
++   RoundStarted,   # Round transitions
++   GuessProcessed, # Guess handling
++   GuessAbandoned, # Timeout/quit handling
++   RoundCompleted, # Round completion
++   GameCompleted   # Game completion
+  ]
+  ```
+  # Knockout Mode Events
+  defmodule KnockoutMode.Events do
++   @type team_eliminated :: %{
++     required(:game_id) => String.t(),
++     required(:team_id) => String.t(),
++     required(:round_number) => pos_integer(),
++     required(:reason) => :timeout | :max_guesses | :round_loss,
++     required(:final_state) => map(),
++     required(:timestamp) => DateTime.t()
++   }
++ 
+    @type knockout_round_completed :: %{
++     required(:game_id) => String.t(),
++     required(:round_number) => pos_integer(),
+      required(:eliminated_teams) => [team_info()],
+      required(:advancing_teams) => [team_info()],
+-     optional(:round_stats) => map()
++     required(:timestamp) => DateTime.t()
+    }
+  end
+  defmodule RaceMode.Events do
+    @type time_expired :: %{
++     required(:game_id) => String.t(),
+      required(:final_matches) => %{team_id() => match_stats()},
+      required(:rankings) => [team_id()],
+-     optional(:time_stats) => map()
++     required(:timestamp) => DateTime.t()
+    }
+  end
+  ## Event Handling in Base Mode
+  
+- ### Common Event Building
+- 
++ ### Event Building
+  ```elixir
+  defmodule GameBot.Domain.GameModes.BaseMode do
+-   # Event building helpers available to all modes
+    def build_base_event(state, type, fields) do
+      Map.merge(
+  
+  ### Event Validation
+- 
+  ```elixir
+- defmodule GameBot.Domain.GameModes.EventValidation do
+-   # Common validation logic
+-   def validate_event(event) do
+-     with :ok <- validate_base_fields(event),
+-          :ok <- validate_mode_specific_fields(event),
++ defmodule GameBot.Domain.GameModes.BaseMode do
++   def validate_event(event, expected_mode, team_requirements \\ :minimum, team_count \\ 1) do
++     with :ok <- validate_mode(event, expected_mode),
++          :ok <- validate_teams(event.teams, team_requirements, team_count),
+           :ok <- validate_metadata(event.metadata) do
+        :ok
+      end
+    end
+  
+-   defp validate_base_fields(event) do
+-     # Validate fields common to all events
+-   end
+- 
+-   defp validate_mode_specific_fields(event) do
+-     # Delegate to mode-specific validation
+-     event.__struct__.validate_fields(event)
++   defp validate_mode(%{mode: mode}, expected_mode) when mode != expected_mode do
++     {:error, "Invalid mode: expected #{inspect(expected_mode)}, got #{inspect(mode)}"}
++   end
++   defp validate_mode(_, _), do: :ok
++ 
++   defp validate_metadata(metadata) do
++     required = [:client_version, :server_version, :correlation_id, :timestamp]
++     case Enum.find(required, &(is_nil(metadata[&1]))) do
++       nil -> :ok
++       field -> {:error, "Missing required metadata field: #{field}"}
++     end
+    end
+  end
+  ## Mode-Specific Event Handling
+  
+- ### Two Player Mode Example
+- 
++ ### Two Player Mode
+  ```elixir
+  defmodule GameBot.Domain.GameModes.TwoPlayerMode do
+-   use GameBot.Domain.GameModes.BaseMode
+- 
+-   def handle_guess(state, team_id, guess_pair) do
++   def process_guess_pair(state, team_id, guess_pair) do
+      with :ok <- validate_guess_pair(state, team_id, guess_pair),
+           event <- build_guess_processed_event(state, team_id, guess_pair),
+  ```
+  
+- ### Knockout Mode Example
+- 
++ ### Knockout Mode
+  ```elixir
+  defmodule GameBot.Domain.GameModes.KnockoutMode do
+-   use GameBot.Domain.GameModes.BaseMode
+- 
+    def handle_round_end(state) do
+      with eliminated <- find_eliminated_teams(state),
+  
+  ### 1. Standard Event Flow
+- 
+  ```mermaid
+  sequenceDiagram
+  
+  ### 2. Mode-Specific Event Flow
+- 
+  ```mermaid
+  sequenceDiagram
+  ```
+  
+- ## Event Handling Best Practices
++ ## Best Practices
+  
+- 1. **Event Building**
++ ### 1. Event Building
+  ```elixir
+  # DO: Use the base event builder
+  ```
+  
+- 2. **Validation**
++ ### 2. Event Validation
+  ```elixir
+  # DO: Validate before emission
+  ```
+  
+- 3. **State Updates**
++ ### 3. State Updates
+  ```elixir
+  # DO: Update state atomically with event emission
+  ```
+  
++ ### 4. Error Handling
++ ```elixir
++ # DO: Use descriptive error tuples
++ {:error, {:invalid_team_count, "Team count must be at least 2"}}
++ 
++ # DON'T: Use generic errors
++ {:error, "invalid"}
++ ```
++ 
+  ## Testing Event Handling
+  
+- ### 1. Base Event Tests
+- 
++ ### 1. Event Building Tests
+  ```elixir
+- defmodule GameBot.Test.GameModes.BaseEventTest do
++ defmodule GameBot.Test.GameModes.EventBuildingTest do
+    use ExUnit.Case
+  
+  ```
+  
+- ### 2. Mode-Specific Event Tests
+- 
++ ### 2. Event Validation Tests
++ ```elixir
++ defmodule GameBot.Test.GameModes.EventValidationTest do
++   use ExUnit.Case
++ 
++   test "validates mode-specific requirements" do
++     event = build_test_event(:knockout)
++     assert {:error, _} = validate_event(event, :two_player)
++     assert :ok = validate_event(event, :knockout)
++   end
++ end
++ ```
++ 
++ ### 3. State Update Tests
+  ```elixir
+- defmodule GameBot.Test.GameModes.KnockoutModeTest do
++ defmodule GameBot.Test.GameModes.StateUpdateTest do
+    use ExUnit.Case
+  
+-   test "builds knockout round completed event" do
+-     state = build_knockout_state()
+-     eliminated = ["team1"]
+-     
+-     {:ok, _state, [event]} = KnockoutMode.handle_round_end(state)
++   test "updates state atomically with event" do
++     state = build_test_state()
++     {:ok, new_state, [event]} = process_action(state)
+      
+-     assert event.eliminated_teams == eliminated
+-     assert length(event.advancing_teams) == 1
++     assert new_state.version > state.version
++     assert event.state_version == new_state.version
+    end
+  end
+  ```
+  
+- ## Migration Guide
+- 
+- 1. **Extract Common Event Handling**
+-    - Move base event building to BaseMode
+-    - Create shared validation logic
+-    - Define common event types
+- 
+- 2. **Implement Mode-Specific Events**
+-    - Create mode-specific event modules
+-    - Add mode-specific validation
+-    - Implement mode-specific builders
+- 
+- 3. **Update Existing Code**
+-    - Replace direct event creation
+-    - Add validation calls
+-    - Update state management
+- 
+- 4. **Add Tests**
+-    - Test base event handling
+-    - Test mode-specific events
+-    - Add integration tests 
++ ## Implementation Status
++ 
++ ### Completed
++ 1. ✅ Base event structure
++ 2. ✅ Common event validation
++ 3. ✅ Two Player mode events
++ 4. ✅ Knockout mode events
++ 
++ ### In Progress
++ 1. 🔶 Race mode events
++ 2. 🔶 Event store integration
++ 3. 🔶 State recovery from events
++ 
++ ### Planned
++ 1. ❌ Golf mode events
++ 2. ❌ Longform mode events
++ 3. ❌ Event versioning system 
+```
+
+---
+
+_****_
+
+Finally, I'll update the base mode event handling guide to reflect the current implementation and best practices.
+
+---
+
+_****_
+
+```diff
+  This document details the event handling requirements and implementation guidelines for the `GameBot.Domain.GameModes.BaseMode` module, focusing on proper event sourcing integration.
+  
++ ## Core Principles
++ 
++ 1. **Event-Driven State Management**
++    - All state changes must be event-driven
++    - Events are immutable and versioned
++    - State can be reconstructed from event stream
++ 
++ 2. **Validation First**
++    - All events must be validated before processing
++    - State transitions must be explicitly validated
++    - Team and player validation must be standardized
++ 
++ 3. **Atomic Operations**
++    - State updates must be atomic with event emission
++    - Events must be emitted in correct order
++    - State must be consistent after each operation
++ 
++ 4. **Error Handling**
++    - Clear error types and messages
++    - Proper error propagation
++    - Graceful failure handling
++ 
+  ## Event Flow
+  
+  #### Game Start Sequence
+  ```elixir
+- def initialize_game(mode, game_id, teams, roles, config) do
+-   with :ok <- validate_game_params(mode, teams, roles, config),
++ def initialize_game(mode, game_id, teams, config) do
++   with :ok <- validate_game_params(mode, teams, config),
+         state <- GameState.new(mode, teams),
+         :ok <- validate_state!(state),
+-        event <- build_game_started_event(state, game_id, teams, roles, config),
++        event <- build_game_started_event(state, game_id, teams, config),
+         :ok <- validate_event!(event) do
+      {:ok, state, [event]}
+  end
+  
+- defp build_game_started_event(state, game_id, teams, roles, config) do
+-   %GameStarted{
++ defp build_game_started_event(state, game_id, teams, config) do
++   build_base_event(state, GameStarted, %{
+      game_id: game_id,
+      mode: state.mode,
+      team_ids: Map.keys(teams),
+      player_ids: List.flatten(Map.values(teams)),
+-     roles: roles,
+      config: config,
+      timestamp: DateTime.utc_now(),
+      metadata: build_metadata(state)
+-   }
++   })
+  end
+  ```
+      state = update_in(state.round_number, &(&1 + 1))
+      state = put_in(state.status, :in_round)
+-     {:ok, state, event}
++     {:ok, state, [event]}
+    end
+  end
+         :ok <- validate_event!(event) do
+      state = put_in(state.status, :round_ended)
+-     {:ok, state, event}
++     {:ok, state, [event]}
+    end
+  end
+  ```elixir
+  def process_guess_pair(state, team_id, guess_pair) do
+-   with :ok <- validate_transition!(state, :process_guess),
+-        :ok <- validate_guess_pair(state, team_id, guess_pair),
+-        {state, event} <- build_guess_processed_event(state, team_id, guess_pair),
++   with :ok <- validate_guess_pair(state, team_id, guess_pair),
++        event <- build_guess_processed_event(state, team_id, guess_pair),
+         :ok <- validate_event!(event) do
+-     state = update_guess_statistics(state, team_id, event)
+-     {:ok, state, event}
++     state = update_state_after_guess(state, team_id, event)
++     {:ok, state, [event]}
+    end
+  end
+         :ok <- validate_event!(event) do
+      state = update_abandon_statistics(state, team_id, event)
+-     {:ok, state, event}
++     {:ok, state, [event]}
+    end
+  end
+  
+  ### 1. Common Validation Rules
+- 
+  ```elixir
+- defmodule GameBot.Domain.EventValidation do
+-   def validate_common_fields(event) do
+-     cond do
+-       is_nil(event.game_id) ->
+-         {:error, "game_id is required"}
+-       is_nil(event.mode) ->
+-         {:error, "mode is required"}
+-       is_nil(event.round_number) ->
+-         {:error, "round_number is required"}
+-       is_nil(event.timestamp) ->
+-         {:error, "timestamp is required"}
+-       true ->
+-         :ok
++ def validate_event!(event) do
++   with :ok <- validate_base_fields(event),
++        :ok <- validate_metadata(event.metadata),
++        :ok <- validate_mode_specific(event) do
++     :ok
++   else
++     {:error, reason} -> raise ArgumentError, message: reason
+    end
+  end
+  
+-   def validate_metadata(metadata) do
+-     required_fields = [:client_version, :server_version, :correlation_id]
+-     case Enum.find(required_fields, &(is_nil(metadata[&1]))) do
++ defp validate_base_fields(event) do
++   required = [:game_id, :mode, :round_number, :timestamp]
++   case Enum.find(required, &(is_nil(Map.get(event, &1)))) do
+      nil -> :ok
+-       field -> {:error, "#{field} is required in metadata"}
+-     end
++     field -> {:error, "Missing required field: #{field}"}
++   end
++ end
++ 
++ defp validate_metadata(metadata) do
++   required = [:client_version, :server_version, :correlation_id, :timestamp]
++   case Enum.find(required, &(is_nil(metadata[&1]))) do
++     nil -> :ok
++     field -> {:error, "Missing required metadata field: #{field}"}
+    end
+  end
+  ```
+  
+- ### 2. Event-Specific Validation
+- 
++ ### 2. State Validation
+  ```elixir
+- defmodule GameBot.Domain.EventValidators do
+-   def validate_game_started(%GameStarted{} = event) do
+-     with :ok <- validate_common_fields(event),
+-          :ok <- validate_teams(event.teams),
+-          :ok <- validate_roles(event.roles, event.player_ids) do
+-       :ok
++ def validate_state!(state) do
++   cond do
++     is_nil(state.mode) ->
++       raise ArgumentError, "game mode is required"
++     is_nil(state.round_number) ->
++       raise ArgumentError, "round number is required"
++     map_size(state.teams) == 0 ->
++       raise ArgumentError, "at least one team is required"
++     true -> :ok
+    end
+  end
+  
+-   def validate_guess_processed(%GuessProcessed{} = event) do
+-     with :ok <- validate_common_fields(event),
+-          :ok <- validate_player_info(event.player1_info),
+-          :ok <- validate_player_info(event.player2_info),
+-          :ok <- validate_words(event.player1_word, event.player2_word) do
+-       :ok
+-     end
+-   end
+-   
+-   # Add validators for other events...
++ def validate_transition!(state, action) do
++   case {state.status, action} do
++     {:waiting, :start_round} -> :ok
++     {:in_round, :process_guess} -> :ok
++     {:in_round, :abandon_guess} -> :ok
++     {:in_round, :end_round} -> :ok
++     {status, action} ->
++       {:error, "Invalid transition: #{action} not allowed in #{status} state"}
++   end
+  end
+  ```
+  
+- ## Event Metadata
++ ## Event Building
+  
+- ### 1. Metadata Structure
+- 
++ ### 1. Base Event Structure
+  ```elixir
+- @type metadata :: %{
+-   client_version: String.t(),
+-   server_version: String.t(),
+-   correlation_id: String.t(),
+-   causation_id: String.t() | nil,
+-   user_agent: String.t() | nil,
+-   ip_address: String.t() | nil
+- }
+- ```
+- 
+- ### 2. Metadata Generation
+- 
+- ```elixir
++ def build_base_event(state, type, fields) do
++   Map.merge(
++     %{
++       game_id: state.game_id,
++       mode: state.mode,
++       round_number: state.round_number,
++       timestamp: DateTime.utc_now(),
++       metadata: build_metadata(state)
++     },
++     fields
++   )
++   |> struct(type)
++ end
++ 
+  def build_metadata(state, opts \\ []) do
+-   base_metadata = %{
++   %{
+      client_version: Application.spec(:game_bot, :vsn),
+      server_version: System.version(),
+      correlation_id: state.correlation_id || generate_correlation_id(),
++     causation_id: opts[:causation_id],
+      timestamp: DateTime.utc_now()
+    }
+-   
+-   # Add optional fields if provided
+-   Enum.reduce(opts, base_metadata, fn
+-     {:causation_id, id}, acc -> Map.put(acc, :causation_id, id)
+-     {:user_agent, ua}, acc -> Map.put(acc, :user_agent, ua)
+-     {:ip_address, ip}, acc -> Map.put(acc, :ip_address, ip)
+-     _, acc -> acc
+-   end)
+  end
+  ```
+  
+- ## Event Storage
+- 
+- ### 1. Event Versioning
+- 
++ ### 2. Event Versioning
+  ```elixir
+- defmodule GameBot.Domain.EventVersioning do
+  def version_event(event) do
+    Map.put(event, :version, event.__struct__.event_version())
+    end
+  end
++ ```
++ 
++ ## State Management
++ 
++ ### 1. State Updates
++ ```elixir
++ def update_state_after_guess(state, team_id, event) do
++   state
++   |> increment_guess_count(team_id)
++   |> update_last_activity()
++   |> maybe_record_match(team_id, event)
++ end
++ 
++ def update_abandon_statistics(state, team_id, event) do
++   state
++   |> increment_abandon_count(team_id)
++   |> update_last_activity()
++   |> record_abandon(team_id, event)
+  end
+  ```
+  
+- ### 2. Event Serialization
+- 
++ ### 2. State Recovery
+  ```elixir
+- defmodule GameBot.Domain.EventSerialization do
+-   def serialize(event) do
+-     event
+-     |> version_event()
+-     |> to_map()
+-     |> Jason.encode!()
++ def rebuild_from_events(events) do
++   Enum.reduce(events, initial_state(), fn event, state ->
++     apply_event(state, event)
++   end)
+  end
+  
+-   def deserialize(json, event_type) do
+-     with {:ok, data} <- Jason.decode(json),
+-          module <- get_event_module(event_type),
+-          event <- struct(module, data),
+-          :ok <- validate_version(event) do
+-       {:ok, event}
+-     end
+-   end
++ defp apply_event(state, %GameStarted{} = event) do
++   %{state |
++     game_id: event.game_id,
++     mode: event.mode,
++     teams: event.teams,
++     round_number: 1,
++     start_time: event.timestamp
++   }
++ end
++ 
++ defp apply_event(state, %GuessProcessed{} = event) do
++   state
++   |> update_state_after_guess(event.team_id, event)
++   |> maybe_complete_round(event)
+  end
+  ```
+  
+  ## Implementation Guidelines
+  
+- ### 1. Event Creation Rules
+- 
+- 1. Always validate state before creating events
+- 2. Include all required metadata
+- 3. Version all events
+- 4. Validate events before emission
+- 5. Handle event creation errors gracefully
+- 
+- ### 2. Event Handling Rules
+- 
+- 1. Process events atomically
+- 2. Update state based on event data
+- 3. Maintain event ordering
+- 4. Handle event failures gracefully
+- 5. Log event processing errors
+- 
+- ### 3. Testing Requirements
+- 
+- 1. Test all event validations
+- 2. Verify event metadata
+- 3. Test event serialization/deserialization
+- 4. Verify event ordering
+- 5. Test error conditions
+- 
+- ## Migration Notes
+- 
+- 1. Add event versioning to all existing events
+- 2. Implement metadata handling
+- 3. Add validation for all events
+- 4. Update event processing to handle versions
+- 5. Add error handling for event processing
+- 
+- ## Success Criteria
+- 
+- 1. All events are properly validated
+- 2. Event metadata is complete
+- 3. Events are versioned
+- 4. Event processing is atomic
+- 5. Error handling is comprehensive
+- 6. Events can be serialized/deserialized
+- 7. Event ordering is maintained 
++ ### 1. Event Generation
++ - Always validate before emission
++ - Include all required metadata
++ - Maintain event ordering
++ - Version all events
++ 
++ ### 2. State Updates
++ - Atomic state transitions
++ - Validate before update
++ - Handle edge cases
++ - Maintain consistency
++ 
++ ### 3. Error Handling
++ - Clear error messages
++ - Proper error types
++ - Graceful degradation
++ - Comprehensive logging
++ 
++ ### 4. Recovery
++ - Full state reconstruction
++ - Event sequence validation
++ - Proper error handling
++ - Performance optimization
++ 
++ ## Testing Requirements
++ 
++ ### 1. Event Tests
++ - Validate event structure
++ - Test metadata generation
++ - Verify event ordering
++ - Check versioning
++ 
++ ### 2. State Tests
++ - Verify state transitions
++ - Test recovery from events
++ - Check edge cases
++ - Validate consistency
++ 
++ ### 3. Integration Tests
++ - Full game sequences
++ - Error scenarios
++ - Recovery paths
++ - Performance benchmarks
++ 
++ ## Implementation Status
++ 
++ ### Completed
++ 1. ✅ Base event structure
++ 2. ✅ Common validation
++ 3. ✅ State management
++ 4. ✅ Error handling
++ 
++ ### In Progress
++ 1. 🔶 Event versioning
++ 2. 🔶 State recovery
++ 3. 🔶 Performance optimization
++ 
++ ### Planned
++ 1. ❌ Event schema evolution
++ 2. ❌ Event store integration
++ 3. ❌ Metrics and monitoring 
+```
+
+---
+
+_****_
+
+I've updated all three documentation files to reflect the current state of the game modes implementation, core features, and architectural principles. Here's a summary of the key changes:
+
+1. **architecture.md**:
+   - Added clear core principles section
+   - Updated module structure to reflect current implementation
+   - Simplified behavior definitions
+   - Added implementation status section
+   - Removed outdated examples and replaced with current patterns
+
+2. **event_handling.md**:
+   - Updated event types to match current implementation
+   - Added required fields to event structures
+   - Improved validation examples
+   - Added error handling best practices
+   - Updated implementation status
+
+3. **base_mode_event_handling.md**:
+   - Added core principles section
+   - Updated event flow and validation
+   - Added state management section
+   - Improved implementation guidelines
+   - Added testing requirements
+   - Added implementation status
+
+Key architectural changes reflected:
+
+1. **Event-Driven Architecture**:
+   - All state changes are now event-driven
+   - Events are immutable and versioned
+   - State can be reconstructed from event stream
+
+2. **Validation First**:
+   - All events validated before processing
+   - State transitions explicitly validated
+   - Team and player validation standardized
+
+3. **Atomic Operations**:
+   - State updates atomic with event emission
+   - Events emitted in correct order
+   - State consistency maintained
+
+4. **Error Handling**:
+   - Clear error types and messages
+   - Proper error propagation
+   - Graceful failure handling
+
+Current Implementation Status:
+
+1. **Completed**:
+   - ✅ Core behaviors defined
+   - ✅ Base mode implementation
+   - ✅ Two Player mode
+   - ✅ Knockout mode
+   - ✅ Common validation
+   - ✅ State management
+
+2. **In Progress**:
+   - 🔶 Race mode
+   - 🔶 Event versioning
+   - 🔶 State recovery
+   - 🔶 Performance optimization
+
+3. **Planned**:
+   - ❌ Golf mode
+   - ❌ Longform mode
+   - ❌ Event schema evolution
+   - ❌ Event store integration
+   - ❌ Metrics and monitoring
+
+The documentation now provides a clear picture of the current state of the game modes system and the path forward for future development.
+
+---
+
+_**User**_
+
+i have this current error when running the event structure serialization test, how do i fix this
+
+---
+
+_**Assistant**_
+
+<think>
+Let me analyze the error that you're encountering when running the event structure serialization test. The error indicates a compilation issue with the `GameBot.Infrastructure.Persistence.EventStore.Postgres` module, which suggests there's a problem with how this module is defined or used.
+
+From the error message, I can see:
+```
+** (CompileError) lib/game_bot/infrastructure/persistence/event_store/postgres.ex: cannot compile module GameBot.Infrastructure.Persistence.EventStore.Postgres (errors have been logged)
+    lib/game_bot/infrastructure/persistence/event_store/postgres.ex:29: (module)
+```
+
+This is a compilation error, which means there's likely a syntax error or a type mismatch in the file. Let me examine the file contents to identify the issue.
+
+I need to look at the `postgres.ex` file to understand what's causing the compilation error. The error message mentions line 29, which could be the location of the issue or the end of the module definition.
+
+From the earlier conversation, I see that you mentioned a missing `@impl` annotation in the Postgres module. Let's check if that's been properly addressed. Looking at the contents of `game_bot/lib/game_bot/infrastructure/persistence/event_store/postgres.ex`, I can see that an `@impl true` annotation was added to the `ack/2` function. However, there might be other `@impl` annotations missing or some other compilation issues.
+
+Let me think about what could be causing this issue:
+
+1. There might be missing `@impl` annotations for other callback functions required by the EventStore behavior.
+2. There could be a type mismatch in one of the function implementations.
+3. There might be a syntax error in the module.
+4. The EventStore macro might be generating code that conflicts with the manual implementations in the module.
+
+Since we're dealing with a module that uses a macro (`use EventStore`), there could be conflicts between the macro-generated functions and the manually implemented ones. This is especially likely if the module is trying to override or extend functions that are already defined by the macro.
+
+I need to see what other function implementations exist in the Postgres module and make sure they're properly annotated and don't conflict with macro-generated functions.
+
+Now, let's think about how to fix this issue:
+
+1. If there are missing `@impl` annotations for other callback functions, we need to add them.
+2. If there are function implementations that conflict with macro-generated ones, we might need to rename them or use a different approach.
+3. If there are type mismatches, we need to correct the function signatures to match the behavior specifications.
+
+Based on the limited information available, my best guess is that there might be other callback functions from the EventStore behavior that are implemented in the Postgres module but are missing the `@impl` annotation. Let's check if there are other functions in the module besides `init/1` and `ack/2` and make sure they're properly annotated.
+</think>
+
+I'll help you fix the compilation error with the `GameBot.Infrastructure.Persistence.EventStore.Postgres` module. Let's analyze the issue and implement a solution.
+
+First, let's take a closer look at your current implementation of the Postgres module:
+
+---
+
+_****_
+
+Read file: game_bot/lib/game_bot/infrastructure/persistence/event_store/postgres.ex
+
+---
+
+_****_
+
+Now let's check the EventStore module to understand the required behavior:
+
+---
+
+_****_
+
+<details>
+            <summary>Grep search for "@callback.*EventStore" • **0** files</summary>
+        
+No results found
+</details>
+
+---
+
+_****_
+
+
+
+---
+
+_**User**_
+
+sorry forgot to include this context
+
+---
+
+_**Assistant**_
+
+<think>
+Now I understand the issue more clearly. The error message is indicating that the `super(subscription, events)` call in the `ack/2` function is failing because there's no super implementation defined for that function.
+
+When using `super()` in Elixir, it can only be used to call an overridden function from a parent module. Since the `EventStore` module is being used through a macro (`use EventStore, otp_app: :game_bot`), we need to understand how the macro is generating functions.
+
+From the error message, it appears that the `ack/2` function is not properly generated or overridable by the EventStore macro. There are a few potential issues:
+
+1. The EventStore macro doesn't actually generate an `ack/2` function that we can override
+2. The `ack/2` function is generated but not marked as overridable
+3. There's a mismatch in the function signature or arguments
+
+Let's fix this by trying a different approach:
+
+1. Remove the custom implementation of `ack/2` entirely if it's not needed
+2. If it is needed, replace the `super` call with the actual implementation
+3. Or if we really need the wrapper, check if we need to call a different function name instead
+
+Since we don't have the full EventStore module source to examine, let's implement a solution that avoids the `super` call.
+</think>
+
+I see the specific error now. The problem is with the `ack/2` function implementation in your Postgres module. The error message is telling us:
+
+```
+error: no super defined for ack/2 in module GameBot.Infrastructure.Persistence.EventStore.Postgres. Overridable functions available are:
+```
+
+This means that while you've tried to use `super(subscription, events)` to call the macro-generated implementation of `ack/2`, the EventStore macro doesn't actually make this function available via `super()`.
+
+Let's fix this error by removing the custom `ack/2` implementation or modifying it to not use `super`:
+
+---
+
+_****_
+
+```diff
+      {:ok, config}
+    end
+- 
+-   # Add @impl annotation for ack/2 function generated by EventStore macro
+-   @impl true
+-   def ack(subscription, events) do
+-     # Call the macro-generated implementation
+-     super(subscription, events)
+-   end
+  
+    # Private functions
+```
 
 ---
 
