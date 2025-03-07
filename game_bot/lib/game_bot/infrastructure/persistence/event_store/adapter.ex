@@ -37,46 +37,42 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
   @initial_backoff_ms 50
 
   @doc """
-  Append events to a stream with validation and retries.
+  Append events to a stream with optimistic concurrency control.
   """
   @impl Behaviour
+  @spec append_to_stream(String.t(), non_neg_integer() | :any | :no_stream | :stream_exists, [struct()], keyword()) ::
+    {:ok, non_neg_integer()} | {:error, term()}
   def append_to_stream(stream_id, expected_version, events, opts \\ []) do
-    with :ok <- validate_events(events),
-         :ok <- validate_stream_size(stream_id),
-         {:ok, event_data} <- prepare_events(events) do
-      do_append_with_retry(stream_id, expected_version, event_data, opts)
+    with {:ok, event_data} <- Serializer.serialize_events(events) do
+      case @store.safe_append_to_stream(stream_id, expected_version, event_data, opts) do
+        {:ok, version} -> {:ok, version}
+        {:error, reason} -> {:error, transform_error(reason)}
+      end
     end
   end
 
   @doc """
-  Read events from a stream with deserialization.
+  Read events from a stream in forward order.
   """
   @impl Behaviour
-  def read_stream_forward(stream_id, start_version \\ 0, count \\ 1000, opts \\ []) do
-    with_retries("read_stream", fn ->
-      try do
-        case @store.read_stream_forward(stream_id, start_version, count) do
-          {:ok, []} when start_version == 0 ->
-            {:error, not_found_error(stream_id)}
-          {:ok, events} ->
-            {:ok, events}
-          {:error, :stream_not_found} ->
-            {:error, not_found_error(stream_id)}
-          {:error, reason} ->
-            {:error, system_error("Read failed", reason)}
-        end
-      rescue
-        e in DBConnection.ConnectionError ->
-          {:error, connection_error(e)}
-        e ->
-          {:error, system_error("Read failed", e)}
-      end
-    end)
-    |> case do
+  @spec read_stream_forward(String.t(), non_neg_integer(), pos_integer(), keyword()) ::
+    {:ok, [struct()]} | {:error, term()}
+  def read_stream_forward(stream_id, start_version \\ 0, count \\ 1000, _opts \\ []) do
+    case @store.safe_read_stream_forward(stream_id, start_version, count) do
       {:ok, events} ->
-        {:ok, Enum.map(events, &extract_event_data/1)}
-      error ->
-        error
+        # Process each event with deserialize, collecting results
+        events
+        |> Enum.reduce_while({:ok, []}, fn event, {:ok, acc} ->
+          case Serializer.deserialize(event.data) do
+            {:ok, deserialized} -> {:cont, {:ok, [deserialized | acc]}}
+            {:error, reason} -> {:halt, {:error, transform_error(reason)}}
+          end
+        end)
+        |> case do
+          {:ok, deserialized_events} -> {:ok, Enum.reverse(deserialized_events)}
+          error -> error
+        end
+      {:error, reason} -> {:error, transform_error(reason)}
     end
   end
 
@@ -84,7 +80,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
   Subscribe to a stream with monitoring.
   """
   @impl Behaviour
-  def subscribe_to_stream(stream_id, subscriber, subscription_options \\ [], opts \\ []) do
+  def subscribe_to_stream(stream_id, subscriber, subscription_options \\ [], _opts \\ []) do
     options = process_subscription_options(subscription_options)
 
     with_retries("subscribe", fn ->
@@ -107,27 +103,15 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
   end
 
   @doc """
-  Gets the current version of a stream.
+  Get the current version of a stream.
   """
   @impl Behaviour
+  @spec stream_version(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def stream_version(stream_id) do
-    with_retries("get_version", fn ->
-      try do
-        case @store.stream_version(stream_id) do
-          {:ok, version} ->
-            {:ok, version}
-          {:error, :stream_not_found} ->
-            {:ok, 0}  # Non-existent streams are at version 0
-          {:error, reason} ->
-            {:error, system_error("Get version failed", reason)}
-        end
-      rescue
-        e in DBConnection.ConnectionError ->
-          {:error, connection_error(e)}
-        e ->
-          {:error, system_error("Get version failed", e)}
-      end
-    end)
+    case @store.safe_stream_version(stream_id) do
+      {:ok, version} -> {:ok, version}
+      {:error, reason} -> {:error, transform_error(reason)}
+    end
   end
 
   @doc """
@@ -440,6 +424,49 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
       is_exception(details) && details.__struct__ == DBConnection.ConnectionError -> true
       is_map(details) && Map.get(details, :reason) == :connection_error -> true
       true -> false
+    end
+  end
+
+  # General error transformation for simpler cases
+  defp transform_error(error) do
+    case error do
+      # If we already have a properly formatted error, return it as is
+      %Error{} = err ->
+        err
+
+      :stream_not_found ->
+        %Error{
+          type: :not_found,
+          __exception__: true,
+          context: __MODULE__,
+          message: "Stream not found",
+          details: %{timestamp: DateTime.utc_now()}
+        }
+
+      :wrong_expected_version ->
+        %Error{
+          type: :concurrency,
+          __exception__: true,
+          context: __MODULE__,
+          message: "Wrong expected version",
+          details: %{timestamp: DateTime.utc_now()}
+        }
+
+      error when is_exception(error) and error.__struct__ == DBConnection.ConnectionError ->
+        connection_error(error)
+
+      # For any other type of error, convert to a standard format
+      _ ->
+        %Error{
+          type: :unknown,
+          __exception__: true,
+          context: __MODULE__,
+          message: "Unknown error: #{inspect(error)}",
+          details: %{
+            error: inspect(error),
+            timestamp: DateTime.utc_now()
+          }
+        }
     end
   end
 end

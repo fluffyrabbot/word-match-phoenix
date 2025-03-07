@@ -6,10 +6,11 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   ## Game Rules
   - Teams compete in rounds with a 5-minute time limit per round
   - Maximum of 12 guesses allowed per round
-  - Teams are eliminated in three ways:
+  - Teams are eliminated in four ways:
     1. Immediate elimination upon reaching 12 guesses without matching
     2. End of round elimination for teams that haven't matched within time limit
     3. End of round elimination for 3 teams with highest guess counts (when >8 teams)
+    4. End of round elimination for 1 team with highest guess counts (when 8 or less teams)
   - Round restarts after eliminations with 5-second delay
   - Game continues until one team remains
 
@@ -100,7 +101,7 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   @impl true
   @spec init(String.t(), %{String.t() => [String.t()]}, map()) :: {:ok, state()} | {:error, term()}
   def init(game_id, teams, config) do
-    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :minimum, @min_teams, "Knockout"),
+    with :ok <- validate_initial_teams(teams),
          {:ok, state, events} <- GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config) do
 
       now = DateTime.utc_now()
@@ -145,8 +146,8 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   @spec process_guess_pair(state(), String.t(), map()) ::
     {:ok, state(), [struct()]} | {:error, term()}
   def process_guess_pair(state, team_id, guess_pair) do
-    with :ok <- validate_active_team(state, team_id),
-         :ok <- validate_round_time(state),
+    with :ok <- validate_round_state(state),
+         {:ok, team} <- validate_team_state(state, team_id),
          {:ok, state, event} <- GameBot.Domain.GameModes.BaseMode.process_guess_pair(state, team_id, guess_pair) do
 
       cond do
@@ -157,8 +158,10 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
 
         event.guess_count >= @max_guesses ->
           # Eliminate team for exceeding guess limit
-          {state, elimination_event} = eliminate_team(state, team_id, :guess_limit)
-          {:ok, state, [event, elimination_event]}
+          with {:ok, _} <- validate_elimination(state, team_id, :guess_limit) do
+            {state, elimination_event} = eliminate_team(state, team_id, :guess_limit)
+            {:ok, state, [event, elimination_event]}
+          end
 
         true ->
           {:ok, state, event}
@@ -186,7 +189,8 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   @spec handle_guess_abandoned(state(), String.t(), atom(), map() | nil) ::
     {:ok, state(), GuessAbandoned.t()} | {:error, term()}
   def handle_guess_abandoned(state, team_id, reason, last_guess) do
-    with :ok <- validate_active_team(state, team_id) do
+    with :ok <- validate_round_state(state),
+         {:ok, team} <- validate_team_state(state, team_id) do
       GameBot.Domain.GameModes.BaseMode.handle_guess_abandoned(state, team_id, reason, last_guess)
     end
   end
@@ -216,26 +220,30 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   @impl true
   @spec check_round_end(state()) :: {:round_end, state()} | :continue | {:error, term()}
   def check_round_end(state) do
-    now = DateTime.utc_now()
-    elapsed_seconds = DateTime.diff(now, state.round_start_time)
-
-    if elapsed_seconds >= @round_time_limit do
-      # Handle round time expiry
-      state = handle_round_time_expired(state)
-
-      # Start new round if game continues
-      case check_game_end(state) do
-        {:game_end, winners} ->
-          {:game_end, winners}
+    with :ok <- validate_round_state(state),
+         {:ok, result} <- validate_game_end(state) do
+      case result do
         :continue ->
-          state = %{state |
-            round_number: state.round_number + 1,
-            round_start_time: now
-          }
-          {:round_end, state}
+          now = DateTime.utc_now()
+          elapsed_seconds = DateTime.diff(now, state.round_start_time)
+
+          if elapsed_seconds >= @round_time_limit do
+            # Handle round time expiry
+            state = handle_round_time_expired(state)
+
+            # Start new round if game continues
+            state = %{state |
+              round_number: state.round_number + 1,
+              round_start_time: now
+            }
+            {:round_end, state}
+          else
+            :continue
+          end
+
+        winners when is_list(winners) ->
+          {:game_end, winners}
       end
-    else
-      :continue
     end
   end
 
@@ -428,5 +436,89 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   @spec validate_event(struct()) :: :ok | {:error, String.t()}
   def validate_event(event) do
     GameBot.Domain.GameModes.BaseMode.validate_event(event, :knockout, :minimum, 2)
+  end
+
+  # Private validation functions
+
+  defp validate_initial_teams(teams) do
+    cond do
+      map_size(teams) < @min_teams ->
+        {:error, {:invalid_team_count, "Knockout mode requires at least #{@min_teams} teams"}}
+      Enum.any?(teams, fn {_id, players} -> length(players) != 2 end) ->
+        {:error, {:invalid_team_size, "Each team must have exactly 2 players"}}
+      true -> :ok
+    end
+  end
+
+  defp validate_round_state(state) do
+    cond do
+      is_nil(state.round_start_time) ->
+        {:error, {:invalid_round_state, "Round has not been properly initialized"}}
+      DateTime.diff(DateTime.utc_now(), state.round_start_time) >= @round_time_limit ->
+        {:error, {:round_time_expired, "Round time has expired"}}
+      true -> :ok
+    end
+  end
+
+  defp validate_team_state(state, team_id) do
+    with {:ok, team} <- get_team(state, team_id),
+         :ok <- validate_team_active(team),
+         :ok <- validate_team_guess_count(team) do
+      {:ok, team}
+    end
+  end
+
+  defp get_team(state, team_id) do
+    case Map.fetch(state.teams, team_id) do
+      {:ok, team} -> {:ok, team}
+      :error -> {:error, {:team_not_found, "Team #{team_id} not found"}}
+    end
+  end
+
+  defp validate_team_active(team) do
+    case team.status do
+      :eliminated -> {:error, {:team_eliminated, "Team has been eliminated"}}
+      _ -> :ok
+    end
+  end
+
+  defp validate_team_guess_count(team) do
+    if team.guess_count >= @max_guesses do
+      {:error, {:guess_limit_exceeded, "Team has reached maximum guess limit"}}
+    else
+      :ok
+    end
+  end
+
+  defp validate_elimination(state, team_id, reason) do
+    with {:ok, team} <- get_team(state, team_id),
+         :ok <- validate_elimination_reason(reason),
+         :ok <- validate_elimination_timing(state) do
+      {:ok, team}
+    end
+  end
+
+  defp validate_elimination_reason(reason) when reason in [:time_expired, :guess_limit, :forced_elimination], do: :ok
+  defp validate_elimination_reason(_), do: {:error, {:invalid_elimination_reason, "Invalid elimination reason"}}
+
+  defp validate_elimination_timing(state) do
+    active_teams = count_active_teams(state)
+    if active_teams <= 1 do
+      {:error, {:invalid_elimination_timing, "Cannot eliminate teams when only one team remains"}}
+    else
+      :ok
+    end
+  end
+
+  defp validate_game_end(state) do
+    active_teams = count_active_teams(state)
+    cond do
+      active_teams == 0 ->
+        {:error, {:invalid_game_state, "No active teams remaining"}}
+      active_teams == 1 ->
+        {:ok, get_active_teams(state)}
+      true ->
+        {:ok, :continue}
+    end
   end
 end

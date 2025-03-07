@@ -71,14 +71,17 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
 
   @impl true
   def deserialize(data) do
+    # Handle both string and atom keys by normalizing to use string keys
+    data = if is_map(data) and map_size(data) > 0 and is_binary(hd(Map.keys(data))), do: data, else: Map.new(data, fn {k, v} -> {to_string(k), v} end)
+
     %__MODULE__{
-      game_id: data.game_id,
-      guild_id: data.guild_id,
-      player_id: data.player_id,
-      action: data.action,
-      data: data.data,
-      timestamp: EventStructure.parse_timestamp(data.timestamp),
-      metadata: data.metadata
+      game_id: data["game_id"],
+      guild_id: data["guild_id"],
+      player_id: data["player_id"],
+      action: data["action"],
+      data: data["data"],
+      timestamp: EventStructure.parse_timestamp(data["timestamp"]),
+      metadata: data["metadata"]
     }
   end
 

@@ -82,23 +82,15 @@ defmodule GameBot.Bot.Commands.GameCommands do
          metadata = Map.put(metadata, :guild_id, game.guild_id),
          {:ok, player_info} <- GameModes.get_player_info(game, interaction.user.id) do
 
-      event = %GameEvents.GuessProcessed{
+      # Don't create a GuessProcessed event here - let the game mode handle it
+      # when both players have submitted their guesses
+      {:ok, %{
         game_id: game_id,
-        mode: game.mode,
-        round_number: game.current_round,
         team_id: player_info.team_id,
-        player1_info: player_info,
-        player2_info: GameModes.get_partner_info(game, player_info),
-        player1_word: word,
-        player2_word: nil,
-        guess_successful: false,
-        guess_count: game.guess_count + 1,
-        match_score: 0,
-        timestamp: DateTime.utc_now(),
+        player_id: interaction.user.id,
+        word: word,
         metadata: metadata
-      }
-
-      {:ok, event}
+      }}
     end
   end
 
@@ -123,7 +115,7 @@ defmodule GameBot.Bot.Commands.GameCommands do
         round_number: game.current_round,
         team_id: player_info.team_id,
         player1_info: player_info,
-        player2_info: GameModes.get_partner_info(game, player_info),
+        player2_info: GameModes.get_teammate_info(game, player_info),
         player1_word: word,
         player2_word: nil,
         guess_successful: false,
@@ -194,6 +186,47 @@ defmodule GameBot.Bot.Commands.GameCommands do
 
   def handle_command(_command) do
     {:error, :unknown_command}
+  end
+
+  @doc """
+  Handles game commands from message content.
+  Process commands like "start classic" or "guess word"
+
+  ## Parameters
+    * `command_text` - The text of the command after the prefix
+    * `message` - The Discord message containing the command
+
+  ## Returns
+    * `{:ok, response}` - Successfully processed command with response data
+    * `{:error, reason}` - Failed to process command
+  """
+  @spec handle_command(String.t(), Message.t()) :: {:ok, map()} | {:error, any()}
+  def handle_command(command_text, %Message{} = message) do
+    parts = String.trim(command_text) |> String.split(" ", trim: true)
+
+    case parts do
+      ["start", mode_name | rest] ->
+        options = parse_options(rest)
+        handle_start_game(message, mode_name, options)
+
+      ["guess", game_id, word] when byte_size(game_id) > 0 and byte_size(word) > 0 ->
+        handle_guess(message, game_id, word, %{})
+
+      _ ->
+        {:error, :invalid_command}
+    end
+  end
+
+  # Helper function to parse options from command text
+  defp parse_options(options_list) do
+    options_list
+    |> Enum.chunk_every(2)
+    |> Enum.filter(fn
+      [key, _value] -> String.starts_with?(key, "--")
+      _ -> false
+    end)
+    |> Enum.map(fn [key, value] -> {String.replace_prefix(key, "--", ""), value} end)
+    |> Enum.into(%{})
   end
 
   # Private helpers

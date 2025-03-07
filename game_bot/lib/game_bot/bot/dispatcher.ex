@@ -6,7 +6,7 @@ defmodule GameBot.Bot.Dispatcher do
 
   require Logger
 
-  alias GameBot.Bot.{CommandHandler, Commands.GameCommands}
+  alias GameBot.Bot.{CommandHandler, Commands.GameCommands, Commands.UserCommands}
   alias GameBot.GameSessions.Session
   alias GameBot.Test.Mocks.NostrumApiMock
   alias Nostrum.Struct.{Interaction, Message}
@@ -16,7 +16,8 @@ defmodule GameBot.Bot.Dispatcher do
   Dispatches incoming Discord events to the appropriate handler.
   """
   def handle_event({:INTERACTION_CREATE, %Interaction{data: data} = interaction, _ws_state}) do
-    with {:ok, game_state} <- maybe_fetch_game_state(interaction, data),
+    with {:ok, _} <- UserCommands.register_user(interaction),
+         {:ok, game_state} <- maybe_fetch_game_state(interaction, data),
          :ok <- validate_game_state(game_state, data) do
       case data.name do
         "start" ->
@@ -44,7 +45,7 @@ defmodule GameBot.Bot.Dispatcher do
       end
     else
       {:error, reason} ->
-        Logger.warning("Game state validation failed",
+        Logger.warning("Event processing failed",
           error: reason,
           interaction: interaction.id
         )
@@ -53,17 +54,16 @@ defmodule GameBot.Bot.Dispatcher do
   end
 
   def handle_event({:MESSAGE_CREATE, %Message{} = message, _ws_state}) do
-    with {:ok, game_state} <- maybe_fetch_game_state_from_message(message),
+    with {:ok, _} <- UserCommands.register_user(message),
+         {:ok, game_state} <- maybe_fetch_game_state_from_message(message),
          :ok <- validate_message_for_game(message, game_state) do
       CommandHandler.handle_message(message)
     else
       {:error, reason} ->
-        Logger.warning("Message validation failed",
-          error: reason,
-          message_id: message.id,
-          author_id: message.author.id
-        )
-        maybe_notify_user(message, reason)
+        Logger.warning("Message processing failed: #{inspect(reason)}")
+        ErrorHandler.notify_user(message, reason)
+        :error
+      _ -> :error
     end
   end
 
@@ -72,9 +72,9 @@ defmodule GameBot.Bot.Dispatcher do
 
   # Game state validation
 
-  defp maybe_fetch_game_state(%Interaction{} = interaction, %{name: "start"}), do: {:ok, nil}
-  defp maybe_fetch_game_state(%Interaction{} = interaction, %{name: "team"}), do: {:ok, nil}
-  defp maybe_fetch_game_state(%Interaction{} = interaction, data) do
+  defp maybe_fetch_game_state(%Interaction{} = _interaction, %{name: "start"}), do: {:ok, nil}
+  defp maybe_fetch_game_state(%Interaction{} = _interaction, %{name: "team"}), do: {:ok, nil}
+  defp maybe_fetch_game_state(%Interaction{} = _interaction, data) do
     case get_option(data.options, "game_id") do
       nil -> {:error, :missing_game_id}
       game_id -> fetch_game_state(game_id)
@@ -211,7 +211,15 @@ defmodule GameBot.Bot.Dispatcher do
   """
   @spec handle_interaction(Interaction.t()) :: :ok | {:error, term()}
   def handle_interaction(%Interaction{} = interaction) do
-    if NostrumApiMock.should_error?() do
+    # Only check for API errors in test environment
+    error_check = if Code.ensure_loaded?(GameBot.Test.Mocks.NostrumApiMock) &&
+                     function_exported?(GameBot.Test.Mocks.NostrumApiMock, :should_error?, 0) do
+      GameBot.Test.Mocks.NostrumApiMock.should_error?()
+    else
+      false
+    end
+
+    if error_check do
       Logger.error("Nostrum API error simulated for interaction: #{inspect(interaction)}")
       {:error, :api_error}
     else

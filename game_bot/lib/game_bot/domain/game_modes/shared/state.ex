@@ -1,6 +1,21 @@
 defmodule GameBot.Domain.GameModes.State do
   @moduledoc """
   Common state management functionality for game modes.
+
+  ## State Structure
+  The state maintains the following key information:
+  - Game mode and configuration
+  - Team states and scores
+  - Round tracking
+  - Match history
+
+  ## Guess Count Behavior
+  The guess count follows these rules:
+  1. Initialized at 1 for each team (representing first attempt)
+  2. Incremented after failed matches
+  3. Reset to 1 when starting a new round (for first attempt of new round)
+  4. Used for both event emission and state tracking
+  5. Always positive (1 or greater)
   """
 
   @type t :: %__MODULE__{
@@ -17,7 +32,7 @@ defmodule GameBot.Domain.GameModes.State do
 
   @type team_state :: %{
     player_ids: [String.t()],
-    guess_count: non_neg_integer(),
+    guess_count: pos_integer(),  # Starts at 1 for first attempt of each round
     forbidden_words: MapSet.t(String.t()),
     status: team_status()
   }
@@ -25,7 +40,7 @@ defmodule GameBot.Domain.GameModes.State do
   @type match :: %{
     team_id: String.t(),
     word: String.t(),
-    guess_count: pos_integer(),
+    guess_count: pos_integer(),  # Records which attempt was successful
     timestamp: DateTime.t()
   }
 
@@ -53,7 +68,7 @@ defmodule GameBot.Domain.GameModes.State do
     %__MODULE__{
       mode: mode,
       round_number: 1,
-      teams: initialize_teams(teams),
+      teams: initialize_teams(teams),  # Sets guess_count to 1
       status: :initialized,
       scores: initialize_scores(teams),
       matches: [],
@@ -64,16 +79,19 @@ defmodule GameBot.Domain.GameModes.State do
 
   @doc """
   Updates state after a guess attempt.
+  Note: This should be called AFTER emitting the GuessProcessed event
+  to ensure the event contains the current attempt number.
   """
   def update_after_guess(state, team_id, result) do
     state
-    |> update_in([:teams, team_id, :guess_count], &(&1 + 1))
+    |> update_in([:teams, team_id, :guess_count], &(&1 + 1))  # Increment for next attempt
     |> Map.put(:last_activity, DateTime.utc_now())
     |> maybe_update_score(team_id, result)
   end
 
   @doc """
   Updates state for a new round.
+  Resets guess counts to 1 for first attempt of new round.
   """
   def update_round(state, round_number) do
     %{state |
@@ -102,9 +120,11 @@ defmodule GameBot.Domain.GameModes.State do
 
   @doc """
   Increments the guess count for a team.
+  Note: This should be called AFTER emitting the GuessProcessed event
+  to ensure the event contains the current attempt number.
   """
   def increment_guess_count(state, team_id) do
-    update_in(state.teams[team_id].guess_count, &(&1 + 1))
+    update_in(state.teams[team_id].guess_count, &(&1 + 1))  # Increment for next attempt
   end
 
   # Private helpers
@@ -113,7 +133,7 @@ defmodule GameBot.Domain.GameModes.State do
     Map.new(teams, fn {team_id, player_ids} ->
       {team_id, %{
         player_ids: player_ids,
-        guess_count: 0,
+        guess_count: 1,  # Start at 1 for first attempt
         forbidden_words: MapSet.new(),
         status: :ready
       }}
@@ -131,7 +151,7 @@ defmodule GameBot.Domain.GameModes.State do
 
   defp reset_team_guesses(teams) do
     Map.new(teams, fn {team_id, team} ->
-      {team_id, %{team | guess_count: 0}}
+      {team_id, %{team | guess_count: 1}}  # Reset to 1 for first attempt of new round
     end)
   end
 

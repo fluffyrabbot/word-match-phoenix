@@ -28,8 +28,8 @@ defmodule GameBot.Domain.Events.EventRegistryTest do
       EventRegistry.register("test_event", TestEvent, 1)
 
       # Verify it can be retrieved
-      assert {:ok, TestEvent} = EventRegistry.module_for_type("test_event")
       assert {:ok, TestEvent, 1} = EventRegistry.module_for_type("test_event")
+      assert {:ok, TestEvent} = EventRegistry.module_for_type("test_event", 1)
     end
 
     test "handles versioned events" do

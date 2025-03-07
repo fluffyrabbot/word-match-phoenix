@@ -87,7 +87,6 @@ defmodule GameBot.Domain.Events.GameEvents do
       "guess_processed" -> GameBot.Domain.Events.GameEvents.GuessProcessed
       "guess_abandoned" -> GameBot.Domain.Events.GameEvents.GuessAbandoned
       "team_eliminated" -> GameBot.Domain.Events.GameEvents.TeamEliminated
-      "player_joined" -> GameBot.Domain.Events.GameEvents.PlayerJoined
       _ -> raise "Unknown event type: #{type}"
     end
   end
@@ -452,6 +451,7 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     @type t :: %__MODULE__{
       game_id: String.t(),
+      guild_id: String.t(),
       mode: atom(),
       round_number: pos_integer(),
       winners: [String.t()],
@@ -470,31 +470,140 @@ defmodule GameBot.Domain.Events.GameEvents do
       game_duration: integer(),
       total_rounds: pos_integer(),
       timestamp: DateTime.t(),
+      finished_at: DateTime.t(),
       metadata: GameBot.Domain.Events.GameEvents.metadata()
     }
-    defstruct [:game_id, :mode, :round_number, :winners, :final_scores,
-               :game_duration, :total_rounds, :timestamp, :metadata]
+    defstruct [:game_id, :guild_id, :mode, :round_number, :winners, :final_scores,
+               :game_duration, :total_rounds, :timestamp, :finished_at, :metadata]
+
+    @doc """
+    Creates a new GameCompleted event with minimal parameters.
+
+    This is a convenience function used primarily in the Session module's game_end handler.
+    It takes the essential parameters needed to create a GameCompleted event and delegates
+    to the full new/9 function with sensible defaults for the other parameters.
+
+    ## Parameters
+      * `game_id` - Unique identifier for the game
+      * `guild_id` - Discord guild ID where the game was played
+      * `mode` - Game mode (e.g., :two_player, :knockout)
+      * `winners` - List of winning team IDs
+      * `final_scores` - Map of team scores and statistics
+
+    ## Returns
+      * `%GameCompleted{}` - A new GameCompleted event struct
+
+    ## Examples
+        iex> GameCompleted.new(
+        ...>   "game_123",
+        ...>   "guild_456",
+        ...>   :two_player,
+        ...>   ["team_abc"],
+        ...>   %{"team_abc" => %{score: 100, matches: 5, total_guesses: 20, average_guesses: 4.0,
+        ...>     player_stats: %{"player1" => %{total_guesses: 10, successful_matches: 5,
+        ...>     abandoned_guesses: 0, average_guess_count: 2.0}}}}
+        ...> )
+    """
+    @spec new(String.t(), String.t(), atom(), [String.t()], map()) :: t()
+    def new(game_id, guild_id, mode, winners, final_scores) do
+      now = DateTime.utc_now()
+      new(
+        game_id,        # game_id
+        guild_id,       # guild_id
+        mode,          # mode
+        1,             # round_number - using default since not provided
+        winners,       # winners
+        final_scores,  # final_scores
+        0,            # game_duration - using default since not provided
+        1,            # total_rounds - using default since not provided
+        now,          # timestamp
+        now           # finished_at
+      )
+    end
+
+    @doc """
+    Creates a new GameCompleted event with full parameters.
+
+    This function creates a GameCompleted event with all possible parameters.
+    It's used both directly and as a delegate from the simplified new/5 function.
+
+    ## Parameters
+      * `game_id` - Unique identifier for the game
+      * `guild_id` - Discord guild ID where the game was played
+      * `mode` - Game mode (e.g., :two_player, :knockout)
+      * `round_number` - Final round number when the game ended
+      * `winners` - List of winning team IDs
+      * `final_scores` - Map of team scores and statistics
+      * `game_duration` - Total duration of the game in seconds
+      * `total_rounds` - Total number of rounds played
+      * `timestamp` - When the event was created
+      * `finished_at` - When the game actually finished
+      * `metadata` - Additional metadata for the event (optional)
+
+    ## Returns
+      * `%GameCompleted{}` - A new GameCompleted event struct
+    """
+    @spec new(String.t(), String.t(), atom(), pos_integer(), [String.t()], map(), non_neg_integer(), pos_integer(), DateTime.t(), DateTime.t(), map()) :: t()
+    def new(game_id, guild_id, mode, round_number, winners, final_scores, game_duration, total_rounds, timestamp, finished_at, metadata \\ %{}) do
+      event = %__MODULE__{
+        game_id: game_id,
+        guild_id: guild_id,
+        mode: mode,
+        round_number: round_number,
+        winners: winners,
+        final_scores: final_scores,
+        game_duration: game_duration,
+        total_rounds: total_rounds,
+        timestamp: timestamp,
+        finished_at: finished_at,
+        metadata: metadata
+      }
+
+      # Validate the event before returning
+      case validate(event) do
+        :ok -> event
+        {:error, reason} -> raise "Invalid GameCompleted event: #{reason}"
+      end
+    end
 
     def event_type(), do: "game_completed"
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event) do
-        cond do
-          is_nil(event.winners) -> {:error, "winners is required"}
-          is_nil(event.final_scores) -> {:error, "final_scores is required"}
-          is_nil(event.game_duration) -> {:error, "game_duration is required"}
-          is_nil(event.total_rounds) -> {:error, "total_rounds is required"}
-          event.total_rounds < 1 -> {:error, "total_rounds must be positive"}
-          event.game_duration < 0 -> {:error, "game_duration must be non-negative"}
-          true -> :ok
-        end
+      with :ok <- validate_required(event, [:game_id, :guild_id, :mode, :round_number, :winners,
+                                          :final_scores, :game_duration, :total_rounds,
+                                          :timestamp, :finished_at, :metadata]),
+           :ok <- validate_positive(event.total_rounds, "total_rounds"),
+           :ok <- validate_non_negative(event.game_duration, "game_duration"),
+           :ok <- validate_datetime(event.timestamp, "timestamp"),
+           :ok <- validate_datetime(event.finished_at, "finished_at") do
+        :ok
       end
     end
+
+    defp validate_datetime(nil, field), do: {:error, "#{field} is required"}
+    defp validate_datetime(%DateTime{}, _), do: :ok
+    defp validate_datetime(_, field), do: {:error, "#{field} must be a DateTime"}
+
+    defp validate_required(event, fields) do
+      missing = Enum.filter(fields, &(is_nil(Map.get(event, &1))))
+      if Enum.empty?(missing) do
+        :ok
+      else
+        {:error, "Missing required fields: #{Enum.join(missing, ", ")}"}
+      end
+    end
+
+    defp validate_positive(value, field) when is_integer(value) and value > 0, do: :ok
+    defp validate_positive(_, field), do: {:error, "#{field} must be a positive integer"}
+
+    defp validate_non_negative(value, field) when is_integer(value) and value >= 0, do: :ok
+    defp validate_non_negative(_, field), do: {:error, "#{field} must be a non-negative integer"}
 
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
+        "guild_id" => event.guild_id,
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "winners" => event.winners,
@@ -502,6 +611,7 @@ defmodule GameBot.Domain.Events.GameEvents do
         "game_duration" => event.game_duration,
         "total_rounds" => event.total_rounds,
         "timestamp" => DateTime.to_iso8601(event.timestamp),
+        "finished_at" => DateTime.to_iso8601(event.finished_at),
         "metadata" => event.metadata || %{}
       }
     end
@@ -509,6 +619,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
+        guild_id: data["guild_id"],
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         winners: data["winners"],
@@ -516,6 +627,7 @@ defmodule GameBot.Domain.Events.GameEvents do
         game_duration: data["game_duration"],
         total_rounds: data["total_rounds"],
         timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
+        finished_at: GameBot.Domain.Events.GameEvents.parse_timestamp(data["finished_at"]),
         metadata: data["metadata"] || %{}
       }
     end
@@ -656,107 +768,6 @@ defmodule GameBot.Domain.Events.GameEvents do
     end
   end
 
-  defmodule GameFinished do
-    @derive Jason.Encoder
-    defstruct [
-      :game_id,
-      :guild_id,
-      :mode,
-      :round_number,
-      :final_score,
-      :winner_team_id,
-      :timestamp,
-      :metadata
-    ]
-
-    @type t :: %__MODULE__{
-      game_id: String.t(),
-      guild_id: String.t(),
-      mode: atom(),
-      round_number: pos_integer(),
-      final_score: map(),
-      winner_team_id: String.t(),
-      timestamp: DateTime.t(),
-      metadata: map()
-    }
-
-    @doc """
-    Creates a new GameFinished event with minimal parameters.
-
-    This is a convenience function used primarily in the Session module's game_end handler.
-    It takes the essential parameters needed to create a GameFinished event and delegates
-    to the full new/7 function with sensible defaults for the other parameters.
-
-    ## Parameters
-      * `game_id` - Unique identifier for the game
-      * `winner_team_id` - ID of the winning team (or teams, as a list)
-      * `final_score` - Map of team_id to final score
-      * `guild_id` - Discord guild ID where the game was played
-
-    ## Returns
-      * `%GameFinished{}` - A new GameFinished event struct
-
-    ## Examples
-        iex> GameFinished.new("game_123", "team_abc", %{"team_abc" => 100}, "guild_456")
-        %GameFinished{
-          game_id: "game_123",
-          guild_id: "guild_456",
-          mode: :unknown,
-          round_number: 1,
-          final_score: %{"team_abc" => 100},
-          winner_team_id: "team_abc",
-          timestamp: ~U[2023-01-01 12:00:00Z],
-          metadata: %{}
-        }
-    """
-    @spec new(String.t(), String.t() | [String.t()], map(), String.t()) :: t()
-    def new(game_id, winner_team_id, final_score, guild_id) do
-      # Use sensible defaults for mode and round_number
-      # In a production environment, these might be extracted from the game_id
-      # or retrieved from a game state repository
-      new(
-        game_id,        # game_id
-        guild_id,       # guild_id
-        :unknown,       # mode - using placeholder since not provided
-        1,              # round_number - using default since not provided
-        final_score,    # final_score
-        winner_team_id  # winner_team_id
-      )
-    end
-
-    @doc """
-    Creates a new GameFinished event with full parameters.
-
-    This function creates a GameFinished event with all possible parameters.
-    It's used both directly and as a delegate from the simplified new/4 function.
-
-    ## Parameters
-      * `game_id` - Unique identifier for the game
-      * `guild_id` - Discord guild ID where the game was played
-      * `mode` - Game mode (e.g., :two_player, :knockout)
-      * `round_number` - Final round number when the game ended
-      * `final_score` - Map of team_id to final score
-      * `winner_team_id` - ID of the winning team (or teams, as a list)
-      * `metadata` - Additional metadata for the event (optional)
-
-    ## Returns
-      * `%GameFinished{}` - A new GameFinished event struct
-    """
-    @spec new(String.t(), String.t(), atom(), pos_integer(), map(), String.t() | [String.t()], map()) :: t()
-    def new(game_id, guild_id, mode, round_number, final_score, winner_team_id, metadata \\ %{}) do
-      %__MODULE__{
-        game_id: game_id,
-        guild_id: guild_id,
-        mode: mode,
-        round_number: round_number,
-        final_score: final_score,
-        winner_team_id: winner_team_id,
-        timestamp: DateTime.utc_now(),
-        metadata: metadata
-      }
-    end
-  end
-
   defmodule LongformDayEnded do
     @moduledoc "Emitted when a day ends in longform mode"
     @behaviour GameBot.Domain.Events.GameEvents
@@ -885,79 +896,37 @@ defmodule GameBot.Domain.Events.GameEvents do
     end
   end
 
-  defmodule RoundEnded do
-    @derive Jason.Encoder
-    defstruct [:game_id, :round_number, :winners, :timestamp]
-
-    def event_type, do: "game.round_ended"
-  end
-
-  defmodule RoundFinished do
-    @derive Jason.Encoder
-    defstruct [:game_id, :guild_id, :round_number, :finished_at, :winner_team_id, :round_score, :round_stats]
-
-    def event_type, do: "game.round_finished"
-  end
-
-  defmodule RoundRestarted do
-    @derive Jason.Encoder
-    defstruct [:game_id, :guild_id, :team_id, :giving_up_player, :teammate_word, :guess_count, :timestamp]
-
-    def event_type, do: "game.round_restarted"
-  end
-
-  defmodule GuessMatched do
-    @derive Jason.Encoder
-    defstruct [:game_id, :team_id, :player1_info, :player2_info, :player1_word,
-               :player2_word, :guess_successful, :match_score, :guess_count]
-
-    def event_type, do: "game.guess_matched"
-  end
-
-  defmodule TeamInvitationCreated do
-    @derive Jason.Encoder
-    defstruct [:guild_id, :team_id, :invitation_id, :created_at, :created_by]
-
-    def event_type, do: "team.invitation_created"
-  end
-
-  defmodule TeamEvents.TeamInvitationCreated do
-    @derive Jason.Encoder
-    defstruct [:guild_id, :team_id, :invitation_id, :created_at, :created_by]
-
-    def event_type, do: "team.invitation_created"
-  end
-
-  defmodule Commands.TeamCommands.CreateTeamInvitation do
-    @derive Jason.Encoder
-    defstruct [:guild_id, :team_id, :invitation_id, :created_at, :created_by]
-
-    def event_type, do: "team.invitation_created"
-  end
-
-  defmodule PlayerJoined do
-    @moduledoc "Emitted when a player joins a game"
+  defmodule RoundCompleted do
+    @moduledoc "Emitted when a round completes"
     @behaviour GameBot.Domain.Events.GameEvents
 
     @type t :: %__MODULE__{
       game_id: String.t(),
       guild_id: String.t(),
-      player_id: String.t(),
-      username: String.t(),
-      joined_at: DateTime.t(),
+      mode: atom(),
+      round_number: pos_integer(),
+      winner_team_id: String.t(),
+      round_score: integer(),
+      round_stats: %{
+        total_guesses: integer(),
+        successful_matches: integer(),
+        abandoned_guesses: integer(),
+        average_guess_count: float()
+      },
+      timestamp: DateTime.t(),
       metadata: GameBot.Domain.Events.GameEvents.metadata()
     }
-    defstruct [:game_id, :guild_id, :player_id, :username, :joined_at, :metadata]
+    defstruct [:game_id, :guild_id, :mode, :round_number, :winner_team_id,
+               :round_score, :round_stats, :timestamp, :metadata]
 
-    def event_type(), do: "player_joined"
+    def event_type(), do: "round_completed"
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
       with :ok <- EventStructure.validate(event) do
         cond do
-          is_nil(event.player_id) -> {:error, "player_id is required"}
-          is_nil(event.username) -> {:error, "username is required"}
-          is_nil(event.joined_at) -> {:error, "joined_at is required"}
+          is_nil(event.round_number) -> {:error, "round_number is required"}
+          is_nil(event.round_stats) -> {:error, "round_stats is required"}
           true -> :ok
         end
       end
@@ -967,9 +936,12 @@ defmodule GameBot.Domain.Events.GameEvents do
       %{
         "game_id" => event.game_id,
         "guild_id" => event.guild_id,
-        "player_id" => event.player_id,
-        "username" => event.username,
-        "joined_at" => DateTime.to_iso8601(event.joined_at),
+        "mode" => Atom.to_string(event.mode),
+        "round_number" => event.round_number,
+        "winner_team_id" => event.winner_team_id,
+        "round_score" => event.round_score,
+        "round_stats" => event.round_stats,
+        "timestamp" => DateTime.to_iso8601(event.timestamp),
         "metadata" => event.metadata || %{}
       }
     end
@@ -978,11 +950,28 @@ defmodule GameBot.Domain.Events.GameEvents do
       %__MODULE__{
         game_id: data["game_id"],
         guild_id: data["guild_id"],
-        player_id: data["player_id"],
-        username: data["username"],
-        joined_at: GameBot.Domain.Events.GameEvents.parse_timestamp(data["joined_at"]),
+        mode: String.to_existing_atom(data["mode"]),
+        round_number: data["round_number"],
+        winner_team_id: data["winner_team_id"],
+        round_score: data["round_score"],
+        round_stats: data["round_stats"],
+        timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
         metadata: data["metadata"] || %{}
       }
     end
+  end
+
+  defmodule RoundRestarted do
+    @derive Jason.Encoder
+    defstruct [:game_id, :guild_id, :team_id, :giving_up_player, :teammate_word, :guess_count, :timestamp]
+
+    def event_type, do: "round_restarted"
+  end
+
+  defmodule GuessMatched do
+    @derive Jason.Encoder
+    defstruct [:game_id, :guild_id, :team_id, :player_id, :word, :timestamp]
+
+    def event_type, do: "guess_matched"
   end
 end

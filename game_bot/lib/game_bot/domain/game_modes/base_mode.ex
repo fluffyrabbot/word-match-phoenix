@@ -244,13 +244,23 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     player1_word: player1_word,
     player2_word: player2_word
   } = guess_pair) do
+    start_time = DateTime.utc_now()
+
     with :ok <- validate_guess_pair(state, team_id, guess_pair),
          state <- record_guess_pair(state, team_id, guess_pair) do
 
       guess_successful = player1_word == player2_word
+      end_time = DateTime.utc_now()
+      guess_duration = DateTime.diff(end_time, start_time, :millisecond)
+
+      # Get round-specific information
+      team_state = get_in(state.teams, [team_id])
+      round_guess_count = team_state.guess_count
+      total_guesses = Map.get(team_state, :total_guesses, round_guess_count)
 
       event = %GuessProcessed{
         game_id: game_id(state),
+        guild_id: state.guild_id,
         mode: state.mode,
         round_number: state.round_number,
         team_id: team_id,
@@ -265,10 +275,15 @@ defmodule GameBot.Domain.GameModes.BaseMode do
         player1_word: player1_word,
         player2_word: player2_word,
         guess_successful: guess_successful,
-        guess_count: get_in(state.teams, [team_id, :guess_count]),
+        guess_count: round_guess_count,
         match_score: if(guess_successful, do: 1, else: 0),
-        timestamp: DateTime.utc_now(),
-        metadata: %{}
+        timestamp: end_time,
+        metadata: %{},
+        # Add round context and timing information
+        round_number: state.round_number,
+        round_guess_count: round_guess_count,
+        total_guesses: total_guesses,
+        guess_duration: guess_duration
       }
 
       state = if guess_successful do
@@ -308,6 +323,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   def handle_guess_abandoned(state, team_id, reason, last_guess) do
     event = %GuessAbandoned{
       game_id: game_id(state),
+      guild_id: state.guild_id,
       mode: state.mode,
       round_number: state.round_number,
       team_id: team_id,
@@ -322,7 +338,10 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       reason: reason,
       abandoning_player_id: last_guess["abandoning_player_id"],
       last_guess: last_guess,
-      guess_count: get_in(state.teams, [team_id, :guess_count]),
+      guess_count: team_state.guess_count,
+      round_guess_count: team_state.guess_count,
+      total_guesses: Map.get(team_state, :total_guesses, team_state.guess_count),
+      guess_duration: nil,  # No duration for abandoned guesses
       timestamp: DateTime.utc_now(),
       metadata: %{}
     }
@@ -485,7 +504,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
         :ok
       GameBot.Domain.Events.GameEvents.RoundFinished ->
         :ok
-      GameBot.Domain.Events.GameEvents.GameFinished ->
+      GameBot.Domain.Events.GameEvents.GameCompleted ->
         :ok
       _ ->
         :ok  # Other event types don't need mode-specific validation

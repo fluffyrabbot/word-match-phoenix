@@ -48,6 +48,30 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   end
 
   @doc """
+  Serializes a list of events to the format expected by the event store.
+  """
+  @spec serialize_events([struct()]) :: {:ok, [map()]} | {:error, Error.t()}
+  def serialize_events(events) when is_list(events) do
+    events
+    |> Enum.reduce_while({:ok, []}, fn event, {:ok, acc} ->
+      case serialize(event) do
+        {:ok, serialized} -> {:cont, {:ok, [serialized | acc]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, serialized_events} -> {:ok, Enum.reverse(serialized_events)}
+      error -> error
+    end
+  end
+  def serialize_events(_), do: {:error, %Error{
+    type: :validation,
+    context: __MODULE__,
+    message: "Events must be a list",
+    details: nil
+  }}
+
+  @doc """
   Deserializes stored event data back into an event struct.
   """
   @spec deserialize(map()) :: result()

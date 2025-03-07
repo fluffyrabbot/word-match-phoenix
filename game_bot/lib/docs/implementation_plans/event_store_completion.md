@@ -88,10 +88,7 @@ This document outlines the plan for completing the Event Store implementation, w
 - [ ] Review all existing event definitions
 - [ ] Add missing event schemas for:
   - [ ] `GameModeChanged` event
-  - [ ] `PlayerJoined` event
   - [ ] `PlayerLeft` event
-  - [ ] `RoundStarted` event (review existing)
-  - [ ] `RoundEnded` event
   - [ ] `GamePaused` event
   - [ ] `GameResumed` event
 
@@ -315,4 +312,26 @@ This document outlines the plan for completing the Event Store implementation, w
 3. Finish connection resilience features
 4. Refine error handling and recovery strategies
 
-**Total Estimated Time: 20 days** 
+**Total Estimated Time: 20 days**
+
+## Event Store Implementation Checklist
+
+## Core Events
+- [x] `GameStarted` event
+- [x] `GameCompleted` event
+- [x] `RoundStarted` event
+- [x] `RoundEnded` event
+- [x] `GuessProcessed` event
+- [x] `GuessAbandoned` event
+- [x] `TeamEliminated` event
+- [x] `RoundRestarted` event
+
+## Event Store Features
+- [ ] Event versioning
+- [ ] Event validation
+- [ ] Event serialization
+- [ ] Event deserialization
+- [ ] Event persistence
+- [ ] Event retrieval
+- [ ] Event replay
+- [ ] Event migration 

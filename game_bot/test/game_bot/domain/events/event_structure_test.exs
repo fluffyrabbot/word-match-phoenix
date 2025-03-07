@@ -141,9 +141,12 @@ defmodule GameBot.Domain.Events.EventStructureTest do
         guild_id: "guild-123",
         mode: :knockout,
         round_number: 1,
-        teams: %{"team-1" => ["player-1", "player-2"]},
-        team_ids: ["team-1"],
-        player_ids: ["player-1", "player-2"],
+        teams: %{
+          "team-1" => ["player-1", "player-2"],
+          "team-2" => ["player-3", "player-4"]
+        },
+        team_ids: ["team-1", "team-2"],
+        player_ids: ["player-1", "player-2", "player-3", "player-4"],
         roles: %{},
         config: %{},
         started_at: DateTime.utc_now(),

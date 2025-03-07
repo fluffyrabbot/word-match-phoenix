@@ -87,9 +87,12 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
   @impl true
   @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state(), [GameBot.Domain.Events.BaseEvent.t()]} | {:error, term()}
   def init(game_id, teams, config) do
-    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :exact, 1, "TwoPlayer") do
+    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :exact, 1, "TwoPlayer"),
+         :ok <- validate_team_size(teams),
+         :ok <- validate_config(config) do
       config = Map.merge(default_config(), config)
-      {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
+
+      {:ok, state, events} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
 
       state = %{state |
         rounds_required: config.rounds_required,
@@ -99,8 +102,7 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
         completion_time: nil
       }
 
-      # Return with empty events list to match expected return type
-      {:ok, state, []}
+      {:ok, state, events}
     end
   end
 
@@ -266,5 +268,61 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
   @spec validate_event(struct()) :: :ok | {:error, String.t()}
   def validate_event(event) do
     GameBot.Domain.GameModes.BaseMode.validate_event(event, :two_player, :exact, 1)
+  end
+
+  @doc false
+  # Validates team size
+  defp validate_team_size(teams) do
+    if Enum.all?(teams, fn {_id, players} -> length(players) == 2 end) do
+      :ok
+    else
+      {:error, {:invalid_team_size, "Each team must have exactly 2 players"}}
+    end
+  end
+
+  @doc false
+  # Validates configuration parameters
+  defp validate_config(config) do
+    cond do
+      is_nil(config) ->
+        {:error, :missing_config}
+      Map.get(config, :rounds_required, @default_rounds) <= 0 ->
+        {:error, :invalid_rounds}
+      Map.get(config, :success_threshold, @default_success_threshold) <= 0 ->
+        {:error, :invalid_threshold}
+      true ->
+        :ok
+    end
+  end
+
+  @doc false
+  # Validates guess pair and team status
+  defp validate_guess_pair(state, team_id, %{
+    player1_id: player1_id,
+    player2_id: player2_id,
+    player1_word: player1_word,
+    player2_word: player2_word
+  }) do
+    team_players = get_in(state.teams, [team_id, :player_ids])
+
+    cond do
+      !Map.has_key?(state.teams, team_id) ->
+        {:error, :invalid_team}
+
+      player1_id not in team_players or player2_id not in team_players ->
+        {:error, :invalid_player}
+
+      player1_id == player2_id ->
+        {:error, :same_player}
+
+      GameBot.Domain.GameState.word_forbidden?(state, player1_id, player1_word) ->
+        {:error, :word_forbidden}
+
+      GameBot.Domain.GameState.word_forbidden?(state, player2_id, player2_word) ->
+        {:error, :word_forbidden}
+
+      true ->
+        :ok
+    end
   end
 end

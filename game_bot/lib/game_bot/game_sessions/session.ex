@@ -178,24 +178,29 @@ defmodule GameBot.GameSessions.Session do
         # Process game end events
         updated_state = %{state | status: :completed}
 
-        # Create the game finished event
-        game_finished = Events.GameFinished.new(
+        # Create the game completed event
+        final_scores = compute_final_scores(state)
+        game_duration = DateTime.diff(DateTime.utc_now(), state.started_at)
+
+        game_completed = Events.GameCompleted.new(
           state.game_id,
+          state.guild_id,
+          state.mode,
           winners,
-          compute_final_score(state),
-          state.guild_id
+          final_scores
         )
 
-        # Combine all events
-        all_events = [game_finished | events]
-
         # Persist events
-        :ok = persist_events(all_events, updated_state)
+        {:ok, _} = EventStore.append_to_stream(
+          state.game_id,
+          :any_version,
+          [game_completed | events]
+        )
 
-        # Return the complete game state
-        {:reply, {:game_end, winners}, updated_state}
+        {:reply, {:ok, :game_completed}, updated_state}
+
       :continue ->
-        {:reply, :continue, state}
+        {:reply, {:ok, :continue}, state}
     end
   end
 
@@ -318,7 +323,9 @@ defmodule GameBot.GameSessions.Session do
   defp has_player_submitted?(%{pending_guess: %{player1_id: p1, player2_id: p2}}, player_id), do: player_id in [p1, p2]
   defp has_player_submitted?(_, _), do: false
 
-  defp persist_events(events, %{game_id: game_id}) when is_list(events) do
+  defp persist_events(game_id, events) do
+    # Use the adapter's safe functions instead of direct EventStore access
+    alias GameBot.Infrastructure.Persistence.EventStore.Adapter, as: EventStore
     EventStore.append_to_stream(game_id, :any, events)
   end
 
@@ -326,7 +333,7 @@ defmodule GameBot.GameSessions.Session do
     case state.mode.process_guess_pair(state.mode_state, team_id, {word1, word2}) do
       {:ok, new_mode_state, events} ->
         # Persist all events
-        :ok = persist_events(previous_events ++ events, state)
+        :ok = persist_events(events, state)
 
         # Return result based on match status
         result = if Enum.any?(events, &match?(%GameBot.Domain.Events.GuessMatched{}, &1)), do: :match, else: :no_match
@@ -392,14 +399,36 @@ defmodule GameBot.GameSessions.Session do
     true
   end
 
-  # Calculate final score from state
-  defp compute_final_score(state) do
-    # Extract scores from state - implementation depends on game state structure
-    # This is a placeholder implementation
+  # Helper to compute detailed final scores for GameCompleted event
+  defp compute_final_scores(state) do
     state.teams
     |> Enum.map(fn {team_id, team_state} ->
-      {team_id, team_state[:score] || 0}
+      {team_id, %{
+        score: team_state.score,
+        matches: team_state.matches,
+        total_guesses: team_state.total_guesses,
+        average_guesses: compute_average_guesses(team_state),
+        player_stats: compute_player_stats(team_state)
+      }}
     end)
-    |> Enum.into(%{})
+    |> Map.new()
+  end
+
+  defp compute_average_guesses(%{total_guesses: total, matches: matches}) when matches > 0 do
+    total / matches
+  end
+  defp compute_average_guesses(_), do: 0.0
+
+  defp compute_player_stats(team_state) do
+    team_state.players
+    |> Enum.map(fn {player_id, stats} ->
+      {player_id, %{
+        total_guesses: stats.total_guesses,
+        successful_matches: stats.successful_matches,
+        abandoned_guesses: stats.abandoned_guesses,
+        average_guess_count: compute_average_guesses(stats)
+      }}
+    end)
+    |> Map.new()
   end
 end

@@ -7,9 +7,10 @@ defmodule GameBot.Domain.Projections.GameProjection do
   alias GameBot.Domain.Events.GameEvents.{
     GameCreated,
     GameStarted,
-    GameFinished,
+    GameCompleted,
     RoundStarted,
-    RoundFinished
+    GuessProcessed,
+    TeamEliminated
   }
 
   defmodule GameSummaryView do
@@ -78,15 +79,17 @@ defmodule GameBot.Domain.Projections.GameProjection do
     {:ok, {:game_started, updated_game}}
   end
 
-  def handle_event(%GameFinished{} = event, %{game: game}) do
+  def handle_event(%GameCompleted{} = event, %{game: game}) do
     updated_game = %GameSummaryView{game |
       status: :completed,
       finished_at: event.finished_at,
-      winner_team_id: event.winner_team_id,
-      final_score: event.final_score
+      winner_team_ids: event.winners,
+      final_scores: event.final_scores,
+      game_duration: event.game_duration,
+      total_rounds: event.total_rounds
     }
 
-    {:ok, {:game_finished, updated_game}}
+    {:ok, {:game_completed, updated_game}}
   end
 
   def handle_event(%RoundStarted{} = event) do
@@ -104,15 +107,21 @@ defmodule GameBot.Domain.Projections.GameProjection do
     {:ok, {:round_started, round}}
   end
 
-  def handle_event(%RoundFinished{} = event, %{round: round}) do
+  def handle_event(%GuessProcessed{} = event, %{round: round}) do
     updated_round = %RoundView{round |
-      finished_at: event.finished_at,
-      winner_team_id: event.winner_team_id,
       round_score: event.round_score,
       round_stats: event.round_stats
     }
 
-    {:ok, {:round_finished, updated_round}}
+    {:ok, {:guess_processed, updated_round}}
+  end
+
+  def handle_event(%TeamEliminated{} = event, %{round: round}) do
+    updated_round = %RoundView{round |
+      winner_team_id: event.team_id
+    }
+
+    {:ok, {:team_eliminated, updated_round}}
   end
 
   def handle_event(_, state), do: {:ok, state}

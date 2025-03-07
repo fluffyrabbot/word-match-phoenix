@@ -9,7 +9,6 @@ defmodule GameBot.Test.GameModes.TestHelpers do
   # Use more specific aliases for events
   alias GameBot.Domain.Events.GameEvents.{
     GameCreated,
-    PlayerJoined,
     GameStarted,
     GuessProcessed,
     GuessAbandoned,
@@ -58,22 +57,6 @@ defmodule GameBot.Test.GameModes.TestHelpers do
   end
 
   @doc """
-  Adds a player to a test game.
-  """
-  def add_test_player(game_id, guild_id, player_id, attrs \\ %{}) do
-    event = %GameBot.Domain.Events.GameEvents.PlayerJoined{
-      game_id: game_id,
-      guild_id: guild_id,
-      player_id: player_id,
-      username: Map.get(attrs, :username, "TestUser"),
-      joined_at: DateTime.utc_now(),
-      metadata: %{}
-    }
-
-    {:ok, event}
-  end
-
-  @doc """
   Simulates a sequence of game events, applying them to the state.
   """
   def simulate_game_sequence(state, events) do
@@ -81,7 +64,9 @@ defmodule GameBot.Test.GameModes.TestHelpers do
       case apply_event(acc_state, event) do
         {:ok, new_state, _events} -> new_state
         {:ok, new_state} -> new_state
-        {:error, reason} -> raise "Failed to apply event: #{inspect(reason)}"
+        error ->
+          IO.warn("Unexpected result from apply_event: #{inspect(error)}")
+          raise "Failed to apply event: #{inspect(event)}"
       end
     end)
   end

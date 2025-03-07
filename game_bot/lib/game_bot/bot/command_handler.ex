@@ -62,6 +62,36 @@ defmodule GameBot.Bot.CommandHandler do
     :ok
   end
 
+  @doc """
+  Extract a command from a message.
+  Parses the command prefix and returns the command details.
+
+  ## Parameters
+    * `message` - Discord message to extract command from
+
+  ## Returns
+    * `{:ok, command}` - Successfully extracted command
+    * `{:error, reason}` - Failed to extract command
+  """
+  def extract_command(%Message{content: content} = message) when is_binary(content) do
+    cond do
+      # Prefix command (e.g., !stats)
+      String.starts_with?(content, "!") ->
+        command = String.slice(content, 1..-1) |> String.trim()
+        {:ok, %{type: :prefix, content: command, message: message}}
+
+      # Direct message guess
+      message.guild_id == nil ->
+        {:ok, %{type: :dm, content: content, message: message}}
+
+      # Not a command
+      true ->
+        {:error, :not_command}
+    end
+  end
+
+  def extract_command(_), do: {:error, :invalid_message}
+
   # Private Functions
 
   defp handle_dm_message(message) do

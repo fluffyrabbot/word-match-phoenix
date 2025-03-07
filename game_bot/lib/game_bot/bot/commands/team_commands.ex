@@ -147,9 +147,20 @@ defmodule GameBot.Bot.Commands.TeamCommands do
 
     case TeamCommands.UpdateTeam.validate(command) do
       :ok ->
-        case TeamProjection.update_team(command) do
-          {:ok, team} -> {:ok, format_team_updated(team)}
-          {:error, reason} -> {:ok, format_error_response(reason)}
+        try do
+          case TeamProjection.update_team(command) do
+            {:ok, team} -> {:ok, format_team_updated(team)}
+
+            # General error handling - TeamProjection.update_team only returns success values
+            # but we add this for future-proofing
+            unexpected ->
+              IO.warn("Unexpected result from TeamProjection.update_team: #{inspect(unexpected)}")
+              {:ok, format_error_response("Internal error occurred")}
+          end
+        rescue
+          e ->
+            IO.warn("Error in team update: #{inspect(e)}")
+            {:ok, format_error_response("Internal error occurred")}
         end
       {:error, reason} ->
         {:ok, format_error_response(reason)}

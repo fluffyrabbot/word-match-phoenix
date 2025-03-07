@@ -77,18 +77,41 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
       options: %{}
     }
 
-    case ReplayCommands.FetchMatchHistory.execute(command) do
-      {:ok, matches} ->
-        {:ok, format_match_history(matches)}
+    try do
+      case ReplayCommands.FetchMatchHistory.execute(command) do
+        {:ok, matches} ->
+          {:ok, format_match_history(matches)}
 
-      {:error, _reason} = error ->
-        error
+        unexpected ->
+          IO.warn("Unexpected result from FetchMatchHistory: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchMatchHistory: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 
-  @spec handle_game_summary(Message.t(), String.t()) :: {:ok, map()} | {:error, any()}
-  defp handle_game_summary(message, game_id) do
-    metadata = Metadata.from_discord_message(message)
+  @doc """
+  Handles the game_summary command.
+  Supports both message and interaction inputs.
+
+  ## Parameters
+    * `source` - Either Message.t() or Interaction.t()
+    * `game_id` - ID of the game to summarize
+
+  ## Returns
+    * `{:ok, response}` - Success with formatted summary
+    * `{:error, reason}` - Failed to process command
+  """
+  @spec handle_game_summary(Message.t() | Interaction.t(), String.t()) :: {:ok, map()} | {:error, any()}
+  def handle_game_summary(source, game_id) do
+    metadata = case source do
+      %Message{} = message -> Metadata.from_discord_message(message)
+      %Interaction{} = interaction -> Metadata.from_discord_interaction(interaction)
+    end
+
     guild_id = Map.get(metadata, :guild_id)
 
     command = %ReplayCommands.FetchGameSummary{
@@ -96,12 +119,19 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
       guild_id: guild_id
     }
 
-    case ReplayCommands.FetchGameSummary.execute(command) do
-      {:ok, summary} ->
-        {:ok, format_game_summary(summary)}
+    try do
+      case ReplayCommands.FetchGameSummary.execute(command) do
+        {:ok, summary} ->
+          {:ok, format_game_summary(summary)}
 
-      {:error, _reason} = error ->
-        error
+        unexpected ->
+          IO.warn("Unexpected result from FetchGameSummary: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchGameSummary: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 
@@ -211,5 +241,131 @@ defmodule GameBot.Bot.Commands.ReplayCommands do
     teams
     |> Enum.map(fn team -> team.name end)
     |> Enum.join("\n")
+  end
+
+  @doc """
+  Handles replay commands from interaction.
+
+  ## Parameters
+    * `interaction` - The Discord interaction
+    * `options` - Command options map
+
+  ## Returns
+    * `{:ok, response}` - Successfully processed command with response data
+    * `{:error, reason}` - Failed to process command
+  """
+  @spec handle_command(String.t(), Message.t()) :: {:ok, map()} | {:error, any()}
+  def handle_command(command_text, %Message{} = message) do
+    # This function already exists and can stay as is
+    # It delegates to handle_game_replay, handle_match_history, or handle_game_summary
+  end
+
+  @doc """
+  Handles the view_replay command from an interaction.
+
+  ## Parameters
+    * `interaction` - The Discord interaction
+    * `game_id` - ID of the game to replay
+
+  ## Returns
+    * `{:ok, response}` - Success with formatted replay
+    * `{:error, reason}` - Failed to process command
+  """
+  @spec handle_view_replay(Interaction.t(), String.t()) :: {:ok, map()} | {:error, any()}
+  def handle_view_replay(%Interaction{} = interaction, game_id) do
+    metadata = Metadata.from_discord_interaction(interaction)
+    guild_id = Map.get(metadata, :guild_id)
+
+    command = %ReplayCommands.FetchGameReplay{
+      game_id: game_id,
+      guild_id: guild_id
+    }
+
+    case ReplayCommands.FetchGameReplay.execute(command) do
+      {:ok, events} ->
+        case ReplayCommands.validate_replay_access(interaction.user.id, events) do
+          :ok ->
+            {:ok, format_game_replay(events)}
+          error ->
+            error
+        end
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Handles the match_history command from an interaction.
+
+  ## Parameters
+    * `interaction` - The Discord interaction
+    * `options` - Filter options for history
+
+  ## Returns
+    * `{:ok, response}` - Success with formatted history
+    * `{:error, reason}` - Failed to process command
+  """
+  @spec handle_match_history(Interaction.t(), map()) :: {:ok, map()} | {:error, any()}
+  def handle_match_history(%Interaction{} = interaction, options) do
+    metadata = Metadata.from_discord_interaction(interaction)
+    guild_id = Map.get(metadata, :guild_id)
+
+    command = %ReplayCommands.FetchMatchHistory{
+      guild_id: guild_id,
+      options: options || %{}
+    }
+
+    try do
+      case ReplayCommands.FetchMatchHistory.execute(command) do
+        {:ok, matches} ->
+          {:ok, format_match_history(matches)}
+
+        unexpected ->
+          IO.warn("Unexpected result from FetchMatchHistory: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchMatchHistory: #{inspect(e)}")
+        {:error, :internal_error}
+    end
+  end
+
+  @doc """
+  Handles the game_summary command from an interaction.
+
+  ## Parameters
+    * `interaction` - The Discord interaction
+    * `game_id` - ID of the game to summarize
+
+  ## Returns
+    * `{:ok, response}` - Success with formatted summary
+    * `{:error, reason}` - Failed to process command
+  """
+  @spec handle_game_summary(Interaction.t(), String.t()) :: {:ok, map()} | {:error, any()}
+  def handle_game_summary(%Interaction{} = interaction, game_id) do
+    metadata = Metadata.from_discord_interaction(interaction)
+    guild_id = Map.get(metadata, :guild_id)
+
+    command = %ReplayCommands.FetchGameSummary{
+      game_id: game_id,
+      guild_id: guild_id
+    }
+
+    try do
+      case ReplayCommands.FetchGameSummary.execute(command) do
+        {:ok, summary} ->
+          {:ok, format_game_summary(summary)}
+
+        unexpected ->
+          IO.warn("Unexpected result from FetchGameSummary: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchGameSummary: #{inspect(e)}")
+        {:error, :internal_error}
+    end
   end
 end

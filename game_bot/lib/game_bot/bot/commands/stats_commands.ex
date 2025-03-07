@@ -79,16 +79,29 @@ defmodule GameBot.Bot.Commands.StatsCommands do
   Handles player statistics command.
   """
   @spec handle_player_stats(Interaction.t(), String.t()) :: {:ok, map()} | {:error, any()}
-  defp handle_player_stats(interaction, player_id) do
+  def handle_player_stats(interaction, player_id) do
     guild_id = interaction.guild_id
     metadata = create_metadata(interaction)
 
-    case StatsCommands.FetchPlayerStats.execute(%{player_id: player_id, guild_id: guild_id}) do
-      {:ok, stats} ->
-        {:ok, format_player_stats(stats)}
+    command = %StatsCommands.FetchPlayerStats{
+      player_id: player_id,
+      guild_id: guild_id
+    }
 
-      {:error, reason} = error ->
-        error
+    try do
+      case StatsCommands.FetchPlayerStats.execute(command) do
+        {:ok, stats} ->
+          {:ok, format_player_stats(stats)}
+
+        # This function only returns {:ok, _}, but we add general error handling for future-proofing
+        unexpected ->
+          IO.warn("Unexpected result from FetchPlayerStats: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchPlayerStats: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 
@@ -96,16 +109,29 @@ defmodule GameBot.Bot.Commands.StatsCommands do
   Handles team statistics command.
   """
   @spec handle_team_stats(Interaction.t(), String.t()) :: {:ok, map()} | {:error, any()}
-  defp handle_team_stats(interaction, team_id) do
-    metadata = Metadata.from_discord_interaction(interaction)
+  def handle_team_stats(interaction, team_id) do
+    metadata = create_metadata(interaction)
     guild_id = Map.get(metadata, :guild_id)
 
-    case StatsCommands.FetchTeamStats.execute(%{team_id: team_id, guild_id: guild_id}) do
-      {:ok, stats} ->
-        {:ok, format_team_stats(stats)}
+    command = %StatsCommands.FetchTeamStats{
+      team_id: team_id,
+      guild_id: guild_id
+    }
 
-      {:error, reason} = error ->
-        error
+    try do
+      case StatsCommands.FetchTeamStats.execute(command) do
+        {:ok, stats} ->
+          {:ok, format_team_stats(stats)}
+
+        # This function only returns {:ok, _}, but we add general error handling for future-proofing
+        unexpected ->
+          IO.warn("Unexpected result from FetchTeamStats: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchTeamStats: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 
@@ -113,16 +139,30 @@ defmodule GameBot.Bot.Commands.StatsCommands do
   Handles leaderboard command.
   """
   @spec handle_leaderboard(Interaction.t(), String.t(), map()) :: {:ok, map()} | {:error, any()}
-  defp handle_leaderboard(interaction, type, options) do
-    metadata = Metadata.from_discord_interaction(interaction)
+  def handle_leaderboard(interaction, type, options) do
+    metadata = create_metadata(interaction)
     guild_id = Map.get(metadata, :guild_id)
 
-    case StatsCommands.FetchLeaderboard.execute(%{type: type, guild_id: guild_id, options: options}) do
-      {:ok, entries} ->
-        {:ok, format_leaderboard(type, entries)}
+    command = %StatsCommands.FetchLeaderboard{
+      type: type,
+      guild_id: guild_id,
+      options: options
+    }
 
-      {:error, reason} = error ->
-        error
+    try do
+      case StatsCommands.FetchLeaderboard.execute(command) do
+        {:ok, entries} ->
+          {:ok, format_leaderboard(type, entries)}
+
+        # This function only returns {:ok, _}, but we add general error handling for future-proofing
+        unexpected ->
+          IO.warn("Unexpected result from FetchLeaderboard: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchLeaderboard: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 
@@ -132,12 +172,25 @@ defmodule GameBot.Bot.Commands.StatsCommands do
     guild_id = message.guild_id
     metadata = Metadata.from_discord_message(message)
 
-    case StatsCommands.FetchPlayerStats.execute(%{player_id: player_id, guild_id: guild_id}) do
-      {:ok, stats} ->
-        {:ok, format_player_stats(stats)}
+    command = %StatsCommands.FetchPlayerStats{
+      player_id: player_id,
+      guild_id: guild_id
+    }
 
-      {:error, reason} = error ->
-        error
+    try do
+      case StatsCommands.FetchPlayerStats.execute(command) do
+        {:ok, stats} ->
+          {:ok, format_player_stats(stats)}
+
+        # This function only returns {:ok, _}, but we add general error handling for future-proofing
+        unexpected ->
+          IO.warn("Unexpected result from FetchPlayerStats: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchPlayerStats message: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 
@@ -145,12 +198,25 @@ defmodule GameBot.Bot.Commands.StatsCommands do
     metadata = Metadata.from_discord_message(message)
     guild_id = Map.get(metadata, :guild_id)
 
-    case StatsCommands.FetchTeamStats.execute(%{team_id: team_id, guild_id: guild_id}) do
-      {:ok, stats} ->
-        {:ok, format_team_stats(stats)}
+    command = %StatsCommands.FetchTeamStats{
+      team_id: team_id,
+      guild_id: guild_id
+    }
 
-      {:error, reason} = error ->
-        error
+    try do
+      case StatsCommands.FetchTeamStats.execute(command) do
+        {:ok, stats} ->
+          {:ok, format_team_stats(stats)}
+
+        # This function only returns {:ok, _}, but we add general error handling for future-proofing
+        unexpected ->
+          IO.warn("Unexpected result from FetchTeamStats: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchTeamStats message: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 
@@ -158,12 +224,26 @@ defmodule GameBot.Bot.Commands.StatsCommands do
     metadata = Metadata.from_discord_message(message)
     guild_id = Map.get(metadata, :guild_id)
 
-    case StatsCommands.FetchLeaderboard.execute(%{type: type, guild_id: guild_id, options: options}) do
-      {:ok, entries} ->
-        {:ok, format_leaderboard(type, entries)}
+    command = %StatsCommands.FetchLeaderboard{
+      type: type,
+      guild_id: guild_id,
+      options: options
+    }
 
-      {:error, reason} = error ->
-        error
+    try do
+      case StatsCommands.FetchLeaderboard.execute(command) do
+        {:ok, entries} ->
+          {:ok, format_leaderboard(type, entries)}
+
+        # This function only returns {:ok, _}, but we add general error handling for future-proofing
+        unexpected ->
+          IO.warn("Unexpected result from FetchLeaderboard: #{inspect(unexpected)}")
+          {:error, :internal_error}
+      end
+    rescue
+      e ->
+        IO.warn("Error executing FetchLeaderboard message: #{inspect(e)}")
+        {:error, :internal_error}
     end
   end
 

@@ -173,16 +173,11 @@ defmodule GameBot.GameSessions.Recovery do
   """
   @spec fetch_events(String.t(), keyword()) :: {:ok, [Event.t()]} | {:error, error_reason()}
   def fetch_events(game_id, opts \\ []) do
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
-    retry_count = Keyword.get(opts, :retry_count, @max_retries)
-
-    task = Task.async(fn ->
-      fetch_events_with_retry(game_id, retry_count)
-    end)
-
-    case Task.yield(task, timeout) || Task.shutdown(task) do
-      {:ok, result} -> result
-      nil -> {:error, :timeout}
+    # Use the adapter's safe functions instead of direct EventStore access
+    alias GameBot.Infrastructure.Persistence.EventStore.Adapter, as: EventStore
+    case EventStore.read_stream_forward(game_id, 0, @max_events, opts) do
+      {:ok, events} -> {:ok, events}
+      {:error, reason} -> {:error, {:event_fetch_failed, reason}}
     end
   end
 

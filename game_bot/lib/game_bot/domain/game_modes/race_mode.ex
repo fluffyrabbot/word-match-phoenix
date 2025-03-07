@@ -100,25 +100,27 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @impl true
   @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state(), [GameBot.Domain.Events.BaseEvent.t()]} | {:error, term()}
   def init(game_id, teams, config) do
-    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :minimum, 2, "Race") do
+    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :minimum, 2, "Race"),
+         :ok <- validate_config(config) do
       config = Map.merge(default_config(), config)
       guild_id = Map.get(config, :guild_id)
 
       if is_nil(guild_id) do
         {:error, :missing_guild_id}
       else
-        {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
+        {:ok, state, events} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
 
         state = %{state |
           guild_id: guild_id,
           time_limit: config.time_limit,
           start_time: DateTime.utc_now(),
-          matches_by_team: Map.new(Map.keys(teams), &{&1, 0}),
-          total_guesses_by_team: Map.new(Map.keys(teams), &{&1, 0})
+          team_positions: initialize_team_positions(teams),
+          finish_line: Map.get(config, :finish_line, 10),
+          last_team_update: DateTime.utc_now(),
+          completed_teams: %{}
         }
 
-        # Return with empty events list to match expected return type
-        {:ok, state, []}
+        {:ok, state, events}
       end
     end
   end
@@ -312,10 +314,25 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   end
 
   @doc false
+  # Validates configuration parameters
+  defp validate_config(config) do
+    cond do
+      is_nil(config) ->
+        {:error, :missing_config}
+      Map.get(config, :time_limit, @default_time_limit) <= 0 ->
+        {:error, :invalid_time_limit}
+      true ->
+        :ok
+    end
+  end
+
+  @doc false
   # Validates guess pair and team status
   defp validate_guess_pair(state, team_id, %{
     player1_id: player1_id,
-    player2_id: player2_id
+    player2_id: player2_id,
+    player1_word: player1_word,
+    player2_word: player2_word
   }) do
     team_players = get_in(state.teams, [team_id, :player_ids])
 
@@ -328,6 +345,15 @@ defmodule GameBot.Domain.GameModes.RaceMode do
 
       player1_id == player2_id ->
         {:error, :same_player}
+
+      player1_word == @give_up_command or player2_word == @give_up_command ->
+        :ok
+
+      GameBot.Domain.GameState.word_forbidden?(state, player1_id, player1_word) ->
+        {:error, :word_forbidden}
+
+      GameBot.Domain.GameState.word_forbidden?(state, player2_id, player2_word) ->
+        {:error, :word_forbidden}
 
       true ->
         :ok
@@ -413,5 +439,15 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @spec validate_event(struct()) :: :ok | {:error, String.t()}
   def validate_event(event) do
     GameBot.Domain.GameModes.BaseMode.validate_event(event, :race, :minimum, 2)
+  end
+
+  # Add team position initialization
+  @doc false
+  # Initialize starting positions for each team at position 0
+  @spec initialize_team_positions(%{String.t() => [String.t()]}) :: %{String.t() => non_neg_integer()}
+  defp initialize_team_positions(teams) do
+    teams
+    |> Map.keys()
+    |> Enum.into(%{}, fn team_id -> {team_id, 0} end)
   end
 end

@@ -18,7 +18,13 @@ defmodule GameBot.Domain.Commands.ReplayCommands do
 
     def execute(%__MODULE__{} = command) do
       opts = [guild_id: command.guild_id]
-      EventStore.read_stream_forward(command.game_id, 0, 1000, opts)
+      fetch_game_events(command.game_id, opts)
+    end
+
+    defp fetch_game_events(game_id, opts \\ []) do
+      # Use the adapter's safe functions instead of direct EventStore access
+      alias GameBot.Infrastructure.Persistence.EventStore.Adapter, as: EventStore
+      EventStore.read_stream_forward(game_id, 0, 1000, opts)
     end
   end
 

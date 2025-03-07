@@ -420,143 +420,35 @@ The `EventStructure` module has been enhanced with:
    end
    ```
 
-#### 3.3 Player and Error Events (Day 3-4)
+#### 3.3 Error Events (Day 3-4)
 
 ##### Implementation Steps
-1. **Create Player Events**
+1. **Create Error Events**
    ```elixir
-   # In lib/game_bot/domain/events/game_events/player_events.ex
-   defmodule GameBot.Domain.Events.GameEvents.PlayerJoined do
+   # In lib/game_bot/domain/events/game_events/error_events.ex
+   defmodule GameBot.Domain.Events.GameEvents.GuessError do
      @moduledoc """
-     Event generated when a player joins a game.
+     Event generated when there is an error processing a guess.
      """
-     use GameBot.Domain.Events.BaseEvent, type: "player_joined", version: 1
+     use GameBot.Domain.Events.BaseEvent, type: "guess_error", version: 1
      
-     @required_fields [:game_id, :guild_id, :player_id, :team_id, :metadata, :timestamp]
-     defstruct @required_fields ++ [:mode, :player_info]
+     @required_fields [:game_id, :guild_id, :team_id, :player_id, :word,
+                      :reason, :metadata, :timestamp]
+     defstruct @required_fields
      
      @impl true
      def validate(event) do
        with :ok <- EventStructure.validate_fields(event, @required_fields),
+            :ok <- validate_reason(event.reason),
             :ok <- super(event) do
          :ok
        end
      end
      
-     # Constructor
-     def new(game_id, guild_id, player_id, team_id, metadata, opts \\ []) do
-       %__MODULE__{
-         game_id: game_id,
-         guild_id: guild_id,
-         player_id: player_id,
-         team_id: team_id,
-         mode: Keyword.get(opts, :mode),
-         player_info: Keyword.get(opts, :player_info, %{}),
-         metadata: metadata,
-         timestamp: EventStructure.create_timestamp()
-       }
-     end
-   end
-   
-   defmodule GameBot.Domain.Events.GameEvents.PlayerLeft do
-     @moduledoc """
-     Event generated when a player leaves a game.
-     """
-     use GameBot.Domain.Events.BaseEvent, type: "player_left", version: 1
-     
-     @required_fields [:game_id, :guild_id, :player_id, :team_id, :reason, :metadata, :timestamp]
-     defstruct @required_fields ++ [:mode, :player_stats]
-     
-     @impl true
-     def validate(event) do
-       with :ok <- EventStructure.validate_fields(event, @required_fields),
-            :ok <- super(event) do
-         :ok
-       end
-     end
-     
-     # Constructor
-     def new(game_id, guild_id, player_id, team_id, reason, metadata, opts \\ []) do
-       %__MODULE__{
-         game_id: game_id,
-         guild_id: guild_id,
-         player_id: player_id,
-         team_id: team_id,
-         reason: reason,
-         mode: Keyword.get(opts, :mode),
-         player_stats: Keyword.get(opts, :player_stats, %{}),
-         metadata: metadata,
-         timestamp: EventStructure.create_timestamp()
-       }
-     end
-   end
-   ```
-
-2. **Create Error Events**
-   ```elixir
-   # In lib/game_bot/domain/events/error_events.ex
-   defmodule GameBot.Domain.Events.ErrorEvents do
-     defmodule CommandRejected do
-       @moduledoc """
-       Event generated when a command is rejected.
-       """
-       use GameBot.Domain.Events.BaseEvent, type: "command_rejected", version: 1
-       
-       @required_fields [:command_type, :reason, :metadata, :timestamp]
-       defstruct @required_fields ++ [:game_id, :guild_id, :command_data]
-       
-       @impl true
-       def validate(event) do
-         with :ok <- EventStructure.validate_fields(event, @required_fields),
-              :ok <- super(event) do
-           :ok
-         end
-       end
-       
-       # Constructor
-       def new(command_type, reason, metadata, opts \\ []) do
-         %__MODULE__{
-           command_type: command_type,
-           reason: reason,
-           game_id: Keyword.get(opts, :game_id),
-           guild_id: Keyword.get(opts, :guild_id),
-           command_data: Keyword.get(opts, :command_data, %{}),
-           metadata: metadata,
-           timestamp: EventStructure.create_timestamp()
-         }
-       end
-     end
-     
-     defmodule RecoveryAttempted do
-       @moduledoc """
-       Event generated when recovery is attempted.
-       """
-       use GameBot.Domain.Events.BaseEvent, type: "recovery_attempted", version: 1
-       
-       @required_fields [:game_id, :result, :metadata, :timestamp]
-       defstruct @required_fields ++ [:guild_id, :reason, :events_processed]
-       
-       @impl true
-       def validate(event) do
-         with :ok <- EventStructure.validate_fields(event, @required_fields),
-              :ok <- super(event) do
-           :ok
-         end
-       end
-       
-       # Constructor
-       def new(game_id, result, metadata, opts \\ []) do
-         %__MODULE__{
-           game_id: game_id,
-           result: result,
-           guild_id: Keyword.get(opts, :guild_id),
-           reason: Keyword.get(opts, :reason),
-           events_processed: Keyword.get(opts, :events_processed, 0),
-           metadata: metadata,
-           timestamp: EventStructure.create_timestamp()
-         }
-       end
-     end
+     defp validate_reason(:invalid_word), do: :ok
+     defp validate_reason(:word_forbidden), do: :ok
+     defp validate_reason(:guess_already_submitted), do: :ok
+     defp validate_reason(_), do: {:error, "invalid error reason"}
    end
    ```
 
@@ -729,4 +621,130 @@ After completing this implementation:
 2. Event validation will be comprehensive and mode-specific
 3. Causation tracking will enable better debugging
 4. State recovery will be more reliable
-5. Game modes will have standardized event handling 
+5. Game modes will have standardized event handling
+
+## Guess Processing Flow
+
+### Overview
+
+The guess processing system follows a strict sequence to ensure data consistency and proper event emission:
+
+1. **Initial Validation**
+   - Validate individual guesses as they come in
+   - Store first guess as pending
+   - Wait for second guess
+
+2. **Pair Processing**
+   ```elixir
+   def process_guess_pair(state, team_id, guess_pair) do
+     start_time = DateTime.utc_now()
+     
+     with :ok <- validate_guess_pair(state, team_id, guess_pair),
+          state <- record_guess_pair(state, team_id, guess_pair) do
+
+       guess_successful = player1_word == player2_word
+       end_time = DateTime.utc_now()
+       guess_duration = DateTime.diff(end_time, start_time, :millisecond)
+
+       # Create event with timing and round context
+       event = %GuessProcessed{
+         # ... event fields ...
+         guess_duration: guess_duration,
+         round_guess_count: round_guess_count,
+         total_guesses: total_guesses
+       }
+
+       # Update state based on result
+       state = if guess_successful do
+         record_match(state, team_id, word)
+       else
+         increment_guess_count(state, team_id)
+       end
+
+       {:ok, state, event}
+     end
+   end
+   ```
+
+3. **Event Emission**
+   - Event is only created after all processing is complete
+   - Includes timing information
+   - Includes round context
+   - Contains complete guess history
+
+### Implementation Requirements
+
+1. **Timing Tracking**
+   - Record start time before processing
+   - Record end time after processing
+   - Calculate duration in milliseconds
+   - Include in event metadata
+
+2. **Round Context**
+   - Track current round number
+   - Track guesses within round
+   - Track total guesses
+   - Include all in event
+
+3. **State Updates**
+   - Update state atomically
+   - Record matches if successful
+   - Increment counters
+   - Update forbidden words
+
+4. **Validation**
+   - Validate both words
+   - Validate team context
+   - Validate player permissions
+   - Check forbidden words
+
+### Testing Strategy
+
+1. **Unit Tests**
+   ```elixir
+   describe "process_guess_pair" do
+     test "includes timing information" do
+       {result, state, event} = process_guess_pair(state, team_id, guess_pair)
+       assert event.guess_duration > 0
+     end
+
+     test "includes round context" do
+       {result, state, event} = process_guess_pair(state, team_id, guess_pair)
+       assert event.round_number > 0
+       assert event.round_guess_count > 0
+       assert event.total_guesses >= event.round_guess_count
+     end
+   end
+   ```
+
+2. **Integration Tests**
+   - Test complete guess flow
+   - Verify state updates
+   - Check event contents
+   - Validate timing
+
+3. **Performance Tests**
+   - Measure processing time
+   - Check event emission
+   - Verify state updates
+   - Test concurrent guesses
+
+### Error Handling
+
+1. **Validation Errors**
+   - Return early with error
+   - Don't update state
+   - Don't emit event
+   - Log failure
+
+2. **Processing Errors**
+   - Roll back state changes
+   - Don't emit event
+   - Log error
+   - Return error tuple
+
+3. **Recovery Strategy**
+   - Clear pending guesses
+   - Reset counters if needed
+   - Log recovery action
+   - Notify players 
