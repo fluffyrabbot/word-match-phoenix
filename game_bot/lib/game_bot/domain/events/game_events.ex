@@ -4,20 +4,11 @@ defmodule GameBot.Domain.Events.GameEvents do
   Events are immutable records of things that have happened in the system.
   """
 
-  alias GameBot.Domain.Events.Metadata
+  alias GameBot.Domain.Events.{Metadata, EventStructure}
 
   @type metadata :: Metadata.t()
-
-  @type team_info :: %{
-    team_id: String.t(),
-    player_ids: [String.t()],
-    team_state: map()
-  }
-
-  @type player_info :: %{
-    player_id: String.t(),
-    team_id: String.t()
-  }
+  @type team_info :: EventStructure.team_info()
+  @type player_info :: EventStructure.player_info()
 
   @doc """
   The Event behaviour ensures all events can be properly stored and loaded.
@@ -36,7 +27,7 @@ defmodule GameBot.Domain.Events.GameEvents do
   @callback validate(struct()) :: :ok | {:error, term()}
 
   # Base fields that should be included in all events
-  @base_fields [:game_id, :mode, :round_number, :timestamp, :metadata]
+  @base_fields EventStructure.base_fields()
 
   @doc """
   Converts any event to a storable format with metadata.
@@ -61,42 +52,47 @@ defmodule GameBot.Domain.Events.GameEvents do
   @doc """
   Reconstructs an event from stored data.
   """
-  def deserialize(%{"event_type" => type} = stored) do
-    # Get the right module for this event type
+  def deserialize(%{"event_type" => type, "data" => data}) do
+    # Find the appropriate module for this event type
     module = get_event_module(type)
 
-    # Create the event struct from stored data
-    module.from_map(stored["data"])
+    # Deserialize using the module's from_map function
+    module.from_map(data)
   end
 
-  # Maps event_type strings to their modules
+  @doc """
+  Parses a timestamp string into a DateTime struct.
+  """
+  def parse_timestamp(timestamp) do
+    EventStructure.parse_timestamp(timestamp)
+  end
+
+  @doc """
+  Standard validation function that all events can use.
+  Checks base fields and event-specific validation.
+  """
+  def validate_event(event) do
+    EventStructure.validate(event)
+  end
+
+  # Private helpers
+
+  # Maps event type strings to their module implementations
   defp get_event_module(type) do
     case type do
-      "game_started" -> __MODULE__.GameStarted
-      "round_started" -> __MODULE__.RoundStarted
-      "guess_processed" -> __MODULE__.GuessProcessed
-      "guess_abandoned" -> __MODULE__.GuessAbandoned
-      "team_eliminated" -> __MODULE__.TeamEliminated
-      "game_completed" -> __MODULE__.GameCompleted
-      "knockout_round_completed" -> __MODULE__.KnockoutRoundCompleted
-      "race_mode_time_expired" -> __MODULE__.RaceModeTimeExpired
-      "longform_day_ended" -> __MODULE__.LongformDayEnded
-      "player_joined" -> __MODULE__.PlayerJoined
+      "game_created" -> GameBot.Domain.Events.GameEvents.GameCreated
+      "game_started" -> GameBot.Domain.Events.GameEvents.GameStarted
+      "game_completed" -> GameBot.Domain.Events.GameEvents.GameCompleted
+      "round_started" -> GameBot.Domain.Events.GameEvents.RoundStarted
+      "guess_processed" -> GameBot.Domain.Events.GameEvents.GuessProcessed
+      "guess_abandoned" -> GameBot.Domain.Events.GameEvents.GuessAbandoned
+      "team_eliminated" -> GameBot.Domain.Events.GameEvents.TeamEliminated
+      "player_joined" -> GameBot.Domain.Events.GameEvents.PlayerJoined
       _ -> raise "Unknown event type: #{type}"
     end
   end
 
-  @doc """
-  Helper function to parse ISO8601 timestamps.
-  """
-  def parse_timestamp(timestamp) do
-    case DateTime.from_iso8601(timestamp) do
-      {:ok, datetime, _offset} -> datetime
-      {:error, reason} -> raise "Invalid timestamp format: #{reason}"
-    end
-  end
-
-  # Game Lifecycle Events
+  # Game lifecycle events
   defmodule GameStarted do
     @moduledoc "Emitted when a new game is started"
     @behaviour GameBot.Domain.Events.GameEvents
@@ -121,20 +117,17 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.guild_id) -> {:error, "guild_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.teams) -> {:error, "teams is required"}
-        is_nil(event.team_ids) -> {:error, "team_ids is required"}
-        is_nil(event.player_ids) -> {:error, "player_ids is required"}
-        is_nil(event.metadata) -> {:error, "metadata is required"}
-        is_nil(event.metadata["guild_id"]) -> {:error, "guild_id is required in metadata"}
-        Enum.empty?(event.team_ids) -> {:error, "team_ids cannot be empty"}
-        Enum.empty?(event.player_ids) -> {:error, "player_ids cannot be empty"}
-        !Enum.all?(Map.keys(event.teams), &(&1 in event.team_ids)) -> {:error, "invalid team_id in teams map"}
-        !Enum.all?(List.flatten(Map.values(event.teams)), &(&1 in event.player_ids)) -> {:error, "invalid player_id in teams"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.teams) -> {:error, "teams is required"}
+          is_nil(event.team_ids) -> {:error, "team_ids is required"}
+          is_nil(event.player_ids) -> {:error, "player_ids is required"}
+          Enum.empty?(event.team_ids) -> {:error, "team_ids cannot be empty"}
+          Enum.empty?(event.player_ids) -> {:error, "player_ids cannot be empty"}
+          !Enum.all?(Map.keys(event.teams), &(&1 in event.team_ids)) -> {:error, "invalid team_id in teams map"}
+          !Enum.all?(List.flatten(Map.values(event.teams)), &(&1 in event.player_ids)) -> {:error, "invalid player_id in teams"}
+          true -> :ok
+        end
       end
     end
 
@@ -192,12 +185,11 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.team_states) -> {:error, "team_states is required"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.team_states) -> {:error, "team_states is required"}
+          true -> :ok
+        end
       end
     end
 
@@ -254,18 +246,17 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.team_id) -> {:error, "team_id is required"}
-        is_nil(event.player1_info) -> {:error, "player1_info is required"}
-        is_nil(event.player2_info) -> {:error, "player2_info is required"}
-        is_nil(event.player1_word) -> {:error, "player1_word is required"}
-        is_nil(event.player2_word) -> {:error, "player2_word is required"}
-        is_nil(event.guess_count) -> {:error, "guess_count is required"}
-        event.guess_count < 1 -> {:error, "guess_count must be positive"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.team_id) -> {:error, "team_id is required"}
+          is_nil(event.player1_info) -> {:error, "player1_info is required"}
+          is_nil(event.player2_info) -> {:error, "player2_info is required"}
+          is_nil(event.player1_word) -> {:error, "player1_word is required"}
+          is_nil(event.player2_word) -> {:error, "player2_word is required"}
+          is_nil(event.guess_count) -> {:error, "guess_count is required"}
+          event.guess_count < 1 -> {:error, "guess_count must be positive"}
+          true -> :ok
+        end
       end
     end
 
@@ -335,18 +326,17 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.team_id) -> {:error, "team_id is required"}
-        is_nil(event.player1_info) -> {:error, "player1_info is required"}
-        is_nil(event.player2_info) -> {:error, "player2_info is required"}
-        is_nil(event.reason) -> {:error, "reason is required"}
-        is_nil(event.abandoning_player_id) -> {:error, "abandoning_player_id is required"}
-        is_nil(event.guess_count) -> {:error, "guess_count is required"}
-        event.guess_count < 1 -> {:error, "guess_count must be positive"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.team_id) -> {:error, "team_id is required"}
+          is_nil(event.player1_info) -> {:error, "player1_info is required"}
+          is_nil(event.player2_info) -> {:error, "player2_info is required"}
+          is_nil(event.reason) -> {:error, "reason is required"}
+          is_nil(event.abandoning_player_id) -> {:error, "abandoning_player_id is required"}
+          is_nil(event.guess_count) -> {:error, "guess_count is required"}
+          event.guess_count < 1 -> {:error, "guess_count must be positive"}
+          true -> :ok
+        end
       end
     end
 
@@ -413,16 +403,15 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.team_id) -> {:error, "team_id is required"}
-        is_nil(event.reason) -> {:error, "reason is required"}
-        is_nil(event.final_state) -> {:error, "final_state is required"}
-        is_nil(event.final_score) -> {:error, "final_score is required"}
-        is_nil(event.player_stats) -> {:error, "player_stats is required"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.team_id) -> {:error, "team_id is required"}
+          is_nil(event.reason) -> {:error, "reason is required"}
+          is_nil(event.final_state) -> {:error, "final_state is required"}
+          is_nil(event.final_score) -> {:error, "final_score is required"}
+          is_nil(event.player_stats) -> {:error, "player_stats is required"}
+          true -> :ok
+        end
       end
     end
 
@@ -490,17 +479,16 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.winners) -> {:error, "winners is required"}
-        is_nil(event.final_scores) -> {:error, "final_scores is required"}
-        is_nil(event.game_duration) -> {:error, "game_duration is required"}
-        is_nil(event.total_rounds) -> {:error, "total_rounds is required"}
-        event.total_rounds < 1 -> {:error, "total_rounds must be positive"}
-        event.game_duration < 0 -> {:error, "game_duration must be non-negative"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.winners) -> {:error, "winners is required"}
+          is_nil(event.final_scores) -> {:error, "final_scores is required"}
+          is_nil(event.game_duration) -> {:error, "game_duration is required"}
+          is_nil(event.total_rounds) -> {:error, "total_rounds is required"}
+          event.total_rounds < 1 -> {:error, "total_rounds must be positive"}
+          event.game_duration < 0 -> {:error, "game_duration must be non-negative"}
+          true -> :ok
+        end
       end
     end
 
@@ -565,15 +553,14 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.eliminated_teams) -> {:error, "eliminated_teams is required"}
-        is_nil(event.advancing_teams) -> {:error, "advancing_teams is required"}
-        is_nil(event.round_duration) -> {:error, "round_duration is required"}
-        event.round_duration < 0 -> {:error, "round_duration must be non-negative"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.eliminated_teams) -> {:error, "eliminated_teams is required"}
+          is_nil(event.advancing_teams) -> {:error, "advancing_teams is required"}
+          is_nil(event.round_duration) -> {:error, "round_duration is required"}
+          event.round_duration < 0 -> {:error, "round_duration must be non-negative"}
+          true -> :ok
+        end
       end
     end
 
@@ -630,14 +617,13 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.final_matches) -> {:error, "final_matches is required"}
-        is_nil(event.game_duration) -> {:error, "game_duration is required"}
-        event.game_duration < 0 -> {:error, "game_duration must be non-negative"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.final_matches) -> {:error, "final_matches is required"}
+          is_nil(event.game_duration) -> {:error, "game_duration is required"}
+          event.game_duration < 0 -> {:error, "game_duration must be non-negative"}
+          true -> :ok
+        end
       end
     end
 
@@ -694,6 +680,69 @@ defmodule GameBot.Domain.Events.GameEvents do
       metadata: map()
     }
 
+    @doc """
+    Creates a new GameFinished event with minimal parameters.
+
+    This is a convenience function used primarily in the Session module's game_end handler.
+    It takes the essential parameters needed to create a GameFinished event and delegates
+    to the full new/7 function with sensible defaults for the other parameters.
+
+    ## Parameters
+      * `game_id` - Unique identifier for the game
+      * `winner_team_id` - ID of the winning team (or teams, as a list)
+      * `final_score` - Map of team_id to final score
+      * `guild_id` - Discord guild ID where the game was played
+
+    ## Returns
+      * `%GameFinished{}` - A new GameFinished event struct
+
+    ## Examples
+        iex> GameFinished.new("game_123", "team_abc", %{"team_abc" => 100}, "guild_456")
+        %GameFinished{
+          game_id: "game_123",
+          guild_id: "guild_456",
+          mode: :unknown,
+          round_number: 1,
+          final_score: %{"team_abc" => 100},
+          winner_team_id: "team_abc",
+          timestamp: ~U[2023-01-01 12:00:00Z],
+          metadata: %{}
+        }
+    """
+    @spec new(String.t(), String.t() | [String.t()], map(), String.t()) :: t()
+    def new(game_id, winner_team_id, final_score, guild_id) do
+      # Use sensible defaults for mode and round_number
+      # In a production environment, these might be extracted from the game_id
+      # or retrieved from a game state repository
+      new(
+        game_id,        # game_id
+        guild_id,       # guild_id
+        :unknown,       # mode - using placeholder since not provided
+        1,              # round_number - using default since not provided
+        final_score,    # final_score
+        winner_team_id  # winner_team_id
+      )
+    end
+
+    @doc """
+    Creates a new GameFinished event with full parameters.
+
+    This function creates a GameFinished event with all possible parameters.
+    It's used both directly and as a delegate from the simplified new/4 function.
+
+    ## Parameters
+      * `game_id` - Unique identifier for the game
+      * `guild_id` - Discord guild ID where the game was played
+      * `mode` - Game mode (e.g., :two_player, :knockout)
+      * `round_number` - Final round number when the game ended
+      * `final_score` - Map of team_id to final score
+      * `winner_team_id` - ID of the winning team (or teams, as a list)
+      * `metadata` - Additional metadata for the event (optional)
+
+    ## Returns
+      * `%GameFinished{}` - A new GameFinished event struct
+    """
+    @spec new(String.t(), String.t(), atom(), pos_integer(), map(), String.t() | [String.t()], map()) :: t()
     def new(game_id, guild_id, mode, round_number, final_score, winner_team_id, metadata \\ %{}) do
       %__MODULE__{
         game_id: game_id,
@@ -738,16 +787,15 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.round_number) -> {:error, "round_number is required"}
-        is_nil(event.day_number) -> {:error, "day_number is required"}
-        is_nil(event.team_standings) -> {:error, "team_standings is required"}
-        is_nil(event.day_duration) -> {:error, "day_duration is required"}
-        event.day_number < 1 -> {:error, "day_number must be positive"}
-        event.day_duration < 0 -> {:error, "day_duration must be non-negative"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.day_number) -> {:error, "day_number is required"}
+          is_nil(event.team_standings) -> {:error, "team_standings is required"}
+          is_nil(event.day_duration) -> {:error, "day_duration is required"}
+          event.day_number < 1 -> {:error, "day_number must be positive"}
+          event.day_duration < 0 -> {:error, "day_duration must be non-negative"}
+          true -> :ok
+        end
       end
     end
 
@@ -800,14 +848,13 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.guild_id) -> {:error, "guild_id is required"}
-        is_nil(event.mode) -> {:error, "mode is required"}
-        is_nil(event.created_by) -> {:error, "created_by is required"}
-        is_nil(event.created_at) -> {:error, "created_at is required"}
-        is_nil(event.team_ids) -> {:error, "team_ids is required"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.created_by) -> {:error, "created_by is required"}
+          is_nil(event.created_at) -> {:error, "created_at is required"}
+          is_nil(event.team_ids) -> {:error, "team_ids is required"}
+          true -> :ok
+        end
       end
     end
 
@@ -906,13 +953,13 @@ defmodule GameBot.Domain.Events.GameEvents do
     def event_version(), do: 1
 
     def validate(%__MODULE__{} = event) do
-      cond do
-        is_nil(event.game_id) -> {:error, "game_id is required"}
-        is_nil(event.guild_id) -> {:error, "guild_id is required"}
-        is_nil(event.player_id) -> {:error, "player_id is required"}
-        is_nil(event.username) -> {:error, "username is required"}
-        is_nil(event.joined_at) -> {:error, "joined_at is required"}
-        true -> :ok
+      with :ok <- EventStructure.validate(event) do
+        cond do
+          is_nil(event.player_id) -> {:error, "player_id is required"}
+          is_nil(event.username) -> {:error, "username is required"}
+          is_nil(event.joined_at) -> {:error, "joined_at is required"}
+          true -> :ok
+        end
       end
     end
 

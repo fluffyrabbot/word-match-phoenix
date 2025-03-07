@@ -100,7 +100,7 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   @impl true
   @spec init(String.t(), %{String.t() => [String.t()]}, map()) :: {:ok, state()} | {:error, term()}
   def init(game_id, teams, config) do
-    with :ok <- validate_initial_teams(teams),
+    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :minimum, @min_teams, "Knockout"),
          {:ok, state, events} <- GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config) do
 
       now = DateTime.utc_now()
@@ -274,16 +274,6 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   # Private Functions
 
   @doc false
-  # Validates initial team count
-  defp validate_initial_teams(teams) when map_size(teams) >= @min_teams do
-    :ok
-  end
-
-  defp validate_initial_teams(_teams) do
-    {:error, {:invalid_team_count, "Knockout mode requires at least #{@min_teams} teams"}}
-  end
-
-  @doc false
   # Validates that a team is still active
   defp validate_active_team(state, team_id) do
     if Map.has_key?(state.teams, team_id) do
@@ -414,5 +404,29 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   # Gets count of active teams
   defp count_active_teams(state) do
     map_size(state.teams)
+  end
+
+  @doc """
+  Validates an event for the Knockout mode.
+  Ensures that events contain the required fields and values for this mode.
+
+  ## Parameters
+    * `event` - The event to validate
+
+  ## Returns
+    * `:ok` - Event is valid for this mode
+    * `{:error, reason}` - Event is invalid with reason
+
+  ## Examples
+
+      iex> KnockoutMode.validate_event(%GameEvents.GameStarted{mode: :knockout})
+      :ok
+
+      iex> KnockoutMode.validate_event(%GameEvents.GameStarted{mode: :two_player})
+      {:error, "Invalid mode for KnockoutMode: expected :knockout, got :two_player"}
+  """
+  @spec validate_event(struct()) :: :ok | {:error, String.t()}
+  def validate_event(event) do
+    GameBot.Domain.GameModes.BaseMode.validate_event(event, :knockout, :minimum, 2)
   end
 end

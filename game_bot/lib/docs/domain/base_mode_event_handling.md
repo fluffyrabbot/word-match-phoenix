@@ -3,6 +3,28 @@
 ## Overview
 This document details the event handling requirements and implementation guidelines for the `GameBot.Domain.GameModes.BaseMode` module, focusing on proper event sourcing integration.
 
+## Core Principles
+
+1. **Event-Driven State Management**
+   - All state changes must be event-driven
+   - Events are immutable and versioned
+   - State can be reconstructed from event stream
+
+2. **Validation First**
+   - All events must be validated before processing
+   - State transitions must be explicitly validated
+   - Team and player validation must be standardized
+
+3. **Atomic Operations**
+   - State updates must be atomic with event emission
+   - Events must be emitted in correct order
+   - State must be consistent after each operation
+
+4. **Error Handling**
+   - Clear error types and messages
+   - Proper error propagation
+   - Graceful failure handling
+
 ## Event Flow
 
 ### 1. Game Lifecycle Events
@@ -22,11 +44,11 @@ graph TD
 
 #### Game Start Sequence
 ```elixir
-def initialize_game(mode, game_id, teams, roles, config) do
-  with :ok <- validate_game_params(mode, teams, roles, config),
+def initialize_game(mode, game_id, teams, config) do
+  with :ok <- validate_game_params(mode, teams, config),
        state <- GameState.new(mode, teams),
        :ok <- validate_state!(state),
-       event <- build_game_started_event(state, game_id, teams, roles, config),
+       event <- build_game_started_event(state, game_id, teams, config),
        :ok <- validate_event!(event) do
     {:ok, state, [event]}
   else
@@ -34,19 +56,18 @@ def initialize_game(mode, game_id, teams, roles, config) do
   end
 end
 
-defp build_game_started_event(state, game_id, teams, roles, config) do
-  %GameStarted{
+defp build_game_started_event(state, game_id, teams, config) do
+  build_base_event(state, GameStarted, %{
     game_id: game_id,
     mode: state.mode,
     round_number: 1,
     teams: teams,
     team_ids: Map.keys(teams),
     player_ids: List.flatten(Map.values(teams)),
-    roles: roles,
     config: config,
     timestamp: DateTime.utc_now(),
     metadata: build_metadata(state)
-  }
+  })
 end
 ```
 
@@ -58,7 +79,7 @@ def start_round(state) do
        :ok <- validate_event!(event) do
     state = update_in(state.round_number, &(&1 + 1))
     state = put_in(state.status, :in_round)
-    {:ok, state, event}
+    {:ok, state, [event]}
   end
 end
 
@@ -67,7 +88,7 @@ def end_round(state, winners) do
        event <- build_round_completed_event(state, winners),
        :ok <- validate_event!(event) do
     state = put_in(state.status, :round_ended)
-    {:ok, state, event}
+    {:ok, state, [event]}
   end
 end
 ```
@@ -75,12 +96,11 @@ end
 #### Guess Processing
 ```elixir
 def process_guess_pair(state, team_id, guess_pair) do
-  with :ok <- validate_transition!(state, :process_guess),
-       :ok <- validate_guess_pair(state, team_id, guess_pair),
-       {state, event} <- build_guess_processed_event(state, team_id, guess_pair),
+  with :ok <- validate_guess_pair(state, team_id, guess_pair),
+       event <- build_guess_processed_event(state, team_id, guess_pair),
        :ok <- validate_event!(event) do
-    state = update_guess_statistics(state, team_id, event)
-    {:ok, state, event}
+    state = update_state_after_guess(state, team_id, event)
+    {:ok, state, [event]}
   end
 end
 
@@ -89,7 +109,7 @@ def handle_guess_abandoned(state, team_id, reason, last_guess) do
        event <- build_guess_abandoned_event(state, team_id, reason, last_guess),
        :ok <- validate_event!(event) do
     state = update_abandon_statistics(state, team_id, event)
-    {:ok, state, event}
+    {:ok, state, [event]}
   end
 end
 ```
@@ -97,176 +117,207 @@ end
 ## Event Validation
 
 ### 1. Common Validation Rules
-
 ```elixir
-defmodule GameBot.Domain.EventValidation do
-  def validate_common_fields(event) do
-    cond do
-      is_nil(event.game_id) ->
-        {:error, "game_id is required"}
-      is_nil(event.mode) ->
-        {:error, "mode is required"}
-      is_nil(event.round_number) ->
-        {:error, "round_number is required"}
-      is_nil(event.timestamp) ->
-        {:error, "timestamp is required"}
-      true ->
-        :ok
-    end
+def validate_event!(event) do
+  with :ok <- validate_base_fields(event),
+       :ok <- validate_metadata(event.metadata),
+       :ok <- validate_mode_specific(event) do
+    :ok
+  else
+    {:error, reason} -> raise ArgumentError, message: reason
   end
-  
-  def validate_metadata(metadata) do
-    required_fields = [:client_version, :server_version, :correlation_id]
-    case Enum.find(required_fields, &(is_nil(metadata[&1]))) do
-      nil -> :ok
-      field -> {:error, "#{field} is required in metadata"}
-    end
+end
+
+defp validate_base_fields(event) do
+  required = [:game_id, :mode, :round_number, :timestamp]
+  case Enum.find(required, &(is_nil(Map.get(event, &1)))) do
+    nil -> :ok
+    field -> {:error, "Missing required field: #{field}"}
+  end
+end
+
+defp validate_metadata(metadata) do
+  required = [:client_version, :server_version, :correlation_id, :timestamp]
+  case Enum.find(required, &(is_nil(metadata[&1]))) do
+    nil -> :ok
+    field -> {:error, "Missing required metadata field: #{field}"}
   end
 end
 ```
 
-### 2. Event-Specific Validation
-
+### 2. State Validation
 ```elixir
-defmodule GameBot.Domain.EventValidators do
-  def validate_game_started(%GameStarted{} = event) do
-    with :ok <- validate_common_fields(event),
-         :ok <- validate_teams(event.teams),
-         :ok <- validate_roles(event.roles, event.player_ids) do
-      :ok
-    end
+def validate_state!(state) do
+  cond do
+    is_nil(state.mode) ->
+      raise ArgumentError, "game mode is required"
+    is_nil(state.round_number) ->
+      raise ArgumentError, "round number is required"
+    map_size(state.teams) == 0 ->
+      raise ArgumentError, "at least one team is required"
+    true -> :ok
   end
-  
-  def validate_guess_processed(%GuessProcessed{} = event) do
-    with :ok <- validate_common_fields(event),
-         :ok <- validate_player_info(event.player1_info),
-         :ok <- validate_player_info(event.player2_info),
-         :ok <- validate_words(event.player1_word, event.player2_word) do
-      :ok
-    end
+end
+
+def validate_transition!(state, action) do
+  case {state.status, action} do
+    {:waiting, :start_round} -> :ok
+    {:in_round, :process_guess} -> :ok
+    {:in_round, :abandon_guess} -> :ok
+    {:in_round, :end_round} -> :ok
+    {status, action} ->
+      {:error, "Invalid transition: #{action} not allowed in #{status} state"}
   end
-  
-  # Add validators for other events...
 end
 ```
 
-## Event Metadata
+## Event Building
 
-### 1. Metadata Structure
-
+### 1. Base Event Structure
 ```elixir
-@type metadata :: %{
-  client_version: String.t(),
-  server_version: String.t(),
-  correlation_id: String.t(),
-  causation_id: String.t() | nil,
-  user_agent: String.t() | nil,
-  ip_address: String.t() | nil
-}
-```
+def build_base_event(state, type, fields) do
+  Map.merge(
+    %{
+      game_id: state.game_id,
+      mode: state.mode,
+      round_number: state.round_number,
+      timestamp: DateTime.utc_now(),
+      metadata: build_metadata(state)
+    },
+    fields
+  )
+  |> struct(type)
+end
 
-### 2. Metadata Generation
-
-```elixir
 def build_metadata(state, opts \\ []) do
-  base_metadata = %{
+  %{
     client_version: Application.spec(:game_bot, :vsn),
     server_version: System.version(),
     correlation_id: state.correlation_id || generate_correlation_id(),
+    causation_id: opts[:causation_id],
     timestamp: DateTime.utc_now()
   }
-  
-  # Add optional fields if provided
-  Enum.reduce(opts, base_metadata, fn
-    {:causation_id, id}, acc -> Map.put(acc, :causation_id, id)
-    {:user_agent, ua}, acc -> Map.put(acc, :user_agent, ua)
-    {:ip_address, ip}, acc -> Map.put(acc, :ip_address, ip)
-    _, acc -> acc
+end
+```
+
+### 2. Event Versioning
+```elixir
+def version_event(event) do
+  Map.put(event, :version, event.__struct__.event_version())
+end
+
+def validate_version(event) do
+  case event.version do
+    v when v > 0 -> :ok
+    _ -> {:error, "invalid event version"}
+  end
+end
+```
+
+## State Management
+
+### 1. State Updates
+```elixir
+def update_state_after_guess(state, team_id, event) do
+  state
+  |> increment_guess_count(team_id)
+  |> update_last_activity()
+  |> maybe_record_match(team_id, event)
+end
+
+def update_abandon_statistics(state, team_id, event) do
+  state
+  |> increment_abandon_count(team_id)
+  |> update_last_activity()
+  |> record_abandon(team_id, event)
+end
+```
+
+### 2. State Recovery
+```elixir
+def rebuild_from_events(events) do
+  Enum.reduce(events, initial_state(), fn event, state ->
+    apply_event(state, event)
   end)
 end
-```
 
-## Event Storage
-
-### 1. Event Versioning
-
-```elixir
-defmodule GameBot.Domain.EventVersioning do
-  def version_event(event) do
-    Map.put(event, :version, event.__struct__.event_version())
-  end
-  
-  def validate_version(event) do
-    case event.version do
-      v when v > 0 -> :ok
-      _ -> {:error, "invalid event version"}
-    end
-  end
+defp apply_event(state, %GameStarted{} = event) do
+  %{state |
+    game_id: event.game_id,
+    mode: event.mode,
+    teams: event.teams,
+    round_number: 1,
+    start_time: event.timestamp
+  }
 end
-```
 
-### 2. Event Serialization
-
-```elixir
-defmodule GameBot.Domain.EventSerialization do
-  def serialize(event) do
-    event
-    |> version_event()
-    |> to_map()
-    |> Jason.encode!()
-  end
-  
-  def deserialize(json, event_type) do
-    with {:ok, data} <- Jason.decode(json),
-         module <- get_event_module(event_type),
-         event <- struct(module, data),
-         :ok <- validate_version(event) do
-      {:ok, event}
-    end
-  end
+defp apply_event(state, %GuessProcessed{} = event) do
+  state
+  |> update_state_after_guess(event.team_id, event)
+  |> maybe_complete_round(event)
 end
 ```
 
 ## Implementation Guidelines
 
-### 1. Event Creation Rules
+### 1. Event Generation
+- Always validate before emission
+- Include all required metadata
+- Maintain event ordering
+- Version all events
 
-1. Always validate state before creating events
-2. Include all required metadata
-3. Version all events
-4. Validate events before emission
-5. Handle event creation errors gracefully
+### 2. State Updates
+- Atomic state transitions
+- Validate before update
+- Handle edge cases
+- Maintain consistency
 
-### 2. Event Handling Rules
+### 3. Error Handling
+- Clear error messages
+- Proper error types
+- Graceful degradation
+- Comprehensive logging
 
-1. Process events atomically
-2. Update state based on event data
-3. Maintain event ordering
-4. Handle event failures gracefully
-5. Log event processing errors
+### 4. Recovery
+- Full state reconstruction
+- Event sequence validation
+- Proper error handling
+- Performance optimization
 
-### 3. Testing Requirements
+## Testing Requirements
 
-1. Test all event validations
-2. Verify event metadata
-3. Test event serialization/deserialization
-4. Verify event ordering
-5. Test error conditions
+### 1. Event Tests
+- Validate event structure
+- Test metadata generation
+- Verify event ordering
+- Check versioning
 
-## Migration Notes
+### 2. State Tests
+- Verify state transitions
+- Test recovery from events
+- Check edge cases
+- Validate consistency
 
-1. Add event versioning to all existing events
-2. Implement metadata handling
-3. Add validation for all events
-4. Update event processing to handle versions
-5. Add error handling for event processing
+### 3. Integration Tests
+- Full game sequences
+- Error scenarios
+- Recovery paths
+- Performance benchmarks
 
-## Success Criteria
+## Implementation Status
 
-1. All events are properly validated
-2. Event metadata is complete
-3. Events are versioned
-4. Event processing is atomic
-5. Error handling is comprehensive
-6. Events can be serialized/deserialized
-7. Event ordering is maintained 
+### Completed
+1. ✅ Base event structure
+2. ✅ Common validation
+3. ✅ State management
+4. ✅ Error handling
+
+### In Progress
+1. 🔶 Event versioning
+2. 🔶 State recovery
+3. 🔶 Performance optimization
+
+### Planned
+1. ❌ Event schema evolution
+2. ❌ Event store integration
+3. ❌ Metrics and monitoring 

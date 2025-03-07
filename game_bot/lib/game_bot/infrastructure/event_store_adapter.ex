@@ -23,6 +23,7 @@ defmodule GameBot.Infrastructure.EventStoreAdapter do
 
   alias GameBot.Infrastructure.EventStore
   alias GameBot.Infrastructure.EventStore.Serializer
+  alias GameBot.Domain.Events.EventStructure
 
   # Configuration
   @max_append_retries Application.compile_env(:game_bot, [EventStore, :max_append_retries], 3)
@@ -68,7 +69,8 @@ defmodule GameBot.Infrastructure.EventStoreAdapter do
       * `:retry_count` - Number of retries (default: 3)
   """
   def append_to_stream(stream_id, expected_version, events, opts \\ []) do
-    with :ok <- validate_events(events),
+    with :ok <- validate_event_list(events),
+         :ok <- validate_event_structures(events),
          :ok <- validate_stream_size(stream_id),
          {:ok, serialized} <- serialize_events(events) do
       do_append_with_retry(stream_id, expected_version, serialized, opts)
@@ -95,10 +97,47 @@ defmodule GameBot.Infrastructure.EventStoreAdapter do
     end
   end
 
+  @doc """
+  Validate a list of events to ensure they are properly structured.
+
+  ## Parameters
+    * `events` - List of event structs to validate
+
+  ## Returns
+    * `:ok` - All events are valid
+    * `{:error, reason}` - Validation failed
+  """
+  @spec validate_event_structures([struct()]) :: :ok | {:error, Error.t()}
+  def validate_event_structures(events) do
+    Enum.reduce_while(events, :ok, fn event, _ ->
+      case EventStructure.validate(event) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  @doc """
+  Serialize a list of events for storage.
+
+  ## Parameters
+    * `events` - List of event structs to serialize
+
+  ## Returns
+    * `{:ok, serialized}` - Events serialized successfully
+    * `{:error, reason}` - Serialization failed
+  """
+  @spec serialize_events([struct()]) :: {:ok, [map()]} | {:error, Error.t()}
+  def serialize_events(events) do
+    events
+    |> Enum.map(&Serializer.serialize/1)
+    |> collect_results()
+  end
+
   # Private Functions
 
-  defp validate_events(events) when is_list(events), do: :ok
-  defp validate_events(events), do: {:error, validation_error("Events must be a list", events)}
+  defp validate_event_list(events) when is_list(events), do: :ok
+  defp validate_event_list(events), do: {:error, validation_error("Events must be a list", events)}
 
   defp validate_stream_size(stream_id) do
     case EventStore.stream_version(stream_id) do
@@ -134,12 +173,6 @@ defmodule GameBot.Infrastructure.EventStoreAdapter do
       {:ok, result} -> result
       nil -> {:error, timeout_error(stream_id, timeout)}
     end
-  end
-
-  defp serialize_events(events) do
-    events
-    |> Enum.map(&Serializer.serialize/1)
-    |> collect_results()
   end
 
   defp deserialize_events(events) do

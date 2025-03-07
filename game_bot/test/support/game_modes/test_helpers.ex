@@ -79,7 +79,8 @@ defmodule GameBot.Test.GameModes.TestHelpers do
   def simulate_game_sequence(state, events) do
     Enum.reduce(events, state, fn event, acc_state ->
       case apply_event(acc_state, event) do
-        {:ok, new_state, _} -> new_state
+        {:ok, new_state, _events} -> new_state
+        {:ok, new_state} -> new_state
         {:error, reason} -> raise "Failed to apply event: #{inspect(reason)}"
       end
     end)

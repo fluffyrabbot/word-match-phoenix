@@ -3,7 +3,7 @@ defmodule GameBot.Bot.Commands.GameCommands do
   Handles game-related commands and generates appropriate game events.
   """
 
-  alias GameBot.Domain.Events.{GameEvents, TeamEvents}
+  alias GameBot.Domain.Events.{GameEvents, TeamEvents, Metadata}
   alias GameBot.GameSessions.Session
   alias GameBot.Domain.GameModes
   alias Nostrum.Struct.{Interaction, Message}
@@ -12,9 +12,8 @@ defmodule GameBot.Bot.Commands.GameCommands do
   Handles the /start command to begin a new game.
   """
   def handle_start_game(%Interaction{} = interaction, mode_name, options) do
-    # Create metadata directly
-    metadata = create_basic_metadata(interaction, nil)
-    guild_id = interaction.guild_id || Map.get(metadata, :guild_id)
+    metadata = Metadata.from_discord_interaction(interaction)
+    guild_id = metadata.guild_id
 
     # Validate guild context
     case validate_guild_context(guild_id) do
@@ -49,8 +48,7 @@ defmodule GameBot.Bot.Commands.GameCommands do
   Handles the /team create command to create a new team.
   """
   def handle_team_create(%Interaction{} = interaction, %{name: name, players: players}) do
-    # Create metadata directly
-    metadata = create_basic_metadata(interaction, nil)
+    metadata = Metadata.from_discord_interaction(interaction)
 
     # Generate team ID and validate players
     with {:ok, team_id} <- generate_team_id(),
@@ -62,7 +60,8 @@ defmodule GameBot.Bot.Commands.GameCommands do
         name: name,
         player_ids: player_ids,
         created_at: DateTime.utc_now(),
-        metadata: metadata
+        metadata: metadata,
+        guild_id: metadata.guild_id
       }
 
       {:ok, event}
@@ -73,8 +72,11 @@ defmodule GameBot.Bot.Commands.GameCommands do
   Handles a guess submission in an active game.
   """
   def handle_guess(%Interaction{} = interaction, game_id, word, parent_metadata) do
-    # Create basic metadata from the interaction
-    metadata = create_basic_metadata(interaction, parent_metadata)
+    metadata = if parent_metadata do
+      Metadata.from_parent_event(parent_metadata)
+    else
+      Metadata.from_discord_interaction(interaction)
+    end
 
     with {:ok, game} <- Session.get_state(game_id),
          metadata = Map.put(metadata, :guild_id, game.guild_id),
@@ -132,37 +134,58 @@ defmodule GameBot.Bot.Commands.GameCommands do
       }
 
       {:ok, event}
-    else
-      error -> error
     end
   end
 
   @doc """
   Main command handler that processes commands from both interactions and messages.
+
+  ## Parameters
+    * `command` - Map containing command details including:
+      - `:type` - Command type (e.g., :interaction)
+      - `:name` - Command name (e.g., "start", "guess")
+      - `:options` - Command options map
+      - `:interaction` - Discord interaction struct if type is :interaction
+
+  ## Returns
+    * `{:ok, event}` - Successfully processed command with generated event
+    * `{:error, reason}` - Failed to process command
   """
-  @spec handle_command(map()) :: {:ok, term()} | {:error, term()}
-  def handle_command(%{type: :interaction, name: "start"} = command) do
-    # Extract mode and options from the command
-    mode_option = get_in(command, [:options, "mode"]) || "two_player"
-    options = Map.get(command, :options, %{})
+  @spec handle_command(%{
+    type: :interaction | :message,
+    name: String.t(),
+    options: map(),
+    interaction: Nostrum.Struct.Interaction.t() | nil
+  }) :: {:ok, struct()} | {:error, term()}
+  def handle_command(%{type: :interaction, name: name} = command) do
+    case name do
+      "start" ->
+        # Extract mode and options from the command
+        mode = Map.get(command.options, "mode", "two_player")
+        handle_start_game(command.interaction, mode, command.options)
 
-    # Handle start game command
-    handle_start_game(command.interaction, mode_option, options)
-  end
+      "team" ->
+        case Map.get(command.options, "subcommand") do
+          "create" ->
+            handle_team_create(command.interaction, command.options)
+          _ ->
+            {:error, :unknown_subcommand}
+        end
 
-  def handle_command(%{type: :interaction, name: "guess"} = command) do
-    game_id = get_in(command, [:options, "game_id"])
-    guess = get_in(command, [:options, "word"])
-    user_id = command.interaction.user.id
+      "guess" ->
+        game_id = Map.get(command.options, "game_id")
+        word = Map.get(command.options, "word")
+        handle_guess(command.interaction, game_id, word, %{})
 
-    handle_guess(command.interaction, game_id, guess, %{})
+      _ ->
+        {:error, :unknown_command}
+    end
   end
 
   def handle_command(%{type: :message} = command) do
     # Process message-based commands
     case command do
-      %{content: content, author_id: author_id} when is_binary(content) ->
-        game_id = Map.get(command, :game_id)
+      %{content: content, author_id: author_id, game_id: game_id} when is_binary(content) ->
         handle_guess(game_id, author_id, content)
       _ ->
         {:error, :invalid_command}
@@ -175,31 +198,8 @@ defmodule GameBot.Bot.Commands.GameCommands do
 
   # Private helpers
 
-  # Helper to create basic metadata from different sources
-  defp create_basic_metadata(%Message{} = message, parent_metadata) do
-    if parent_metadata do
-      # Copy from parent but keep correlation_id
-      Map.merge(%{
-        source_id: message.author.id,
-        source_type: :message,
-        timestamp: DateTime.utc_now()
-      }, parent_metadata)
-    else
-      # Create new metadata
-      %{
-        source_id: message.author.id,
-        source_type: :message,
-        timestamp: DateTime.utc_now(),
-        correlation_id: generate_correlation_id(),
-        guild_id: message.guild_id
-      }
-    end
-  end
-
-  # Generate a simple correlation ID without UUID dependency
-  defp generate_correlation_id do
-    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
-  end
+  defp validate_guild_context(nil), do: {:error, "Guild context required"}
+  defp validate_guild_context(_), do: {:ok, nil}
 
   defp generate_game_id do
     id = :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
@@ -209,6 +209,10 @@ defmodule GameBot.Bot.Commands.GameCommands do
   defp generate_team_id do
     id = :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
     {:ok, "team_" <> id}
+  end
+
+  defp generate_correlation_id do
+    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
   end
 
   defp validate_teams(teams) do
@@ -230,8 +234,4 @@ defmodule GameBot.Bot.Commands.GameCommands do
       settings: options
     }}
   end
-
-  # Add validation function for guild context
-  defp validate_guild_context(nil), do: {:error, :missing_guild_id}
-  defp validate_guild_context(_guild_id), do: {:ok, true}
 end

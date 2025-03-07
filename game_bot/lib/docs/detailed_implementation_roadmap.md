@@ -5,32 +5,32 @@ This document provides a comprehensive step-by-step guide for implementing GameB
 ## Phase 1: Core Infrastructure
 
 ### 1.1 Event Store Setup (Priority)
-- [ ] Configure EventStore for game events
-  - [ ] Set up database connection
-  - [ ] Configure event schemas
+- [🔶] Configure EventStore for game events
+  - [✅] Set up database connection
+  - [🔶] Configure event schemas
   - [ ] Add versioning support
-- [ ] Implement event serialization/deserialization
-  - [ ] Add JSON encoding/decoding
+- [🔶] Implement event serialization/deserialization
+  - [✅] Add JSON encoding/decoding
   - [ ] Handle version migrations
-  - [ ] Add validation
+  - [🔶] Add validation
 - [ ] Set up event subscriptions
   - [ ] Implement subscription manager
   - [ ] Add event broadcasting
   - [ ] Create subscription registry
-- [ ] Add event persistence layer
-  - [ ] Implement event storage
-  - [ ] Add event retrieval
+- [🔶] Add event persistence layer
+  - [✅] Implement event storage
+  - [🔶] Add event retrieval
   - [ ] Create event stream management
 
 ### 1.2 Session Management (Priority)
-- [ ] Implement `GameBot.GameSessions.Session` GenServer
-  - [ ] Add state management
-  - [ ] Implement event handling
-  - [ ] Add game mode delegation
-- [ ] Create session supervisor
-  - [ ] Add dynamic supervision
+- [🔶] Implement `GameBot.GameSessions.Session` GenServer
+  - [✅] Add state management
+  - [🔶] Implement event handling
+  - [🔶] Add game mode delegation
+- [🔶] Create session supervisor
+  - [✅] Add dynamic supervision
   - [ ] Implement restart strategies
-  - [ ] Add session tracking
+  - [🔶] Add session tracking
 - [ ] Add state recovery
   - [ ] Implement event replay
   - [ ] Add state reconstruction
@@ -41,10 +41,10 @@ This document provides a comprehensive step-by-step guide for implementing GameB
   - [ ] Add resource cleanup
 
 ### 1.3 Base Infrastructure
-- [ ] Implement game state persistence
+- [🔶] Implement game state persistence
   - [ ] Add state snapshots
-  - [ ] Implement state versioning
-  - [ ] Add state validation
+  - [🔶] Implement state versioning
+  - [🔶] Add state validation
 - [ ] Create monitoring system
   - [ ] Add session monitoring
   - [ ] Implement error tracking
@@ -53,10 +53,10 @@ This document provides a comprehensive step-by-step guide for implementing GameB
 ## Phase 2: Game Mode Testing
 
 ### 2.1 Two Player Mode
-- [x] Core implementation complete
-- [ ] Add event handling
-  - [ ] Implement event generation
-  - [ ] Add event application
+- [✅] Core implementation complete
+- [🔶] Add event handling
+  - [✅] Implement event generation
+  - [🔶] Add event application
   - [ ] Create event validation
 - [ ] Add state recovery
   - [ ] Implement state rebuilding
@@ -68,7 +68,7 @@ This document provides a comprehensive step-by-step guide for implementing GameB
   - [ ] Test state recovery
 
 ### 2.2 Knockout Mode
-- [x] Core implementation complete
+- [✅] Core implementation complete
 - [ ] Add event handling
   - [ ] Implement elimination events
   - [ ] Add round transition events
@@ -85,101 +85,128 @@ This document provides a comprehensive step-by-step guide for implementing GameB
 ## Phase 3: Game Implementation
 
 ### 3.1 Base Mode Implementation
-- [x] **Core Behavior**
-  - [x] Implement `GameBot.Domain.GameModes.BaseMode`
-  - [x] Add common state management
-  - [x] Create shared game rules
-  - [x] Integrate with session management
+- [✅] **Core Behavior**
+  - [✅] Implement `GameBot.Domain.GameModes.BaseMode`
+  - [✅] Add common state management
+  - [✅] Create shared game rules
+  - [✅] Integrate with session management
 
 ### 3.2 Team Management
-- [x] **Team System**
-  - [x] Implement team invitation system
-  - [x] Add player registration
-  - [x] Create team naming validation
-  - [x] Implement role management
-  - [x] Add invitation expiration
-  - [x] Implement prefix handling
+- [✅] **Team System**
+  - [✅] Implement team invitation system
+  - [✅] Add player registration
+  - [✅] Create team naming validation (with emoji support)
+  - [✅] Implement role management
+  - [✅] Add invitation expiration
+  - [✅] Implement prefix handling
+  - [ ] Handle edge cases
+  - [ ] Add tests
 
 ### 3.3 Game Modes
-- [x] **Two Player Mode**
-  - [x] Create mode-specific state
-  - [x] Implement round progression
-  - [x] Add scoring system
-  - [x] Integrate with WordService
+- [✅] **Two Player Mode**
+  - [✅] Create mode-specific state
+  - [✅] Implement round progression
+  - [✅] Add scoring system
+  - [✅] Integrate with WordService
 
-- [ ] **Additional Game Modes**
-  - [ ] Implement Knockout Mode
+- [🔶] **Additional Game Modes**
+  - [🔶] Implement Knockout Mode (core logic done)
   - [ ] Add Race Mode
   - [ ] Create Golf Race Mode
   - [ ] Develop Longform Mode
 
 ## Next Implementation Priorities
 
-### 1. Game Mode Expansion
-1. **Knockout Mode**
-   - Implement elimination tracking
-   - Add round timer system
-   - Create player progression
-   - Add guess threshold tracking
+### 1. Event Store Completion (HIGH PRIORITY)
+1. **Event Schema Finalization**
+   - [🔶] Complete event type definitions
+     - [✅] Create standardized event structure with `EventStructure` module
+     - [✅] Define base fields and validation requirements
+     - [🔶] Finalize event-specific schemas
+   - [🔶] Add comprehensive validation
+     - [✅] Implement base validation framework
+     - [🔶] Complete event-specific validation
+   - [🔶] Implement version handling
+   
+2. **Enhanced Event Structure** (New)
+   - [✅] Unified validation framework across modes
+     - [✅] Mode-specific validation plugins
+     - [✅] Consistent error handling
+   - [✅] Enhanced metadata structure
+     - [✅] Add causation and correlation tracking
+     - [✅] Support for DM interactions (optional guild_id)
+     - [✅] Version tracking for client/server
+   - [🔶] Specialized event types
+     - [🔶] Game mode-specific events (Two Player, Knockout, Race)
+     - [ ] Player lifecycle events (join, leave, idle)
+     - [ ] Error and recovery-focused events
+     - [ ] Game configuration events
+   - [✅] Serialization improvements
+     - [✅] Complex data type handling (DateTime, MapSet, structs)
+     - [✅] Recursive serialization for nested structures
+     - [✅] Proper error handling for serialization failures
 
-2. **Race Mode**
-   - Implement match counting
-   - Add time-based completion
-   - Create tiebreaker system
-   - Add team progress tracking
+3. **Subscription System**
+   - [ ] Create subscription manager with causation awareness
+   - [ ] Implement event broadcasting with correlation tracking
+   - [ ] Add handler registration with specialized event support
 
-3. **Golf Race Mode**
-   - Implement point system
-   - Add efficiency tracking
-   - Create scoring brackets
-   - Add team standings
+4. **Event Persistence Enhancement**
+   - [✅] Improve event retrieval with metadata filtering
+   - [✅] Add transaction support for event sequences
+   - [ ] Implement connection resilience
 
-4. **Longform Mode**
-   - Implement day-based rounds
-   - Add elimination system
-   - Create persistence handling
-   - Add round transitions
+⚠️ **Sequence Note**: Enhanced event structure should be implemented before subscription system to prevent future rework and enable more powerful subscription capabilities.
 
-### 2. State Recovery System
-1. **Session Recovery**
-   - Implement event replay
-   - Add state reconstruction
+### 2. Session Management Completion (HIGH PRIORITY)
+1. **State Recovery Implementation**
+   - Add event replay functionality
+   - Implement state reconstruction
    - Create recovery validation
-   - Add error handling
 
-2. **Team State Recovery**
-   - Implement invitation recovery
-   - Add team reconstruction
-   - Create membership validation
-   - Add history tracking
+2. **Session Lifecycle Management**
+   - Implement cleanup for completed games
+   - Add handling for abandoned games
+   - Create resource management
 
-### 3. Event Subscription System
-1. **Core Infrastructure**
-   - Implement subscription manager
-   - Add event broadcasting
-   - Create subscription registry
-   - Add real-time updates
+3. **Monitoring & Diagnostics**
+   - Add session state tracking
+   - Implement performance monitoring
+   - Create diagnostic tools
 
-2. **Integration**
-   - Add projection updates
-   - Implement view models
-   - Create notification system
-   - Add state synchronization
+### 3. Game Mode Completion (MEDIUM PRIORITY)
+1. **Two Player Mode Enhancement**
+   - Complete event handling
+   - Add state recovery
+   - Implement integration tests
 
-### 4. Statistics and Analytics
-1. **User Statistics**
-   - Implement stat tracking
-   - Add performance metrics
-   - Create rating system
-   - Add leaderboards
+2. **Knockout Mode Implementation**
+   - Complete event handling
+   - Add state recovery
+   - Implement elimination tracking
 
-2. **Team Statistics**
-   - Add team performance tracking
-   - Implement win/loss records
-   - Create efficiency metrics
-   - Add historical analysis
+3. **Race Mode Implementation**
+   - Create core logic
+   - Implement event handling
+   - Add state recovery
 
-## Success Metrics
+### 4. Testing & Validation (HIGH PRIORITY)
+1. **Unit Testing**
+   - Add tests for event persistence
+   - Create tests for command handling
+   - Implement tests for state management
+
+2. **Integration Testing**
+   - Add end-to-end game flow tests
+   - Create tests for recovery scenarios
+   - Implement concurrency tests
+
+3. **Validation & Error Handling**
+   - Enhance command validation
+   - Improve error reporting
+   - Add recovery procedures
+
+### Success Metrics
 
 1. **Performance**
    - Sub-second command response
@@ -256,3 +283,14 @@ This document provides a comprehensive step-by-step guide for implementing GameB
 6. Stable performance under load
 
 Total Estimated Timeline: 8-12 weeks 
+(Current Progress: ~40% complete) 
+
+### 1. Event Schema Finalization (3 days)
+
+#### 1.1 Define Event Structure Standard
+- [✅] Create `GameBot.Domain.Events.EventStructure` module
+- [ ] Define base event fields required for all events
+- [ ] Implement version field requirements
+- [ ] Create timestamp and correlation ID standards
+
+#### 1.2 Complete Game Event Schemas

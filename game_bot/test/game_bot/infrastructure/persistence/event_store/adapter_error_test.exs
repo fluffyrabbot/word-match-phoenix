@@ -80,13 +80,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterErrorTest do
 
       {:error, error} = Adapter.append_to_stream(stream_id, 0, [event])
 
-      # The error could be of type :system with details :connection_error
+      # Verify proper error structure
+      assert %Error{type: :connection} = error
       assert is_binary(error.message)
-      assert error.type == :system || error.type == :connection
-      # For system errors, check if the details indicate a connection error
-      if error.type == :system do
-        assert error.details == :connection_error
-      end
+      assert Map.has_key?(error.details, :stream_id)
+      assert Map.has_key?(error.details, :retryable)
+      assert Map.has_key?(error.details, :timestamp)
     end
   end
 
@@ -119,12 +118,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterErrorTest do
 
       {:error, error} = Adapter.append_to_stream(stream_id, 0, [event])
 
-      # The error could be of type :system with details :connection_error
-      assert error.type == :system || error.type == :connection
-      # For system errors, check if the details indicate a connection error
-      if error.type == :system do
-        assert error.details == :connection_error
-      end
+      # Verify proper error structure
+      assert %Error{type: :connection} = error
+      assert is_binary(error.message)
+      assert Map.has_key?(error.details, :stream_id)
+      assert Map.has_key?(error.details, :retryable)
+      assert Map.has_key?(error.details, :timestamp)
 
       # Verify we retried the correct number of times (might not be accurate, just check it's reduced)
       failure_count = TestEventStore.get_failure_count()

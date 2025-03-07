@@ -26,6 +26,34 @@ defmodule GameBot.Infrastructure.EventStore do
     {:ok, config}
   end
 
+  @doc """
+  Resets the event store by deleting all events.
+  Only available in test environment.
+  """
+  def reset! do
+    if Mix.env() != :test do
+      raise "reset! is only available in test environment"
+    end
+
+    config = Application.get_env(:game_bot, __MODULE__, [])
+    {:ok, conn} = EventStore.Config.parse(config, [])
+
+    # Drop and recreate the event store database
+    :ok = EventStore.Storage.Initializer.reset!(conn)
+  end
+
+  @doc """
+  Gets the current version of a stream.
+  """
+  def stream_version(stream_id) do
+    case read_stream_backward(stream_id, 1) do
+      {:ok, []} -> {:ok, 0}
+      {:ok, [event]} -> {:ok, event.stream_version}
+      {:error, :stream_not_found} -> {:ok, 0}
+      error -> error
+    end
+  end
+
   # Private Functions
   defp handle_telemetry_event(@telemetry_prefix ++ [:event], measurements, metadata, _config) do
     require Logger

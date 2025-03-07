@@ -55,15 +55,15 @@ defmodule GameBot.Domain.Projections.GameProjection do
     game = %GameSummaryView{
       game_id: event.game_id,
       mode: event.mode,
-      guild_id: event.guild_id,
       team_ids: event.team_ids,
+      guild_id: event.guild_id,
       status: :created,
       created_at: event.created_at,
       started_at: nil,
       finished_at: nil,
       winner_team_id: nil,
       final_score: nil,
-      total_rounds: event.config[:rounds] || 1
+      total_rounds: get_in(event, [:config, :rounds]) || 1
     }
 
     {:ok, {:game_created, game}}

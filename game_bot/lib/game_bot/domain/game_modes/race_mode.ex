@@ -84,13 +84,13 @@ defmodule GameBot.Domain.GameModes.RaceMode do
       * `:time_limit` - Game duration in seconds (default: 180)
 
   ## Returns
-    * `{:ok, state}` - Successfully initialized state
+    * `{:ok, state, events}` - Successfully initialized state with events
     * `{:error, reason}` - Failed to initialize state
 
   ## Examples
 
       iex> RaceMode.init("game-123", teams, %{time_limit: 180})
-      {:ok, %{game_id: "game-123", time_limit: 180, ...}}
+      {:ok, %{game_id: "game-123", time_limit: 180, ...}, []}
 
       iex> RaceMode.init("game-123", teams, %{time_limit: 0})
       {:error, :invalid_time_limit}
@@ -98,25 +98,28 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @since "1.0.0"
   """
   @impl true
-  @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state()} | {:error, term()}
+  @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state(), [GameBot.Domain.Events.BaseEvent.t()]} | {:error, term()}
   def init(game_id, teams, config) do
-    config = Map.merge(default_config(), config)
-    guild_id = Map.get(config, :guild_id)
+    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :minimum, 2, "Race") do
+      config = Map.merge(default_config(), config)
+      guild_id = Map.get(config, :guild_id)
 
-    if is_nil(guild_id) do
-      {:error, :missing_guild_id}
-    else
-      {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
+      if is_nil(guild_id) do
+        {:error, :missing_guild_id}
+      else
+        {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
 
-      state = %{state |
-        guild_id: guild_id,
-        time_limit: config.time_limit,
-        start_time: DateTime.utc_now(),
-        matches_by_team: Map.new(Map.keys(teams), &{&1, 0}),
-        total_guesses_by_team: Map.new(Map.keys(teams), &{&1, 0})
-      }
+        state = %{state |
+          guild_id: guild_id,
+          time_limit: config.time_limit,
+          start_time: DateTime.utc_now(),
+          matches_by_team: Map.new(Map.keys(teams), &{&1, 0}),
+          total_guesses_by_team: Map.new(Map.keys(teams), &{&1, 0})
+        }
 
-      {:ok, state}
+        # Return with empty events list to match expected return type
+        {:ok, state, []}
+      end
     end
   end
 
@@ -386,5 +389,29 @@ defmodule GameBot.Domain.GameModes.RaceMode do
 
       {[winner], max_matches}
     end
+  end
+
+  @doc """
+  Validates an event for the Race mode.
+  Ensures that events contain the required fields and values for this mode.
+
+  ## Parameters
+    * `event` - The event to validate
+
+  ## Returns
+    * `:ok` - Event is valid for this mode
+    * `{:error, reason}` - Event is invalid with reason
+
+  ## Examples
+
+      iex> RaceMode.validate_event(%GameEvents.GameStarted{mode: :race})
+      :ok
+
+      iex> RaceMode.validate_event(%GameEvents.GameStarted{mode: :two_player})
+      {:error, "Invalid mode for RaceMode: expected :race, got :two_player"}
+  """
+  @spec validate_event(struct()) :: :ok | {:error, String.t()}
+  def validate_event(event) do
+    GameBot.Domain.GameModes.BaseMode.validate_event(event, :race, :minimum, 2)
   end
 end

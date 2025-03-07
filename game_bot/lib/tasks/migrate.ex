@@ -6,7 +6,7 @@ defmodule Mix.Tasks.GameBot.Migrate do
   use Mix.Task
   import Mix.Ecto
 
-  @shortdoc "Runs pending migrations"
+  @shortdoc "Runs all pending migrations"
 
   @doc """
   Runs all pending migrations for the application.
@@ -16,41 +16,34 @@ defmodule Mix.Tasks.GameBot.Migrate do
     * `--repo` - runs the migrations for a specific repository
     * `--quiet` - run migrations without logging output
   """
-  def run(args) do
-    repos = parse_repo(args)
-    migrations_path = Path.join(["priv", "repo", "migrations"])
+  @impl Mix.Task
+  def run(_args) do
+    {:ok, _} = Application.ensure_all_started(:game_bot)
 
-    # Get options from command line
-    {opts, _, _} = OptionParser.parse(args, strict: [
-      all: :boolean,
-      step: :integer,
-      to: :integer,
-      quiet: :boolean,
-      prefix: :string
-    ], aliases: [n: :step])
+    # Run migrations for both repos
+    migrate_repo()
+    migrate_event_store()
 
-    # Start all repositories
-    {:ok, _} = Application.ensure_all_started(:ecto)
-    {:ok, _} = Application.ensure_all_started(:ecto_sql)
+    :ok
+  end
 
-    for repo <- repos do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, fn repo ->
-        Ecto.Migrator.run(repo, migrations_path, :up, opts)
-      end)
-    end
+  defp migrate_repo do
+    repos = Application.fetch_env!(:game_bot, :ecto_repos)
 
-    # Load the event store migration if available
-    event_store_path = Path.join(["priv", "event_store", "migrations"])
+    Enum.each(repos, fn repo ->
+      {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+    end)
+  end
 
-    if File.dir?(event_store_path) do
-      Mix.shell().info("Running EventStore migrations...")
-      {:ok, _} = Application.ensure_all_started(:eventstore)
-      config = EventStore.Config.parsed(Application.get_env(:game_bot, :event_store) || [])
+  defp migrate_event_store do
+    # Get event store path
+    event_store_path = Application.app_dir(:game_bot, "priv/event_store")
 
-      # Run EventStore migrations
-      EventStore.Tasks.Migrate.run(config, event_store_path)
-    end
+    # Get event store config
+    config = Application.get_env(:game_bot, :event_store) || []
+    {:ok, conn} = EventStore.Config.parse(config, [])
 
-    Mix.shell().info("All migrations completed successfully!")
+    # Run migrations
+    EventStore.Storage.Initializer.migrate(conn, event_store_path)
   end
 end

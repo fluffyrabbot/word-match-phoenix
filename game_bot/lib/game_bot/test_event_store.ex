@@ -274,21 +274,53 @@ defmodule GameBot.TestEventStore do
       last_attempt_time: now
     }
 
-    # Return connection error
-    {:reply, {:error, :connection_error}, new_state}
+    # Return proper connection error structure
+    {:reply, {:error, %GameBot.Infrastructure.Persistence.Error{
+      type: :connection,
+      __exception__: true,
+      context: __MODULE__,
+      message: "Simulated connection error for testing",
+      details: %{
+        stream_id: stream_id,
+        retryable: true,
+        timestamp: DateTime.utc_now()
+      }
+    }}, new_state}
   end
 
   @impl GenServer
   def handle_call({:append, stream_id, expected_version, events}, _from, state) do
     if state.failure_count > 0 do
-      {:reply, {:error, :connection_error}, %{state | failure_count: state.failure_count - 1}}
+      # Return proper connection error structure
+      {:reply, {:error, %GameBot.Infrastructure.Persistence.Error{
+        type: :connection,
+        __exception__: true,
+        context: __MODULE__,
+        message: "Simulated connection error for testing",
+        details: %{
+          stream_id: stream_id,
+          retryable: true,
+          timestamp: DateTime.utc_now()
+        }
+      }}, %{state | failure_count: state.failure_count - 1}}
     else
       stream = Map.get(state.streams, stream_id, [])
       current_version = length(stream)
 
       cond do
         expected_version != current_version and expected_version != :any ->
-          {:reply, {:error, :wrong_expected_version}, state}
+          {:reply, {:error, %GameBot.Infrastructure.Persistence.Error{
+            type: :concurrency,
+            __exception__: true,
+            context: __MODULE__,
+            message: "Wrong expected version",
+            details: %{
+              expected: expected_version,
+              stream_id: stream_id,
+              event_count: length(events),
+              timestamp: DateTime.utc_now()
+            }
+          }}, state}
 
         true ->
           new_stream = stream ++ events
@@ -301,7 +333,17 @@ defmodule GameBot.TestEventStore do
   @impl GenServer
   def handle_call({:read_forward, stream_id, start_version, count}, _from, state) do
     if state.failure_count > 0 do
-      {:reply, {:error, :connection_error}, %{state | failure_count: state.failure_count - 1}}
+      {:reply, {:error, %GameBot.Infrastructure.Persistence.Error{
+        type: :connection,
+        __exception__: true,
+        context: __MODULE__,
+        message: "Simulated connection error for testing",
+        details: %{
+          stream_id: stream_id,
+          retryable: true,
+          timestamp: DateTime.utc_now()
+        }
+      }}, %{state | failure_count: state.failure_count - 1}}
     else
       stream = Map.get(state.streams, stream_id, [])
       events = Enum.slice(stream, start_version, count)
@@ -453,5 +495,17 @@ defmodule GameBot.TestEventStore do
       subscribers: Map.delete(state.subscribers, subscription)
     }
     {:reply, :ok, new_state}
+  end
+
+  # Explicitly implement init/1 for both GenServer and EventStore behaviours
+  @impl GenServer
+  def init(_) do
+    {:ok, %State{}}
+  end
+
+  # EventStore behaviour init is different - it's for initializing the event store config
+  @impl EventStore
+  def init(config) do
+    {:ok, config}
   end
 end

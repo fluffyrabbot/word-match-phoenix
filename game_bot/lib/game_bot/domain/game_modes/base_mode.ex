@@ -189,10 +189,15 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   @spec initialize_game(module(), game_id(), %{team_id() => [player_id()]}, config()) ::
     {:ok, GameState.t()} | error()
   def initialize_game(mode, game_id, teams, config) do
-    state = GameState.new(mode, teams)
+    # Extract guild_id from config or use default
+    guild_id = get_in(config, [:metadata, :guild_id]) || "default_guild"
+
+    # Initialize state with guild_id
+    {:ok, state} = GameState.new(guild_id, mode, teams)
 
     event = %GameStarted{
       game_id: game_id,
+      guild_id: guild_id,
       mode: mode,
       round_number: 1,
       teams: teams,
@@ -200,7 +205,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       player_ids: List.flatten(Map.values(teams)),
       config: config,
       timestamp: DateTime.utc_now(),
-      metadata: %{}
+      metadata: %{guild_id: guild_id}
     }
 
     {:ok, state, [event]}
@@ -269,7 +274,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       state = if guess_successful do
         record_match(state, team_id, player1_word)
       else
-        GameState.increment_guess_count(state, team_id)
+        {:ok, updated_state} = GameState.increment_guess_count(state, state.guild_id, team_id)
+        updated_state
       end
 
       {:ok, state, event}
@@ -321,8 +327,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       metadata: %{}
     }
 
-    state = GameState.increment_guess_count(state, team_id)
-    {:ok, state, event}
+    {:ok, updated_state} = GameState.increment_guess_count(state, state.guild_id, team_id)
+    {:ok, updated_state, event}
   end
 
   @doc """
@@ -427,5 +433,126 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     state
     |> GameState.add_forbidden_word(state.guild_id, player1_id, word1)
     |> GameState.add_forbidden_word(state.guild_id, player2_id, word2)
+  end
+
+  @doc false
+  # Gets count of active teams
+  defp count_active_teams(state) do
+    map_size(state.teams)
+  end
+
+  @doc """
+  Common implementation for validating events across all game modes.
+
+  This function provides a centralized validation mechanism that all game modes can use,
+  reducing code duplication while allowing mode-specific validation rules.
+
+  ## Parameters
+    * `event` - The event to validate
+    * `expected_mode` - The expected mode for this event (e.g., :two_player, :knockout)
+    * `team_requirements` - Requirements for team count validation:
+      * `:exact` - Requires exactly the specified count
+      * `:minimum` - Requires at least the specified count
+    * `team_count` - The required number of teams (used with team_requirements)
+
+  ## Returns
+    * `:ok` - Event is valid for this mode
+    * `{:error, reason}` - Event is invalid with reason
+
+  ## Examples
+
+      iex> BaseMode.validate_event(event, :two_player, :exact, 1)
+      :ok
+
+      iex> BaseMode.validate_event(event, :knockout, :minimum, 2)
+      :ok
+  """
+  @spec validate_event(struct(), atom(), :exact | :minimum, non_neg_integer()) :: :ok | {:error, String.t()}
+  def validate_event(event, expected_mode, team_requirements \\ :minimum, team_count \\ 1)
+
+  def validate_event(%{mode: mode} = _event, expected_mode, _team_requirements, _team_count)
+      when mode != expected_mode do
+    {:error, "Invalid mode for #{inspect(expected_mode)} mode: expected #{inspect(expected_mode)}, got #{inspect(mode)}"}
+  end
+
+  def validate_event(%{__struct__: struct_type} = event, expected_mode, team_requirements, team_count) do
+    case struct_type do
+      GameBot.Domain.Events.GameEvents.GameStarted ->
+        validate_game_started(event, expected_mode, team_requirements, team_count)
+      GameBot.Domain.Events.GameEvents.GuessProcessed ->
+        :ok
+      GameBot.Domain.Events.GameEvents.RoundStarted ->
+        :ok
+      GameBot.Domain.Events.GameEvents.RoundFinished ->
+        :ok
+      GameBot.Domain.Events.GameEvents.GameFinished ->
+        :ok
+      _ ->
+        :ok  # Other event types don't need mode-specific validation
+    end
+  end
+
+  def validate_event(_event, _expected_mode, _team_requirements, _team_count), do: :ok
+
+  @doc false
+  # Validates game started event based on team requirements
+  defp validate_game_started(%{teams: teams}, expected_mode, :exact, team_count) do
+    if map_size(teams) != team_count do
+      {:error, "#{inspect(expected_mode)} mode requires exactly #{team_count} team(s), got #{map_size(teams)}"}
+    else
+      :ok
+    end
+  end
+
+  defp validate_game_started(%{teams: teams}, expected_mode, :minimum, team_count) do
+    if map_size(teams) < team_count do
+      {:error, "#{inspect(expected_mode)} mode requires at least #{team_count} team(s), got #{map_size(teams)}"}
+    else
+      :ok
+    end
+  end
+
+  @doc """
+  Common implementation for validating team requirements across all game modes.
+
+  This function provides a centralized validation mechanism for team requirements
+  that all game modes can use during initialization.
+
+  ## Parameters
+    * `teams` - Map of team_id to list of player_ids
+    * `team_requirements` - Requirements for team count validation:
+      * `:exact` - Requires exactly the specified count
+      * `:minimum` - Requires at least the specified count
+    * `team_count` - The required number of teams (used with team_requirements)
+    * `mode_name` - The name of the mode for error messages
+
+  ## Returns
+    * `:ok` - Teams are valid for this mode
+    * `{:error, reason}` - Teams are invalid with reason
+
+  ## Examples
+
+      iex> BaseMode.validate_teams(teams, :exact, 1, "TwoPlayer")
+      :ok
+
+      iex> BaseMode.validate_teams(teams, :minimum, 2, "Knockout")
+      :ok
+  """
+  @spec validate_teams(%{String.t() => [String.t()]}, :exact | :minimum, non_neg_integer(), String.t()) ::
+    :ok | {:error, {:invalid_team_count, String.t()}}
+  def validate_teams(teams, :exact, team_count, mode_name) do
+    if map_size(teams) != team_count do
+      {:error, {:invalid_team_count, "#{mode_name} mode requires exactly #{team_count} team(s), got #{map_size(teams)}"}}
+    else
+      :ok
+    end
+  end
+
+  def validate_teams(teams, :minimum, team_count, mode_name) do
+    if map_size(teams) < team_count do
+      {:error, {:invalid_team_count, "#{mode_name} mode requires at least #{team_count} team(s), got #{map_size(teams)}"}}
+    else
+      :ok
+    end
   end
 end

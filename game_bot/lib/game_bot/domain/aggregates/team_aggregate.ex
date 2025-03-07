@@ -5,7 +5,7 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
   Players can only be in one active team - joining a new team supersedes previous membership.
   """
 
-  alias GameBot.Domain.Commands.TeamCommandStructs.{
+  alias GameBot.Domain.Commands.TeamCommands.{
     CreateTeamInvitation,
     AcceptInvitation,
     RenameTeam

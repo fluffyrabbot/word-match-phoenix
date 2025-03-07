@@ -85,24 +85,23 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
   @since "1.0.0"
   """
   @impl true
-  @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state()} | {:error, :invalid_team_count}
-  def init(game_id, teams, config) when map_size(teams) == 1 do
-    config = Map.merge(default_config(), config)
-    {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
+  @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state(), [GameBot.Domain.Events.BaseEvent.t()]} | {:error, term()}
+  def init(game_id, teams, config) do
+    with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :exact, 1, "TwoPlayer") do
+      config = Map.merge(default_config(), config)
+      {:ok, state} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
 
-    state = %{state |
-      rounds_required: config.rounds_required,
-      success_threshold: config.success_threshold,
-      current_round: 1,
-      total_guesses: 0,
-      completion_time: nil
-    }
+      state = %{state |
+        rounds_required: config.rounds_required,
+        success_threshold: config.success_threshold,
+        current_round: 1,
+        total_guesses: 0,
+        completion_time: nil
+      }
 
-    {:ok, state}
-  end
-
-  def init(_game_id, _teams, _config) do
-    {:error, :invalid_team_count}
+      # Return with empty events list to match expected return type
+      {:ok, state, []}
+    end
   end
 
   @doc """
@@ -241,5 +240,31 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
       rounds_required: @default_rounds,
       success_threshold: @default_success_threshold
     }
+  end
+
+  @doc """
+  Validates an event for the Two Player mode.
+  Ensures that events contain the required fields and values for this mode.
+
+  ## Parameters
+    * `event` - The event to validate
+
+  ## Returns
+    * `:ok` - Event is valid for this mode
+    * `{:error, reason}` - Event is invalid with reason
+
+  ## Examples
+
+      iex> TwoPlayerMode.validate_event(%GameEvents.GameStarted{mode: :two_player})
+      :ok
+
+      iex> TwoPlayerMode.validate_event(%GameEvents.GameStarted{mode: :knockout})
+      {:error, "Invalid mode for TwoPlayerMode: expected :two_player, got :knockout"}
+
+  @since "1.0.0"
+  """
+  @spec validate_event(struct()) :: :ok | {:error, String.t()}
+  def validate_event(event) do
+    GameBot.Domain.GameModes.BaseMode.validate_event(event, :two_player, :exact, 1)
   end
 end

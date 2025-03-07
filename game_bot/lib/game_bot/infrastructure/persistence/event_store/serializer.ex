@@ -4,7 +4,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   Handles serialization, deserialization, and validation of game events.
   """
 
-  alias GameBot.Domain.Events.GameEvents
+  alias GameBot.Domain.Events.{EventRegistry, BaseEvent, EventStructure}
   alias GameBot.Infrastructure.Persistence.Error
 
   @required_stored_fields ~w(event_type event_version data stored_at)
@@ -19,8 +19,8 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   def serialize(event) do
     try do
       with :ok <- validate_event(event),
-           serialized <- GameEvents.serialize(event) do
-        {:ok, serialized}
+           serialized_data <- do_serialize(event) do
+        {:ok, serialized_data}
       end
     rescue
       e in Protocol.UndefinedError ->
@@ -81,28 +81,19 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   """
   @spec event_version(String.t()) :: {:ok, pos_integer()} | {:error, Error.t()}
   def event_version(event_type) do
-    try do
-      version = case event_type do
-        "game_started" -> @current_schema_version
-        "round_started" -> @current_schema_version
-        "guess_processed" -> @current_schema_version
-        "guess_abandoned" -> @current_schema_version
-        "team_eliminated" -> @current_schema_version
-        "game_completed" -> @current_schema_version
-        "knockout_round_completed" -> @current_schema_version
-        "race_mode_time_expired" -> @current_schema_version
-        "longform_day_ended" -> @current_schema_version
-        _ ->
-          raise "Unknown event type: #{event_type}"
-      end
-      {:ok, version}
-    rescue
-      e in RuntimeError ->
+    case EventRegistry.module_for_type(event_type) do
+      {:ok, module} ->
+        if function_exported?(module, :event_version, 0) do
+          {:ok, module.event_version()}
+        else
+          {:ok, @current_schema_version}
+        end
+      {:error, _reason} ->
         {:error, %Error{
           type: :validation,
           context: __MODULE__,
           message: "Invalid event type",
-          details: e.message
+          details: "Unknown event type: #{event_type}"
         }}
     end
   end
@@ -110,17 +101,29 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   # Private Functions
 
   defp validate_event(event) do
+    # Try the event module's validate function first
     module = event.__struct__
 
-    if function_exported?(module, :validate, 1) do
-      module.validate(event)
-    else
-      {:error, %Error{
-        type: :validation,
-        context: __MODULE__,
-        message: "Event module missing validate/1",
-        details: module
-      }}
+    cond do
+      # If the event module implements validate/1, call it
+      function_exported?(module, :validate, 1) ->
+        case module.validate(event) do
+          :ok -> :ok
+          error -> error
+        end
+
+      # For events without a validate function, fall back to EventStructure validation
+      true ->
+        case EventStructure.validate(event) do
+          :ok -> :ok
+          error ->
+            {:error, %Error{
+              type: :validation,
+              context: __MODULE__,
+              message: "Event structure validation failed",
+              details: error
+            }}
+        end
     end
   end
 
@@ -146,15 +149,73 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
     }}
   end
 
+  defp do_serialize(event) do
+    module = event.__struct__
+
+    # Try to use the module's serialize function if it exists
+    serialized_data = if function_exported?(module, :serialize, 1) do
+      module.serialize(event)
+    else
+      # Fall back to older to_map approach if needed
+      event_data = if function_exported?(module, :to_map, 1) do
+        module.to_map(event)
+      else
+        # Convert struct to map and remove __struct__ field
+        event |> Map.from_struct() |> Map.drop([:__struct__])
+      end
+
+      # Convert timestamps to ISO8601 strings
+      event_data = event_data
+      |> Enum.map(fn
+        {k, %DateTime{} = v} -> {k, DateTime.to_iso8601(v)}
+        pair -> pair
+      end)
+      |> Map.new()
+
+      event_data
+    end
+
+    event_type = if function_exported?(module, :event_type, 0) do
+      module.event_type()
+    else
+      module
+      |> to_string()
+      |> String.split(".")
+      |> List.last()
+      |> Macro.underscore()
+    end
+
+    event_version = if function_exported?(module, :event_version, 0) do
+      module.event_version()
+    else
+      @current_schema_version
+    end
+
+    %{
+      "event_type" => event_type,
+      "event_version" => event_version,
+      "data" => serialized_data,
+      "stored_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
   defp do_deserialize(%{"event_type" => type, "event_version" => version, "data" => data}) do
     with {:ok, expected_version} <- event_version(type),
          :ok <- validate_version(version, expected_version) do
       try do
-        event = GameEvents.deserialize(%{
+        case EventRegistry.deserialize(%{
           "event_type" => type,
+          "event_version" => version,
           "data" => data
-        })
-        {:ok, event}
+        }) do
+          {:ok, event} -> {:ok, event}
+          {:error, reason} -> {:error, %Error{
+            type: :serialization,
+            context: __MODULE__,
+            message: "Failed to deserialize event",
+            details: %{event_type: type, reason: reason}
+          }}
+        end
       rescue
         e -> {:error, %Error{
           type: :serialization,

@@ -207,13 +207,13 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
             {:error, :wrong_expected_version} ->
               {:error, concurrency_error(expected_version, stream_id, length(event_data))}
             {:error, reason} ->
-              {:error, system_error("Append failed", reason)}
+              {:error, transform_error(:append, reason, stream_id, expected_version, event_data, [])}
           end
         rescue
           e in DBConnection.ConnectionError ->
             {:error, connection_error(e)}
           e ->
-            {:error, system_error("Append failed", e)}
+            {:error, transform_error(:append, e, stream_id, expected_version, event_data, [])}
         end
       end)
     end)
@@ -343,51 +343,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
   # Enhanced error transformation functions
   defp transform_error(:append, error, stream_id, version, events, _opts) do
     case error do
-      # First check if it's already a properly formatted error
-      %Error{} = err when err.type in [:concurrency, :connection, :validation, :stream_too_large, :timeout] ->
-        # Just add extra context info
-        %{err |
-          details: Map.merge(err.details || %{}, %{
-            stream_id: stream_id,
-            expected_version: version,
-            event_count: length(events),
-            timestamp: DateTime.utc_now()
-          })
-        }
-
-      # Special handling for system errors since they might be connection issues
-      %Error{type: :system} = err ->
-        # Check if this is actually a connection error
-        if is_connection_error?(err.details) do
-          # Convert to connection error for consistent handling
-          %Error{
-            type: :connection,
-            __exception__: true,
-            context: __MODULE__,
-            message: "Connection error while appending to stream '#{stream_id}'",
-            details: %{
-              stream_id: stream_id,
-              expected_version: version,
-              event_count: length(events),
-              original_error: err.details,
-              retryable: true,
-              timestamp: DateTime.utc_now()
-            }
-          }
-        else
-          # Keep as system error but enhance details
-          %{err |
-            details: Map.merge(
-              (if is_map(err.details), do: err.details, else: %{original: err.details}),
-              %{
-                stream_id: stream_id,
-                expected_version: version,
-                event_count: length(events),
-                timestamp: DateTime.utc_now()
-              }
-            )
-          }
-        end
+      # If we already have a properly formatted error, return it as is
+      %Error{} = err ->
+        err
 
       # For any other type of error, convert to a standard format
       _ ->
