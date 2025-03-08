@@ -1486,7 +1486,162 @@ analyze the above suggestions for implementing jason.encoder for @json_serialize
 
 _**Assistant**_
 
+<think>
+Let me analyze the suggestions for implementing Jason.Encoder for JsonSerializer.ex:
 
+1. **Adding Jason Dependency**:
+   - The mix.exs file already has Jason listed as a dependency (`{:jason, "~> 1.2"}`), so no change needed there.
+
+2. **Implement Jason.Encoder Protocol for Event Structs**:
+   - This would require adding `@derive {Jason.Encoder, only: [...]}` to each event struct
+   - This would delegate serialization to Jason instead of custom to_map functions
+   - Pro: More standard approach, better handling of DateTimes
+   - Con: Requires modifying all event structs in the system
+
+3. **Update JsonSerializer to use Jason.encode**:
+   - Replace custom encode_event logic with Jason.encode
+   - Remove encode_timestamps function as Jason handles DateTimes
+   - Pro: More standard, potentially more robust
+   - Con: Changes core serialization logic
+
+4. **Update Tests**:
+   - Remove custom to_map/from_map functions in test events
+   - Add @derive Jason.Encoder to test event structs
+   - Update assertions for serialized data
+
+Looking at the human's response, they rejected the first attempt to modify JsonSerializer.ex, suggesting they may not be ready to make this change. The human reverted the changes to encode_event and restored encode_timestamps.
+
+It seems the human is hesitant about this particular change. While using Jason.Encoder would be a more idiomatic approach in Elixir for JSON serialization, it would require:
+
+1. Changes to all event structs in the system
+2. Updating the serialization logic
+3. Potentially dealing with migration issues for existing data
+
+Given that the human has shown reluctance and the change is non-trivial affecting the core serialization logic, I should be cautious about recommending this change again.
+
+Instead, I should acknowledge that while the Jason.Encoder approach would be more idiomatic, it represents a significant change to the system's serialization approach, and may not be worth the risk at this time.
+
+I'll suggest a more measured approach that could be taken in the future if desired.
+</think>
+
+Looking at your files and response, I understand why you reverted the changes to implement Jason.Encoder directly in `JsonSerializer`. Here's my analysis:
+
+## Current Architecture Analysis
+
+Your current serialization approach uses:
+1. Custom `to_map/1` functions on events
+2. Registry-based encoding fallbacks
+3. Manual timestamp handling with `encode_timestamps/1`
+
+This provides flexibility and control over exactly how events are serialized, which is often important in event-driven systems where data format stability is critical.
+
+## Challenges with Full Jason.Encoder Implementation
+
+While switching to `Jason.Encoder` would be more idiomatic Elixir, it presents significant challenges:
+
+1. **Breaking Change**: Would require modifying all event structs
+2. **Serialization Format Changes**: Could affect stored events
+3. **Loss of Control**: Less direct control over serialization format
+4. **Migration Complexity**: Would need a strategy for handling existing events
+
+## Recommended Approach
+
+Rather than a full conversion to Jason.Encoder, here's a more measured improvement:
+
+```diff:game_bot/lib/game_bot/infrastructure/persistence/event_store/serialization/json_serializer.ex
+defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer do
+  # ...existing code...
+
+  @current_version 1
++ require Logger
+
+  # ...existing code...
+
+  defp get_event_type(event) do
+    case get_event_type_if_available(event) do
+      nil ->
+-       event.__struct__
+-       |> to_string()
+-       |> String.split(".")
+-       |> List.last()
+-       |> Macro.underscore()
++       raise "Event type not found for struct: #{inspect(event.__struct__)}.  Implement event_type/0 or register the event."
+      type ->
+        type
+    end
+  end
+
+  # ...rest of the code unchanged...
+end
+```
+
+This change:
+1. Adds Logger for better error reporting
+2. Replaces the type-guessing behavior with a clear error message
+3. Keeps your existing serialization logic intact
+4. Is a small, targeted improvement with minimal risk
+
+## For Future Consideration
+
+If you want to gradually move toward using Jason in the future:
+
+1. Start with new event types only
+2. Create adapter functions to maintain backward compatibility
+3. Build a migration strategy for existing events
+4. Consider implementing a version-aware deserializer
+
+This would give you a more idiomatic approach while managing the risk of changes to your serialization format.
+
+Would you like me to implement just the `get_event_type` improvement I've suggested above? This gives you a meaningful improvement without the risks of a larger change.
+
+---
+
+_**User**_
+
+yes
+
+---
+
+_**Assistant**_
+
+<think>
+I see that the Logger was already added to the file somehow, so that part of the change is already taken care of. Let's also implement the remaining change to `get_event_type` which is to raise an error when the event type is not found rather than trying to infer it.
+
+Looking at the current contents, I can see that the file already has the change implemented! The code already has:
+
+```elixir
+defp get_event_type(event) do
+  case get_event_type_if_available(event) do
+    nil ->
+      raise "Event type not found for struct: #{inspect(event.__struct__)}.  Implement event_type/0 or register the event."
+    type ->
+      type
+  end
+end
+```
+
+That was the exact change I was suggesting. So it seems both of the improvements I suggested have already been implemented.
+
+Let me check if we need to make any other improvements to the file. Looking at the rest of the code, I don't see any other low-risk improvements that could be made.
+</think>
+
+I see that the changes I recommended have already been implemented in your code! Both additions:
+
+1. `require Logger` is already present
+2. The improved `get_event_type` function is already raising a clear error message when no type is found
+
+This is great! Your code is already following the best practices I suggested - using explicit error messages instead of trying to infer types, and having Logger available for error reporting.
+
+Looking at your serialization implementation more broadly:
+
+1. Your error handling is thorough and descriptive
+2. You have fallback mechanisms that try multiple strategies (direct function calls, registry calls)
+3. Your timestamp encoding is properly handled
+4. The validation logic is comprehensive
+
+These are all good practices. The code is clean, well-organized, and follows consistent error handling patterns.
+
+No additional changes are needed at this time. Your serialization layer is in good shape!
 
 ---
 

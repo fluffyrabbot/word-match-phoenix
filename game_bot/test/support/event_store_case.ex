@@ -12,6 +12,7 @@ defmodule GameBot.EventStoreCase do
 
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStore
   alias GameBot.Infrastructure.Persistence.Repo
+  alias GameBot.Test.ConnectionHelper
 
   using do
     quote do
@@ -23,27 +24,40 @@ defmodule GameBot.EventStoreCase do
   end
 
   setup tags do
+    # Always clean up connections before starting a new test
+    ConnectionHelper.close_db_connections()
+
     # Skip database setup if the test doesn't need it
     if tags[:skip_db] do
       :ok
     else
-      # Start sandbox session for each repo
-      {:ok, repo_pid} = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
-      {:ok, event_store_pid} = Ecto.Adapters.SQL.Sandbox.checkout(EventStore)
+      # Use parent process as owner for explicit checkout pattern
+      parent = self()
+
+      # Start sandbox session for each repo with explicit owner
+      Ecto.Adapters.SQL.Sandbox.checkout(Repo, caller: parent)
+      Ecto.Adapters.SQL.Sandbox.checkout(EventStore, caller: parent)
 
       # Allow sharing of connections for better test isolation
       unless tags[:async] do
-        Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
-        Ecto.Adapters.SQL.Sandbox.mode(EventStore, {:shared, self()})
+        Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, parent})
+        Ecto.Adapters.SQL.Sandbox.mode(EventStore, {:shared, parent})
       end
 
-      # Clean the database
+      # Clean the database as the explicitly checked out owner
       clean_database()
 
-      # Make sure connections are released properly
+      # Make sure connections are explicitly released after test
       on_exit(fn ->
+        # Clean the database again before checking in
+        clean_database()
+
+        # Return connections to the pool
         Ecto.Adapters.SQL.Sandbox.checkin(Repo)
         Ecto.Adapters.SQL.Sandbox.checkin(EventStore)
+
+        # Close any lingering connections
+        ConnectionHelper.close_db_connections()
       end)
     end
 

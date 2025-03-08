@@ -11,7 +11,8 @@ defmodule GameBot.Infrastructure.EventStore.Serializer do
   """
 
   alias GameBot.Domain.Events.GameEvents
-  alias GameBot.Infrastructure.EventStore.Error
+  alias GameBot.Infrastructure.Error
+  alias GameBot.Infrastructure.ErrorHelpers
 
   @required_stored_fields ~w(event_type event_version data stored_at)
   @current_schema_version 1

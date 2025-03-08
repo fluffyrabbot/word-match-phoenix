@@ -11,14 +11,15 @@
 6. EventStore macro integration
 7. Core test case implementations
 8. Integration test framework
-9. Error handling standardization
+9. Error handling standardization ✅
+10. Test connection management and sandbox setup ✅
 
 ### Critical Warning Patterns (🚨)
 1. ~~EventStore API compatibility issues~~ ✅
 2. ~~Behavior conflicts and missing @impl annotations~~ ✅
 3. ~~Undefined or incorrect function signatures~~ ✅
 4. Layer violations between Domain and Infrastructure
-5. Inconsistent error handling patterns
+5. ~~Inconsistent error handling patterns~~ ✅
 
 ## Phase 0: Macro Integration Guidelines
 
@@ -101,7 +102,7 @@
 
 ## Phase 2: Infrastructure Layer Cleanup
 
-### 2.1 Error Handling Consolidation 🚧
+### 2.1 Error Handling Consolidation ✅
 - [x] Create unified error module in Infrastructure.Error:
   ```elixir
   # Unified error types and consistent interface
@@ -123,7 +124,7 @@
     def translate_error(reason, context)
   end
   ```
-- [ ] Migration steps for existing code:
+- [x] Migration steps for existing code:
   - [x] Update EventStore.Error usage:
     - [x] Replace error creation with new Error module
     - [x] Update error handling to use ErrorHelpers
@@ -132,10 +133,12 @@
     - [x] Replace error creation with new Error module
     - [x] Update error handling to use ErrorHelpers
     - [x] Add context tracking
-  - [ ] Update error translation layers:
-    - [ ] Add translation for external dependencies
-    - [ ] Update error message formatting
-    - [ ] Add proper context propagation
+  - [x] Update error translation layers:
+    - [x] Add translation for external dependencies
+    - [x] Update error message formatting
+    - [x] Add proper context propagation
+    - [x] Add handling for event store specific errors
+    - [x] Add exception detection without hard dependencies
 
 ### 2.2 Layer Separation ✅
 - [x] Create proper infrastructure boundaries:
@@ -174,6 +177,23 @@
   - [x] Remove old behaviour.ex
   - [x] Update all references to new implementations
   - [x] Update test files
+
+### 2.3 Test Connection Management ✅
+- [x] Fix sandbox database handling
+  - [x] Update EventStoreCase setup
+  - [x] Add proper connection cleanup
+  - [x] Add explicit checkout pattern
+  - [x] Add connection cleanup on exit
+- [x] Improve test helpers
+  - [x] Create ConnectionHelper module
+  - [x] Enhance connection cleanup
+  - [x] Fix test isolation issues
+  - [x] Add reliable teardown
+- [x] Fix test_helper.exs configuration
+  - [x] Start applications in correct order
+  - [x] Configure sandbox mode consistently
+  - [x] Clean state before tests
+  - [x] Optimize test environment
 
 ### Next Steps:
 1. Update repository layer:
@@ -340,6 +360,23 @@
   - [x] Error handling
   - [x] Concurrent access
 
+### 4.3 Error Handling Tests ✅
+- [x] Test error translation:
+  - [x] EventStore errors
+  - [x] Ecto errors
+  - [x] Custom errors
+  - [x] Exception handling
+- [x] Test retry mechanisms:
+  - [x] Connection errors
+  - [x] Timeout handling
+  - [x] Retry limits
+  - [x] Exponential backoff
+  - [x] Jitter implementation
+- [x] Test context propagation:
+  - [x] Error sources
+  - [x] Error details
+  - [x] Error tracking
+
 ## Success Criteria
 
 ### Documentation
@@ -376,36 +413,8 @@
 
 ## Next Steps
 
-1. Create serialization behaviour:
-   - Define behaviour interface
-   - Document versioning requirements
-   - Add type specifications
-   - Create test helpers
-
-2. Implement JSON serializer:
-   - Create basic implementation
-   - Add versioning support
-   - Handle error cases
-   - Add comprehensive tests
-
-3. Create event translator:
-   - Define translation rules
-   - Handle version migrations
-   - Add validation
-   - Test edge cases
-
-4. Update adapter interfaces:
-   - Review current implementations
-   - Define clear boundaries
-   - Remove domain dependencies
-   - Add proper error handling
-
-5. Testing and validation:
-   - Add integration tests
-   - Verify error handling
-   - Test version migrations
-   - Validate boundaries
-
-6. Continue with layer separation 🚧
-7. Complete error handling consolidation 🚧
-8. Finish function signature cleanup 🚧 
+1. Continue with layer separation ✅
+2. Complete error handling consolidation ✅
+3. Finish function signature cleanup 🚧
+4. Complete compiler warning resolution 🚧
+5. Update documentation with error handling examples ✅ 

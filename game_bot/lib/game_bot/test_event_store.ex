@@ -50,6 +50,24 @@ defmodule GameBot.TestEventStore do
   end
 
   @doc """
+  Resets the test store state and clears all connections.
+  Ensures compatibility with test helpers that expect this function.
+  """
+  def reset! do
+    case Process.whereis(__MODULE__) do
+      nil ->
+        # If the process is not running, simply return ok
+        :ok
+      _pid ->
+        # Reset internal state
+        reset_state()
+
+        # Return success
+        :ok
+    end
+  end
+
+  @doc """
   Sets the number of times operations should fail before succeeding.
   Used for testing retry mechanisms.
   """

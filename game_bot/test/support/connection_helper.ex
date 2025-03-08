@@ -14,39 +14,13 @@ defmodule GameBot.Test.ConnectionHelper do
   """
   def close_db_connections do
     # Attempt to reset the connection pool if it exists
-    case Process.whereis(GameBot.Infrastructure.EventStore) do
-      nil -> :ok
-      _ ->
-        try do
-          :ok = GameBot.Infrastructure.EventStore.reset!()
-        rescue
-          _ -> :ok
-        end
-    end
+    close_eventstore_connections()
 
     # Attempt to close any open connections for mock stores
-    case Process.whereis(GameBot.TestEventStore) do
-      nil -> :ok
-      pid ->
-        try do
-          GenServer.stop(pid, :normal, 100)
-        rescue
-          _ -> :ok
-        end
-    end
+    close_test_event_store()
 
     # Force database connections to close
-    Enum.each(Process.list(), fn pid ->
-      info = Process.info(pid, [:dictionary])
-
-      if info && get_in(info, [:dictionary, :"$initial_call"]) == {Postgrex.Protocol, :init, 1} do
-        try do
-          Process.exit(pid, :kill)
-        rescue
-          _ -> :ok
-        end
-      end
-    end)
+    close_postgrex_connections()
 
     :ok
   end
@@ -64,5 +38,61 @@ defmodule GameBot.Test.ConnectionHelper do
     on_exit(fn -> close_db_connections() end)
 
     :ok
+  end
+
+  # Private helpers
+
+  defp close_eventstore_connections do
+    # Handle both main EventStore and adapter
+    modules = [
+      GameBot.Infrastructure.EventStore,
+      GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+    ]
+
+    Enum.each(modules, fn module ->
+      case Process.whereis(module) do
+        nil -> :ok
+        _ ->
+          try do
+            if function_exported?(module, :reset!, 0) do
+              apply(module, :reset!, [])
+            end
+          rescue
+            _ -> :ok
+          end
+      end
+    end)
+  end
+
+  defp close_test_event_store do
+    case Process.whereis(GameBot.TestEventStore) do
+      nil -> :ok
+      pid ->
+        try do
+          # First try to reset the state
+          if function_exported?(GameBot.TestEventStore, :reset!, 0) do
+            GameBot.TestEventStore.reset!()
+          end
+
+          # Then stop the process
+          GenServer.stop(pid, :normal, 100)
+        rescue
+          _ -> :ok
+        end
+    end
+  end
+
+  defp close_postgrex_connections do
+    Enum.each(Process.list(), fn pid ->
+      info = Process.info(pid, [:dictionary])
+
+      if info && get_in(info, [:dictionary, :"$initial_call"]) == {Postgrex.Protocol, :init, 1} do
+        try do
+          Process.exit(pid, :kill)
+        rescue
+          _ -> :ok
+        end
+      end
+    end)
   end
 end

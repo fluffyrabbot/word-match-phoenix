@@ -14,51 +14,42 @@ Application.put_env(:nostrum, :api_module, GameBot.Test.Mocks.NostrumApiMock)
 if System.get_env("ISOLATED_TEST") != "true" do
   # Get repository references
   alias GameBot.Infrastructure.Persistence.Repo
-  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStoreRepo
+
+  # Ensure clean state before tests run
+  # Kill any existing connections that might interfere with tests
+  Enum.each(Process.list(), fn pid ->
+    info = Process.info(pid, [:dictionary])
+    if info && get_in(info, [:dictionary, :"$initial_call"]) == {Postgrex.Protocol, :init, 1} do
+      Process.exit(pid, :kill)
+    end
+  end)
 
   # Start required applications in the correct order
   {:ok, _} = Application.ensure_all_started(:postgrex)
   {:ok, _} = Application.ensure_all_started(:ecto_sql)
 
   # Actually start the repos explicitly before trying to use them
-  {:ok, _} = Repo.start_link([])
-  {:ok, _} = Postgres.start_link([])
+  # Use a consistent configuration for both repos
+  repo_config = [
+    pool: Ecto.Adapters.SQL.Sandbox,
+    pool_size: 10,
+    ownership_timeout: 60_000
+  ]
 
-  # Configure sandbox mode for testing
+  {:ok, _} = Repo.start_link(repo_config)
+  {:ok, _} = EventStoreRepo.start_link(repo_config)
+
+  # Make sure tables are reset before tests run
+  try do
+    Repo.query!("TRUNCATE event_store.streams, event_store.events, event_store.subscriptions CASCADE")
+  rescue
+    _ -> :ok
+  end
+
+  # Configure sandbox mode for testing with consistent settings
   Ecto.Adapters.SQL.Sandbox.mode(Repo, :manual)
-  Ecto.Adapters.SQL.Sandbox.mode(Postgres, :manual)
-
-  # Create event store schema and tables
-  event_store_schema = """
-  CREATE SCHEMA IF NOT EXISTS event_store;
-
-  CREATE TABLE IF NOT EXISTS event_store.streams (
-    id text PRIMARY KEY,
-    version bigint NOT NULL DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS event_store.events (
-    event_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    stream_id text NOT NULL REFERENCES event_store.streams(id) ON DELETE CASCADE,
-    event_type text NOT NULL,
-    event_data jsonb NOT NULL,
-    event_metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
-    event_version bigint NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    UNIQUE(stream_id, event_version)
-  );
-
-  CREATE TABLE IF NOT EXISTS event_store.subscriptions (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    stream_id text NOT NULL REFERENCES event_store.streams(id) ON DELETE CASCADE,
-    subscriber_pid text NOT NULL,
-    options jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-  );
-  """
-
-  # Execute schema creation
-  Repo.query!(event_store_schema)
+  Ecto.Adapters.SQL.Sandbox.mode(EventStoreRepo, :manual)
 
   # Start the rest of the application
   {:ok, _} = Application.ensure_all_started(:game_bot)
