@@ -93,49 +93,72 @@ defmodule GameBot.Domain.Events.GameEvents do
 
   # Game lifecycle events
   defmodule GameStarted do
-    @moduledoc "Emitted when a new game is started"
-    @behaviour GameBot.Domain.Events.GameEvents
+    @moduledoc """
+    Emitted when a new game is started. Contains initial game state including team assignments,
+    player roles, and game configuration.
+    """
+    use GameBot.Domain.Events.EventStructure
 
     @type t :: %__MODULE__{
+      # Base Fields
       game_id: String.t(),
       guild_id: String.t(),
       mode: atom(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+
+      # Event-specific Fields
       round_number: pos_integer(),           # Always 1 for game start
       teams: %{String.t() => [String.t()]},  # team_id => [player_ids]
       team_ids: [String.t()],                # Ordered list of team IDs
       player_ids: [String.t()],              # Ordered list of all player IDs
       roles: %{String.t() => atom()},        # player_id => role mapping
       config: map(),                         # Mode-specific configuration
-      started_at: DateTime.t(),              # Added missing field
-      timestamp: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
+      started_at: DateTime.t()               # When the game actually started
     }
-    defstruct [:game_id, :guild_id, :mode, :round_number, :teams, :team_ids, :player_ids, :roles, :config, :started_at, :timestamp, :metadata]
 
+    defstruct [
+      # Base Fields
+      :game_id,
+      :guild_id,
+      :mode,
+      :timestamp,
+      :metadata,
+
+      # Event-specific Fields
+      :round_number,
+      :teams,
+      :team_ids,
+      :player_ids,
+      :roles,
+      :config,
+      :started_at
+    ]
+
+    @impl true
     def event_type(), do: "game_started"
+
+    @impl true
     def event_version(), do: 1
 
+    @impl true
     def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event) do
-        cond do
-          is_nil(event.teams) -> {:error, "teams is required"}
-          is_nil(event.team_ids) -> {:error, "team_ids is required"}
-          is_nil(event.player_ids) -> {:error, "player_ids is required"}
-          Enum.empty?(event.team_ids) -> {:error, "team_ids cannot be empty"}
-          Enum.empty?(event.player_ids) -> {:error, "player_ids cannot be empty"}
-          !Enum.all?(Map.keys(event.teams), &(&1 in event.team_ids)) -> {:error, "invalid team_id in teams map"}
-          !Enum.all?(List.flatten(Map.values(event.teams)), &(&1 in event.player_ids)) -> {:error, "invalid player_id in teams"}
-          true -> :ok
-        end
+      with :ok <- EventStructure.validate(event),
+           :ok <- validate_round_number(event.round_number),
+           :ok <- validate_teams(event),
+           :ok <- validate_roles(event),
+           :ok <- validate_started_at(event.started_at) do
+        :ok
       end
     end
 
+    @impl true
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
         "guild_id" => event.guild_id,
         "mode" => Atom.to_string(event.mode),
-        "round_number" => 1,
+        "round_number" => event.round_number,
         "teams" => event.teams,
         "team_ids" => event.team_ids,
         "player_ids" => event.player_ids,
@@ -147,12 +170,13 @@ defmodule GameBot.Domain.Events.GameEvents do
       }
     end
 
+    @impl true
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
         guild_id: data["guild_id"],
         mode: String.to_existing_atom(data["mode"]),
-        round_number: 1,
+        round_number: data["round_number"],
         teams: data["teams"],
         team_ids: data["team_ids"],
         player_ids: data["player_ids"],
@@ -163,35 +187,102 @@ defmodule GameBot.Domain.Events.GameEvents do
         metadata: data["metadata"] || %{}
       }
     end
-  end
 
-  defmodule RoundStarted do
-    @moduledoc "Emitted when a new round begins"
-    @behaviour GameBot.Domain.Events.GameEvents
+    # Private validation functions
 
-    @type t :: %__MODULE__{
-      game_id: String.t(),
-      guild_id: String.t(),  # Added missing field
-      mode: atom(),
-      round_number: pos_integer(),
-      team_states: map(),                    # Initial team states for round
-      timestamp: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
-    }
-    defstruct [:game_id, :guild_id, :mode, :round_number, :team_states, :timestamp, :metadata]
+    defp validate_round_number(round_number) when is_integer(round_number) and round_number == 1, do: :ok
+    defp validate_round_number(_), do: {:error, "round_number must be 1 for game start"}
 
-    def event_type(), do: "round_started"
-    def event_version(), do: 1
-
-    def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event) do
-        cond do
-          is_nil(event.team_states) -> {:error, "team_states is required"}
-          true -> :ok
-        end
+    defp validate_teams(%__MODULE__{teams: teams, team_ids: team_ids, player_ids: player_ids}) do
+      cond do
+        is_nil(teams) -> {:error, "teams is required"}
+        is_nil(team_ids) -> {:error, "team_ids is required"}
+        is_nil(player_ids) -> {:error, "player_ids is required"}
+        Enum.empty?(team_ids) -> {:error, "team_ids cannot be empty"}
+        Enum.empty?(player_ids) -> {:error, "player_ids cannot be empty"}
+        !Enum.all?(Map.keys(teams), &(&1 in team_ids)) -> {:error, "invalid team_id in teams map"}
+        !Enum.all?(List.flatten(Map.values(teams)), &(&1 in player_ids)) -> {:error, "invalid player_id in teams"}
+        true -> :ok
       end
     end
 
+    defp validate_roles(%__MODULE__{roles: roles, player_ids: player_ids}) when is_map(roles) do
+      cond do
+        !Enum.all?(Map.keys(roles), &(&1 in player_ids)) -> {:error, "invalid player_id in roles"}
+        !Enum.all?(Map.values(roles), &is_atom/1) -> {:error, "role must be an atom"}
+        true -> :ok
+      end
+    end
+    defp validate_roles(_), do: {:error, "roles must be a map"}
+
+    defp validate_started_at(%DateTime{} = started_at) do
+      case DateTime.compare(started_at, DateTime.utc_now()) do
+        :gt -> {:error, "started_at cannot be in the future"}
+        _ -> :ok
+      end
+    end
+    defp validate_started_at(_), do: {:error, "started_at must be a DateTime"}
+  end
+
+  defmodule RoundStarted do
+    @moduledoc """
+    Emitted when a new round begins. Contains initial team states and round configuration.
+    """
+    use GameBot.Domain.Events.EventStructure
+
+    @type team_state :: %{
+      team_id: String.t(),
+      active_players: [String.t()],
+      eliminated_players: [String.t()],
+      score: integer(),
+      matches: non_neg_integer(),
+      total_guesses: pos_integer(),
+      average_guesses: float(),
+      remaining_guesses: pos_integer()
+    }
+
+    @type t :: %__MODULE__{
+      # Base Fields
+      game_id: String.t(),
+      guild_id: String.t(),
+      mode: atom(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+
+      # Event-specific Fields
+      round_number: pos_integer(),
+      team_states: %{String.t() => team_state()}  # team_id => team_state mapping
+    }
+
+    defstruct [
+      # Base Fields
+      :game_id,
+      :guild_id,
+      :mode,
+      :timestamp,
+      :metadata,
+
+      # Event-specific Fields
+      :round_number,
+      :team_states
+    ]
+
+    @impl true
+    def event_type(), do: "round_started"
+
+    @impl true
+    def event_version(), do: 1
+
+    @impl true
+    def validate(%__MODULE__{} = event) do
+      with :ok <- EventStructure.validate(event),
+           :ok <- validate_round_number(event.round_number),
+           :ok <- validate_team_states(event.team_states) do
+        :ok
+      end
+    end
+
+    @impl true
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
@@ -204,6 +295,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       }
     end
 
+    @impl true
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
@@ -215,51 +307,195 @@ defmodule GameBot.Domain.Events.GameEvents do
         metadata: data["metadata"] || %{}
       }
     end
+
+    # Private validation functions
+
+    defp validate_round_number(round_number) when is_integer(round_number) and round_number > 0, do: :ok
+    defp validate_round_number(_), do: {:error, "round_number must be a positive integer"}
+
+    defp validate_team_states(team_states) when is_map(team_states) do
+      if Enum.empty?(team_states) do
+        {:error, "team_states cannot be empty"}
+      else
+        Enum.reduce_while(team_states, :ok, fn {team_id, state}, :ok ->
+          with :ok <- validate_team_id(team_id),
+               :ok <- validate_team_state(state) do
+            {:cont, :ok}
+          else
+            error -> {:halt, error}
+          end
+        end)
+      end
+    end
+    defp validate_team_states(_), do: {:error, "team_states must be a map"}
+
+    defp validate_team_id(team_id) when is_binary(team_id), do: :ok
+    defp validate_team_id(_), do: {:error, "team_id must be a string"}
+
+    defp validate_team_state(%{
+      team_id: team_id,
+      active_players: active_players,
+      eliminated_players: eliminated_players,
+      score: score,
+      matches: matches,
+      total_guesses: total_guesses
+    } = state) when is_map(state) do
+      with :ok <- validate_team_id(team_id),
+           :ok <- validate_player_list("active_players", active_players),
+           :ok <- validate_player_list("eliminated_players", eliminated_players),
+           :ok <- validate_integer("score", score),
+           :ok <- validate_non_negative_integer("matches", matches),
+           :ok <- validate_positive_integer("total_guesses", total_guesses) do
+        :ok
+      end
+    end
+    defp validate_team_state(_), do: {:error, "invalid team state structure"}
+
+    defp validate_player_list(field, players) when is_list(players) do
+      if Enum.all?(players, &is_binary/1) do
+        :ok
+      else
+        {:error, "#{field} must be a list of strings"}
+      end
+    end
+    defp validate_player_list(field, _), do: {:error, "#{field} must be a list"}
+
+    defp validate_integer(field, value) when is_integer(value), do: :ok
+    defp validate_integer(field, _), do: {:error, "#{field} must be an integer"}
+
+    defp validate_positive_integer(field, value) when is_integer(value) and value > 0, do: :ok
+    defp validate_positive_integer(field, _), do: {:error, "#{field} must be a positive integer"}
+
+    defp validate_non_negative_integer(field, value) when is_integer(value) and value >= 0, do: :ok
+    defp validate_non_negative_integer(field, _), do: {:error, "#{field} must be a non-negative integer"}
+
+    defp validate_float(field, value) when is_float(value), do: :ok
+    defp validate_float(field, _), do: {:error, "#{field} must be a float"}
   end
 
   # Gameplay Events
   defmodule GuessProcessed do
-    @moduledoc "Emitted when both players have submitted their guesses and the attempt is processed"
-    @behaviour GameBot.Domain.Events.GameEvents
+    @moduledoc """
+    Event emitted when a guess is processed, whether successful or not.
+    """
+
+    use GameBot.Domain.Events.EventStructure
 
     @type t :: %__MODULE__{
+      # Base Fields
       game_id: String.t(),
       guild_id: String.t(),
       mode: atom(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+
+      # Event-specific Fields
       round_number: pos_integer(),
       team_id: String.t(),
-      player1_info: GameBot.Domain.Events.GameEvents.player_info(),
-      player2_info: GameBot.Domain.Events.GameEvents.player_info(),
+      player1_info: player_info(),
+      player2_info: player_info(),
       player1_word: String.t(),
       player2_word: String.t(),
       guess_successful: boolean(),
+      match_score: pos_integer() | nil,  # Required when guess_successful is true
       guess_count: pos_integer(),
-      match_score: integer(),
       round_guess_count: pos_integer(),
       total_guesses: pos_integer(),
-      guess_duration: integer(),
-      timestamp: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
+      guess_duration: non_neg_integer()
     }
-    defstruct [:game_id, :guild_id, :mode, :round_number, :team_id, :player1_info, :player2_info,
-               :player1_word, :player2_word, :guess_successful, :guess_count, :match_score,
-               :round_guess_count, :total_guesses, :guess_duration, :timestamp, :metadata]
 
-    def event_type(), do: "guess_processed"
-    def event_version(), do: 1
+    defstruct [
+      :game_id,
+      :guild_id,
+      :mode,
+      :round_number,
+      :team_id,
+      :player1_info,
+      :player2_info,
+      :player1_word,
+      :player2_word,
+      :guess_successful,
+      :match_score,
+      :guess_count,
+      :round_guess_count,
+      :total_guesses,
+      :guess_duration,
+      :timestamp,
+      :metadata
+    ]
 
-    def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event) do
-        cond do
-          is_nil(event.team_id) -> {:error, "team_id is required"}
-          is_nil(event.player1_info) -> {:error, "player1_info is required"}
-          is_nil(event.player2_info) -> {:error, "player2_info is required"}
-          is_nil(event.player1_word) -> {:error, "player1_word is required"}
-          is_nil(event.player2_word) -> {:error, "player2_word is required"}
-          is_nil(event.guess_count) -> {:error, "guess_count is required"}
-          event.guess_count < 1 -> {:error, "guess_count must be positive"}
-          true -> :ok
-        end
+    @impl true
+    def event_type, do: "guess_processed"
+
+    @impl true
+    def event_version, do: 1
+
+    @impl true
+    def validate(event) do
+      with :ok <- validate_required_fields(event),
+           :ok <- validate_positive_counts(event),
+           :ok <- validate_non_negative_duration(event),
+           :ok <- validate_match_score(event) do
+        :ok
+      end
+    end
+
+    defp validate_required_fields(event) do
+      required_fields = [
+        # Base Fields
+        :game_id,
+        :guild_id,
+        :mode,
+        :timestamp,
+        :metadata,
+        # Event-specific Fields
+        :round_number,
+        :team_id,
+        :player1_info,
+        :player2_info,
+        :player1_word,
+        :player2_word,
+        :guess_successful,
+        :guess_count,
+        :round_guess_count,
+        :total_guesses,
+        :guess_duration
+      ]
+
+      case Enum.find(required_fields, &(is_nil(Map.get(event, &1)))) do
+        nil -> :ok
+        field -> {:error, "#{field} is required"}
+      end
+    end
+
+    defp validate_positive_counts(event) do
+      counts = [
+        event.guess_count,
+        event.round_guess_count,
+        event.total_guesses
+      ]
+
+      if Enum.all?(counts, &(is_integer(&1) and &1 > 0)) do
+        :ok
+      else
+        {:error, "guess counts must be positive integers"}
+      end
+    end
+
+    defp validate_non_negative_duration(event) do
+      if is_integer(event.guess_duration) and event.guess_duration >= 0 do
+        :ok
+      else
+        {:error, "guess duration must be a non-negative integer"}
+      end
+    end
+
+    defp validate_match_score(event) do
+      case {event.guess_successful, event.match_score} do
+        {true, score} when is_integer(score) and score > 0 -> :ok
+        {true, _} -> {:error, "match_score must be a positive integer when guess is successful"}
+        {false, nil} -> :ok
+        {false, _} -> {:error, "match_score must be nil when guess is not successful"}
       end
     end
 
@@ -310,16 +546,21 @@ defmodule GameBot.Domain.Events.GameEvents do
 
   defmodule GuessAbandoned do
     @moduledoc "Emitted when a guess attempt is abandoned due to timeout or player giving up"
-    @behaviour GameBot.Domain.Events.GameEvents
+    use GameBot.Domain.Events.EventStructure
 
     @type t :: %__MODULE__{
+      # Base Fields
       game_id: String.t(),
       guild_id: String.t(),
       mode: atom(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+
+      # Event-specific Fields
       round_number: pos_integer(),
       team_id: String.t(),
-      player1_info: GameBot.Domain.Events.GameEvents.player_info(),
-      player2_info: GameBot.Domain.Events.GameEvents.player_info(),
+      player1_info: player_info(),
+      player2_info: player_info(),
       reason: :timeout | :player_quit | :disconnected,
       abandoning_player_id: String.t(),
       last_guess: %{
@@ -330,31 +571,106 @@ defmodule GameBot.Domain.Events.GameEvents do
       guess_count: pos_integer(),
       round_guess_count: pos_integer(),
       total_guesses: pos_integer(),
-      guess_duration: integer() | nil,
-      timestamp: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
+      guess_duration: non_neg_integer() | nil
     }
-    defstruct [:game_id, :guild_id, :mode, :round_number, :team_id, :player1_info, :player2_info,
-               :reason, :abandoning_player_id, :last_guess, :guess_count, :round_guess_count,
-               :total_guesses, :guess_duration, :timestamp, :metadata]
 
-    def event_type(), do: "guess_abandoned"
-    def event_version(), do: 1
+    defstruct [
+      :game_id,
+      :guild_id,
+      :mode,
+      :round_number,
+      :team_id,
+      :player1_info,
+      :player2_info,
+      :reason,
+      :abandoning_player_id,
+      :last_guess,
+      :guess_count,
+      :round_guess_count,
+      :total_guesses,
+      :guess_duration,
+      :timestamp,
+      :metadata
+    ]
 
-    def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event) do
-        cond do
-          is_nil(event.team_id) -> {:error, "team_id is required"}
-          is_nil(event.player1_info) -> {:error, "player1_info is required"}
-          is_nil(event.player2_info) -> {:error, "player2_info is required"}
-          is_nil(event.reason) -> {:error, "reason is required"}
-          is_nil(event.abandoning_player_id) -> {:error, "abandoning_player_id is required"}
-          is_nil(event.guess_count) -> {:error, "guess_count is required"}
-          event.guess_count < 1 -> {:error, "guess_count must be positive"}
-          true -> :ok
-        end
+    @impl true
+    def event_type, do: "guess_abandoned"
+
+    @impl true
+    def event_version, do: 1
+
+    @impl true
+    def validate(event) do
+      with :ok <- validate_required_fields(event),
+           :ok <- validate_positive_counts(event),
+           :ok <- validate_non_negative_duration(event),
+           :ok <- validate_reason(event),
+           :ok <- validate_last_guess(event) do
+        :ok
       end
     end
+
+    defp validate_required_fields(event) do
+      required_fields = [
+        # Base Fields
+        :game_id,
+        :guild_id,
+        :mode,
+        :timestamp,
+        :metadata,
+        # Event-specific Fields
+        :round_number,
+        :team_id,
+        :player1_info,
+        :player2_info,
+        :reason,
+        :abandoning_player_id,
+        :guess_count,
+        :round_guess_count,
+        :total_guesses
+      ]
+
+      case Enum.find(required_fields, &(is_nil(Map.get(event, &1)))) do
+        nil -> :ok
+        field -> {:error, "#{field} is required"}
+      end
+    end
+
+    defp validate_positive_counts(event) do
+      counts = [
+        event.guess_count,
+        event.round_guess_count,
+        event.total_guesses
+      ]
+
+      if Enum.all?(counts, &(is_integer(&1) and &1 > 0)) do
+        :ok
+      else
+        {:error, "guess counts must be positive integers"}
+      end
+    end
+
+    defp validate_non_negative_duration(event) do
+      case event.guess_duration do
+        nil -> :ok
+        duration when is_integer(duration) and duration >= 0 -> :ok
+        _ -> {:error, "guess duration must be a non-negative integer or nil"}
+      end
+    end
+
+    defp validate_reason(event) do
+      valid_reasons = [:timeout, :player_quit, :disconnected]
+      if event.reason in valid_reasons do
+        :ok
+      else
+        {:error, "reason must be one of: #{Enum.join(valid_reasons, ", ")}"}
+      end
+    end
+
+    defp validate_last_guess(nil), do: :ok
+    defp validate_last_guess(%{player_id: pid, word: w, timestamp: %DateTime{}} = _last_guess)
+      when is_binary(pid) and is_binary(w), do: :ok
+    defp validate_last_guess(_), do: {:error, "last_guess must be nil or contain valid player_id, word, and timestamp"}
 
     def to_map(%__MODULE__{} = event) do
       %{
@@ -400,48 +716,79 @@ defmodule GameBot.Domain.Events.GameEvents do
   end
 
   defmodule TeamEliminated do
-    @moduledoc "Emitted when a team is eliminated from the game"
-    @behaviour GameBot.Domain.Events.GameEvents
+    @moduledoc """
+    Emitted when a team is eliminated from the game. Contains final team state,
+    reason for elimination, and player statistics.
+    """
+    use GameBot.Domain.Events.EventStructure
+
+    @type elimination_reason :: :timeout | :max_guesses | :round_loss | :forfeit
+
+    @type team_player_stats :: %{
+      total_guesses: pos_integer(),
+      successful_matches: non_neg_integer(),
+      abandoned_guesses: non_neg_integer(),
+      average_guess_count: float()
+    }
 
     @type t :: %__MODULE__{
+      # Base Fields
       game_id: String.t(),
+      guild_id: String.t(),
       mode: atom(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+
+      # Event-specific Fields
       round_number: pos_integer(),
       team_id: String.t(),
-      reason: :timeout | :max_guesses | :round_loss | :forfeit,
-      final_state: GameBot.Domain.Events.GameEvents.team_info(),
+      reason: elimination_reason(),
+      final_state: team_info(),
       final_score: integer(),
-      player_stats: %{String.t() => %{
-        total_guesses: integer(),
-        successful_matches: integer(),
-        abandoned_guesses: integer(),
-        average_guess_count: float()
-      }},
-      timestamp: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
+      player_stats: %{String.t() => team_player_stats()}
     }
-    defstruct [:game_id, :mode, :round_number, :team_id, :reason, :final_state,
-               :final_score, :player_stats, :timestamp, :metadata]
 
+    defstruct [
+      # Base Fields
+      :game_id,
+      :guild_id,
+      :mode,
+      :timestamp,
+      :metadata,
+
+      # Event-specific Fields
+      :round_number,
+      :team_id,
+      :reason,
+      :final_state,
+      :final_score,
+      :player_stats
+    ]
+
+    @impl true
     def event_type(), do: "team_eliminated"
+
+    @impl true
     def event_version(), do: 1
 
+    @impl true
     def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event) do
-        cond do
-          is_nil(event.team_id) -> {:error, "team_id is required"}
-          is_nil(event.reason) -> {:error, "reason is required"}
-          is_nil(event.final_state) -> {:error, "final_state is required"}
-          is_nil(event.final_score) -> {:error, "final_score is required"}
-          is_nil(event.player_stats) -> {:error, "player_stats is required"}
-          true -> :ok
-        end
+      with :ok <- EventStructure.validate(event),
+           :ok <- validate_round_number(event.round_number),
+           :ok <- validate_team_id(event.team_id),
+           :ok <- validate_reason(event.reason),
+           :ok <- validate_final_state(event.final_state),
+           :ok <- validate_final_score(event.final_score),
+           :ok <- validate_player_stats(event.player_stats) do
+        :ok
       end
     end
 
+    @impl true
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
+        "guild_id" => event.guild_id,
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "team_id" => event.team_id,
@@ -454,9 +801,11 @@ defmodule GameBot.Domain.Events.GameEvents do
       }
     end
 
+    @impl true
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
+        guild_id: data["guild_id"],
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         team_id: data["team_id"],
@@ -468,38 +817,142 @@ defmodule GameBot.Domain.Events.GameEvents do
         metadata: data["metadata"] || %{}
       }
     end
+
+    # Private validation functions
+
+    defp validate_round_number(round_number) when is_integer(round_number) and round_number > 0, do: :ok
+    defp validate_round_number(_), do: {:error, "round_number must be a positive integer"}
+
+    defp validate_team_id(team_id) when is_binary(team_id), do: :ok
+    defp validate_team_id(_), do: {:error, "team_id must be a string"}
+
+    defp validate_reason(reason) when reason in [:timeout, :max_guesses, :round_loss, :forfeit], do: :ok
+    defp validate_reason(_), do: {:error, "reason must be one of: timeout, max_guesses, round_loss, forfeit"}
+
+    defp validate_final_state(%{
+      team_id: team_id,
+      player_ids: player_ids,
+      score: score,
+      matches: matches,
+      total_guesses: total_guesses
+    } = state) when is_map(state) do
+      with :ok <- validate_team_id(team_id),
+           :ok <- validate_player_ids(player_ids),
+           :ok <- validate_integer("score", score),
+           :ok <- validate_non_negative_integer("matches", matches),
+           :ok <- validate_positive_integer("total_guesses", total_guesses) do
+        :ok
+      end
+    end
+    defp validate_final_state(_), do: {:error, "invalid final_state structure"}
+
+    defp validate_player_ids(player_ids) when is_list(player_ids) do
+      if Enum.all?(player_ids, &is_binary/1) do
+        :ok
+      else
+        {:error, "player_ids must be a list of strings"}
+      end
+    end
+    defp validate_player_ids(_), do: {:error, "player_ids must be a list"}
+
+    defp validate_final_score(score) when is_integer(score), do: :ok
+    defp validate_final_score(_), do: {:error, "final_score must be an integer"}
+
+    defp validate_player_stats(stats) when is_map(stats) do
+      Enum.reduce_while(stats, :ok, fn {player_id, stats}, :ok ->
+        with :ok <- validate_team_id(player_id),
+             :ok <- validate_player_stat_values(stats) do
+          {:cont, :ok}
+        else
+          error -> {:halt, error}
+        end
+      end)
+    end
+    defp validate_player_stats(_), do: {:error, "player_stats must be a map"}
+
+    defp validate_player_stat_values(%{
+      total_guesses: total_guesses,
+      successful_matches: successful_matches,
+      abandoned_guesses: abandoned_guesses,
+      average_guess_count: average_guess_count
+    }) do
+      with :ok <- validate_positive_integer("total_guesses", total_guesses),
+           :ok <- validate_non_negative_integer("successful_matches", successful_matches),
+           :ok <- validate_non_negative_integer("abandoned_guesses", abandoned_guesses),
+           :ok <- validate_float("average_guess_count", average_guess_count) do
+        :ok
+      end
+    end
+    defp validate_player_stat_values(_), do: {:error, "invalid player stats structure"}
+
+    defp validate_integer(field, value) when is_integer(value), do: :ok
+    defp validate_integer(field, _), do: {:error, "#{field} must be an integer"}
+
+    defp validate_positive_integer(field, value) when is_integer(value) and value > 0, do: :ok
+    defp validate_positive_integer(field, _), do: {:error, "#{field} must be a positive integer"}
+
+    defp validate_non_negative_integer(field, value) when is_integer(value) and value >= 0, do: :ok
+    defp validate_non_negative_integer(field, _), do: {:error, "#{field} must be a non-negative integer"}
+
+    defp validate_float(field, value) when is_float(value), do: :ok
+    defp validate_float(field, _), do: {:error, "#{field} must be a float"}
   end
 
   defmodule GameCompleted do
-    @moduledoc "Emitted when a game ends"
-    @behaviour GameBot.Domain.Events.GameEvents
+    @moduledoc """
+    Emitted when a game ends. Contains final game state including winners, scores,
+    player statistics, and timing information.
+    """
+    use GameBot.Domain.Events.EventStructure
+
+    @type game_player_stats :: %{
+      total_guesses: pos_integer(),
+      successful_matches: non_neg_integer(),
+      abandoned_guesses: non_neg_integer(),
+      average_guess_count: float()
+    }
+
+    @type team_score :: %{
+      score: integer(),
+      matches: non_neg_integer(),
+      total_guesses: pos_integer(),
+      average_guesses: float(),
+      player_stats: %{String.t() => game_player_stats()}
+    }
 
     @type t :: %__MODULE__{
+      # Base Fields
       game_id: String.t(),
       guild_id: String.t(),
       mode: atom(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+
+      # Event-specific Fields
       round_number: pos_integer(),
       winners: [String.t()],
-      final_scores: %{String.t() => %{
-        score: integer(),
-        matches: integer(),
-        total_guesses: integer(),
-        average_guesses: float(),
-        player_stats: %{String.t() => %{
-          total_guesses: integer(),
-          successful_matches: integer(),
-          abandoned_guesses: integer(),
-          average_guess_count: float()
-        }}
-      }},
-      game_duration: integer(),
+      final_scores: %{String.t() => team_score()},
+      game_duration: non_neg_integer(),
       total_rounds: pos_integer(),
-      timestamp: DateTime.t(),
-      finished_at: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
+      finished_at: DateTime.t()
     }
-    defstruct [:game_id, :guild_id, :mode, :round_number, :winners, :final_scores,
-               :game_duration, :total_rounds, :timestamp, :finished_at, :metadata]
+
+    defstruct [
+      # Base Fields
+      :game_id,
+      :guild_id,
+      :mode,
+      :timestamp,
+      :metadata,
+
+      # Event-specific Fields
+      :round_number,
+      :winners,
+      :final_scores,
+      :game_duration,
+      :total_rounds,
+      :finished_at
+    ]
 
     @doc """
     Creates a new GameCompleted event with minimal parameters.
@@ -591,40 +1044,25 @@ defmodule GameBot.Domain.Events.GameEvents do
       end
     end
 
+    @impl true
     def event_type(), do: "game_completed"
+
+    @impl true
     def event_version(), do: 1
 
+    @impl true
     def validate(%__MODULE__{} = event) do
-      with :ok <- validate_required(event, [:game_id, :guild_id, :mode, :round_number, :winners,
-                                          :final_scores, :game_duration, :total_rounds,
-                                          :timestamp, :finished_at, :metadata]),
-           :ok <- validate_positive(event.total_rounds, "total_rounds"),
-           :ok <- validate_non_negative(event.game_duration, "game_duration"),
-           :ok <- validate_datetime(event.timestamp, "timestamp"),
-           :ok <- validate_datetime(event.finished_at, "finished_at") do
+      with :ok <- EventStructure.validate(event),
+           :ok <- validate_winners(event.winners),
+           :ok <- validate_final_scores(event.final_scores),
+           :ok <- validate_positive_counts(event),
+           :ok <- validate_non_negative_duration(event.game_duration),
+           :ok <- validate_finished_at(event.finished_at, event.timestamp) do
         :ok
       end
     end
 
-    defp validate_datetime(nil, field), do: {:error, "#{field} is required"}
-    defp validate_datetime(%DateTime{}, _), do: :ok
-    defp validate_datetime(_, field), do: {:error, "#{field} must be a DateTime"}
-
-    defp validate_required(event, fields) do
-      missing = Enum.filter(fields, &(is_nil(Map.get(event, &1))))
-      if Enum.empty?(missing) do
-        :ok
-      else
-        {:error, "Missing required fields: #{Enum.join(missing, ", ")}"}
-      end
-    end
-
-    defp validate_positive(value, field) when is_integer(value) and value > 0, do: :ok
-    defp validate_positive(_, field), do: {:error, "#{field} must be a positive integer"}
-
-    defp validate_non_negative(value, field) when is_integer(value) and value >= 0, do: :ok
-    defp validate_non_negative(_, field), do: {:error, "#{field} must be a non-negative integer"}
-
+    @impl true
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
@@ -641,6 +1079,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       }
     end
 
+    @impl true
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
@@ -656,6 +1095,114 @@ defmodule GameBot.Domain.Events.GameEvents do
         metadata: data["metadata"] || %{}
       }
     end
+
+    # Private validation functions
+
+    defp validate_winners(winners) when is_list(winners) do
+      if Enum.empty?(winners) do
+        {:error, "winners list cannot be empty"}
+      else
+        if Enum.all?(winners, &is_binary/1) do
+          :ok
+        else
+          {:error, "winners must be a list of strings"}
+        end
+      end
+    end
+    defp validate_winners(_), do: {:error, "winners must be a list"}
+
+    defp validate_final_scores(scores) when is_map(scores) do
+      if Enum.empty?(scores) do
+        {:error, "final_scores cannot be empty"}
+      else
+        Enum.reduce_while(scores, :ok, fn {team_id, score}, :ok ->
+          with :ok <- validate_team_id(team_id),
+               :ok <- validate_team_score(score) do
+            {:cont, :ok}
+          else
+            error -> {:halt, error}
+          end
+        end)
+      end
+    end
+    defp validate_final_scores(_), do: {:error, "final_scores must be a map"}
+
+    defp validate_team_id(team_id) when is_binary(team_id), do: :ok
+    defp validate_team_id(_), do: {:error, "team_id must be a string"}
+
+    defp validate_team_score(%{
+      score: score,
+      matches: matches,
+      total_guesses: total_guesses,
+      average_guesses: average_guesses,
+      player_stats: player_stats
+    }) when is_map(player_stats) do
+      with :ok <- validate_integer("score", score),
+           :ok <- validate_non_negative_integer("matches", matches),
+           :ok <- validate_positive_integer("total_guesses", total_guesses),
+           :ok <- validate_float("average_guesses", average_guesses),
+           :ok <- validate_player_stats(player_stats) do
+        :ok
+      end
+    end
+    defp validate_team_score(_), do: {:error, "invalid team score structure"}
+
+    defp validate_player_stats(stats) when is_map(stats) do
+      Enum.reduce_while(stats, :ok, fn {player_id, stats}, :ok ->
+        with :ok <- validate_team_id(player_id),
+             :ok <- validate_player_stat_values(stats) do
+          {:cont, :ok}
+        else
+          error -> {:halt, error}
+        end
+      end)
+    end
+    defp validate_player_stats(_), do: {:error, "player_stats must be a map"}
+
+    defp validate_player_stat_values(%{
+      total_guesses: total_guesses,
+      successful_matches: successful_matches,
+      abandoned_guesses: abandoned_guesses,
+      average_guess_count: average_guess_count
+    }) do
+      with :ok <- validate_positive_integer("total_guesses", total_guesses),
+           :ok <- validate_non_negative_integer("successful_matches", successful_matches),
+           :ok <- validate_non_negative_integer("abandoned_guesses", abandoned_guesses),
+           :ok <- validate_float("average_guess_count", average_guess_count) do
+        :ok
+      end
+    end
+    defp validate_player_stat_values(_), do: {:error, "invalid player stats structure"}
+
+    defp validate_positive_counts(%__MODULE__{round_number: round_number, total_rounds: total_rounds}) do
+      with :ok <- validate_positive_integer("round_number", round_number),
+           :ok <- validate_positive_integer("total_rounds", total_rounds) do
+        :ok
+      end
+    end
+
+    defp validate_non_negative_duration(duration) when is_integer(duration) and duration >= 0, do: :ok
+    defp validate_non_negative_duration(_), do: {:error, "game_duration must be a non-negative integer"}
+
+    defp validate_finished_at(%DateTime{} = finished_at, %DateTime{} = timestamp) do
+      case DateTime.compare(finished_at, timestamp) do
+        :gt -> {:error, "finished_at cannot be after timestamp"}
+        _ -> :ok
+      end
+    end
+    defp validate_finished_at(_, _), do: {:error, "finished_at must be a DateTime"}
+
+    defp validate_integer(field, value) when is_integer(value), do: :ok
+    defp validate_integer(field, _), do: {:error, "#{field} must be an integer"}
+
+    defp validate_positive_integer(field, value) when is_integer(value) and value > 0, do: :ok
+    defp validate_positive_integer(field, _), do: {:error, "#{field} must be a positive integer"}
+
+    defp validate_non_negative_integer(field, value) when is_integer(value) and value >= 0, do: :ok
+    defp validate_non_negative_integer(field, _), do: {:error, "#{field} must be a non-negative integer"}
+
+    defp validate_float(field, value) when is_float(value), do: :ok
+    defp validate_float(field, _), do: {:error, "#{field} must be a float"}
   end
 
   # Mode-specific Events
@@ -922,41 +1469,67 @@ defmodule GameBot.Domain.Events.GameEvents do
   end
 
   defmodule RoundCompleted do
-    @moduledoc "Emitted when a round completes"
-    @behaviour GameBot.Domain.Events.GameEvents
+    @moduledoc """
+    Emitted when a round completes. Contains round results including winner,
+    scores, and statistics.
+    """
+    use GameBot.Domain.Events.EventStructure
+
+    @type round_player_stats :: %{
+      total_guesses: pos_integer(),
+      successful_matches: non_neg_integer(),
+      abandoned_guesses: non_neg_integer(),
+      average_guess_count: float()
+    }
 
     @type t :: %__MODULE__{
+      # Base Fields
       game_id: String.t(),
       guild_id: String.t(),
       mode: atom(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+
+      # Event-specific Fields
       round_number: pos_integer(),
       winner_team_id: String.t(),
       round_score: integer(),
-      round_stats: %{
-        total_guesses: integer(),
-        successful_matches: integer(),
-        abandoned_guesses: integer(),
-        average_guess_count: float()
-      },
-      timestamp: DateTime.t(),
-      metadata: GameBot.Domain.Events.GameEvents.metadata()
+      round_stats: round_player_stats()
     }
-    defstruct [:game_id, :guild_id, :mode, :round_number, :winner_team_id,
-               :round_score, :round_stats, :timestamp, :metadata]
 
+    defstruct [
+      # Base Fields
+      :game_id,
+      :guild_id,
+      :mode,
+      :timestamp,
+      :metadata,
+
+      # Event-specific Fields
+      :round_number,
+      :winner_team_id,
+      :round_score,
+      :round_stats
+    ]
+
+    @impl true
     def event_type(), do: "round_completed"
+
+    @impl true
     def event_version(), do: 1
 
+    @impl true
     def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event) do
-        cond do
-          is_nil(event.round_number) -> {:error, "round_number is required"}
-          is_nil(event.round_stats) -> {:error, "round_stats is required"}
-          true -> :ok
-        end
+      with :ok <- EventStructure.validate(event),
+           :ok <- validate_round_number(event.round_number),
+           :ok <- validate_winner_team_id(event.winner_team_id),
+           :ok <- validate_round_score(event.round_score),
+           :ok <- validate_round_stats(event.round_stats) do
+        :ok
       end
     end
 
+    @impl true
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
@@ -971,6 +1544,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       }
     end
 
+    @impl true
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
@@ -984,6 +1558,41 @@ defmodule GameBot.Domain.Events.GameEvents do
         metadata: data["metadata"] || %{}
       }
     end
+
+    # Private validation functions
+
+    defp validate_round_number(round_number) when is_integer(round_number) and round_number > 0, do: :ok
+    defp validate_round_number(_), do: {:error, "round_number must be a positive integer"}
+
+    defp validate_winner_team_id(team_id) when is_binary(team_id), do: :ok
+    defp validate_winner_team_id(_), do: {:error, "winner_team_id must be a string"}
+
+    defp validate_round_score(score) when is_integer(score), do: :ok
+    defp validate_round_score(_), do: {:error, "round_score must be an integer"}
+
+    defp validate_round_stats(%{
+      total_guesses: total_guesses,
+      successful_matches: successful_matches,
+      abandoned_guesses: abandoned_guesses,
+      average_guess_count: average_guess_count
+    }) do
+      with :ok <- validate_positive_integer("total_guesses", total_guesses),
+           :ok <- validate_non_negative_integer("successful_matches", successful_matches),
+           :ok <- validate_non_negative_integer("abandoned_guesses", abandoned_guesses),
+           :ok <- validate_float("average_guess_count", average_guess_count) do
+        :ok
+      end
+    end
+    defp validate_round_stats(_), do: {:error, "invalid round_stats structure"}
+
+    defp validate_positive_integer(field, value) when is_integer(value) and value > 0, do: :ok
+    defp validate_positive_integer(field, _), do: {:error, "#{field} must be a positive integer"}
+
+    defp validate_non_negative_integer(field, value) when is_integer(value) and value >= 0, do: :ok
+    defp validate_non_negative_integer(field, _), do: {:error, "#{field} must be a non-negative integer"}
+
+    defp validate_float(field, value) when is_float(value), do: :ok
+    defp validate_float(field, _), do: {:error, "#{field} must be a float"}
   end
 
   defmodule RoundRestarted do
@@ -991,12 +1600,5 @@ defmodule GameBot.Domain.Events.GameEvents do
     defstruct [:game_id, :guild_id, :team_id, :giving_up_player, :teammate_word, :guess_count, :timestamp]
 
     def event_type, do: "round_restarted"
-  end
-
-  defmodule GuessMatched do
-    @derive Jason.Encoder
-    defstruct [:game_id, :guild_id, :team_id, :player_id, :word, :timestamp]
-
-    def event_type, do: "guess_matched"
   end
 end

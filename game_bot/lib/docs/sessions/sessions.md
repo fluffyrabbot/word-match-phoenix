@@ -71,11 +71,10 @@ The session integrates with the event store for:
    # Core event types
    GameStarted        # Initial game setup
    GuessProcessed     # Guess handling
-   GuessMatched      # Successful match
-   GuessFailed       # Failed match
-   GuessError        # Validation errors
-   RoundEnded        # Round completion
-   GameCompleted     # Game finish
+   GuessFailed        # Failed match
+   GuessError         # Validation errors
+   RoundEnded         # Round completion
+   GameCompleted      # Game finish
    ```
 
 ## Key Interactions

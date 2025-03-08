@@ -41,9 +41,12 @@ defmodule GameBot.GameSessions.Recovery do
   alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{
     GameStarted,
-    RoundEnded,
+    GameCompleted,
+    GuessProcessed,
+    GuessAbandoned,
     RoundStarted,
-    GameCompleted
+    RoundCompleted,
+    TeamEliminated
   }
 
   # Configuration
@@ -466,13 +469,15 @@ defmodule GameBot.GameSessions.Recovery do
     end)
   end
 
-  defp apply_event(%RoundEnded{} = event, state) do
-    Map.update!(state, :mode_state, fn mode_state ->
-      %{mode_state |
-        round_number: mode_state.round_number + 1,
-        round_winners: event.winners
-      }
-    end)
+  defp apply_event(%RoundCompleted{} = event, state) do
+    # Update state with round end results
+    new_state = %{state |
+      round_number: event.round_number,
+      winner_team_id: event.winner_team_id,
+      round_score: event.round_score,
+      round_stats: event.round_stats
+    }
+    {:ok, new_state}
   end
 
   defp apply_event(%GameCompleted{} = event, state) do

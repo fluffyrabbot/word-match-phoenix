@@ -8,74 +8,155 @@ defmodule GameBot.Domain.Events.EventStructure do
   - Validation functions to ensure event consistency
   - Helper functions for creating and manipulating events
   - Serialization and deserialization of event data with support for complex types
+
+  All events must include base fields and follow type specifications defined here.
+  See type_specifications.md for comprehensive documentation.
   """
 
   alias GameBot.Domain.Events.Metadata
 
   # Base fields that should be present in all events
-  @base_fields [:game_id, :guild_id, :mode, :round_number, :timestamp, :metadata]
+  @base_fields [:game_id, :guild_id, :mode, :timestamp, :metadata]
+
+  @doc """
+  When used, imports common event functionality and sets up the event structure.
+
+  This macro:
+  1. Implements the GameEvents behaviour
+  2. Imports common validation functions
+  3. Sets up base field definitions
+  4. Provides default implementations
+  5. Imports common types
+  """
+  defmacro __using__(_opts) do
+    quote do
+      @behaviour GameBot.Domain.Events.GameEvents
+
+      alias GameBot.Domain.Events.{EventStructure, Metadata}
+
+      # Import functions
+      import GameBot.Domain.Events.EventStructure,
+        only: [
+          validate_base_fields: 1,
+          validate_metadata: 1,
+          validate_types: 2,
+          parse_timestamp: 1,
+          create_timestamp: 0,
+          create_event_map: 5
+        ]
+
+      # Define types
+      @type metadata :: Metadata.t()
+      @type player_info :: %{
+        player_id: String.t(),
+        team_id: String.t(),
+        name: String.t() | nil,
+        role: atom() | nil
+      }
+      @type team_info :: %{
+        team_id: String.t(),
+        player_ids: [String.t()],
+        score: integer(),
+        matches: non_neg_integer(),
+        total_guesses: pos_integer()
+      }
+      @type player_stats :: %{
+        total_guesses: pos_integer(),
+        successful_matches: non_neg_integer(),
+        abandoned_guesses: non_neg_integer(),
+        average_guess_count: float()
+      }
+
+      # Default implementations that can be overridden
+      @impl true
+      def validate(event) do
+        with :ok <- validate_base_fields(event),
+             :ok <- validate_metadata(event) do
+          :ok
+        end
+      end
+
+      @impl true
+      def event_version, do: 1
+
+      defoverridable validate: 1, event_version: 0
+    end
+  end
 
   @typedoc """
   Metadata structure for events to ensure proper tracking and correlation.
+  Must include either guild_id or source_id for tracking purposes.
+  See GameBot.Domain.Events.Metadata for detailed field specifications.
   """
   @type metadata :: Metadata.t()
 
   @typedoc """
-  Standard structure for team information in events.
+  Standard structure for player information in events.
+  Used consistently across all events that reference players.
   """
-  @type team_info :: %{
-    required(:team_id) => String.t(),
-    required(:name) => String.t(),
-    required(:players) => [String.t()]
+  @type player_info :: %{
+    player_id: String.t(),
+    team_id: String.t(),
+    name: String.t() | nil,
+    role: atom() | nil
   }
 
   @typedoc """
-  Standard structure for player information in events.
+  Standard structure for team information in events.
+  Used consistently across all events that reference teams.
   """
-  @type player_info :: %{
-    required(:player_id) => String.t(),
-    optional(:name) => String.t(),
-    optional(:role) => atom()
+  @type team_info :: %{
+    team_id: String.t(),
+    player_ids: [String.t()],
+    score: integer(),
+    matches: non_neg_integer(),
+    total_guesses: pos_integer()
+  }
+
+  @typedoc """
+  Standard structure for player statistics in events.
+  Used in game completion and team elimination events.
+  """
+  @type player_stats :: %{
+    total_guesses: pos_integer(),
+    successful_matches: non_neg_integer(),
+    abandoned_guesses: non_neg_integer(),
+    average_guess_count: float()
   }
 
   @doc """
   Returns the list of base fields required for all events.
   """
+  @spec base_fields() :: [atom()]
   def base_fields, do: @base_fields
 
   @doc """
   Validates that an event contains all required base fields.
   """
+  @spec validate_base_fields(struct()) :: :ok | {:error, String.t()}
   def validate_base_fields(event) do
-    Enum.find_value(@base_fields, :ok, fn field ->
-      if Map.get(event, field) == nil do
-        {:error, "#{field} is required"}
-      else
-        false
-      end
-    end)
-  end
-
-  @doc """
-  Validates that an event's metadata is valid.
-  """
-  def validate_metadata(event) do
-    with %{metadata: metadata} <- event,
-         true <- is_map(metadata) do
-      if Map.has_key?(metadata, "guild_id") or Map.has_key?(metadata, :guild_id) or
-         Map.has_key?(metadata, "source_id") or Map.has_key?(metadata, :source_id) do
-        :ok
-      else
-        {:error, "guild_id or source_id is required in metadata"}
-      end
-    else
-      _ -> {:error, "invalid metadata format"}
+    with :ok <- validate_required_fields(event, @base_fields),
+         :ok <- validate_id_fields(event),
+         :ok <- validate_timestamp(event.timestamp),
+         :ok <- validate_mode(event.mode) do
+      :ok
     end
   end
 
   @doc """
+  Validates that an event's metadata is valid.
+  Uses Metadata.validate/1 for validation.
+  """
+  @spec validate_metadata(struct()) :: :ok | {:error, String.t()}
+  def validate_metadata(%{metadata: metadata}) when is_map(metadata) do
+    Metadata.validate(metadata)
+  end
+  def validate_metadata(_), do: {:error, "metadata is required"}
+
+  @doc """
   Creates a timestamp for an event, defaulting to current UTC time.
   """
+  @spec create_timestamp() :: DateTime.t()
   def create_timestamp, do: DateTime.utc_now()
 
   @doc """
@@ -85,70 +166,28 @@ defmodule GameBot.Domain.Events.EventStructure do
   - game_id: Unique identifier for the game
   - guild_id: Discord guild ID
   - mode: Game mode (atom)
-  - metadata: Event metadata
+  - metadata: Event metadata (must be valid Metadata.t())
   - opts: Optional parameters
-    - round_number: Round number (defaults to 1)
     - timestamp: Event timestamp (defaults to current time)
   """
+  @spec create_event_map(String.t(), String.t(), atom(), metadata(), keyword()) :: map()
   def create_event_map(game_id, guild_id, mode, metadata, opts \\ []) do
-    round_number = Keyword.get(opts, :round_number, 1)
     timestamp = Keyword.get(opts, :timestamp, create_timestamp())
 
     %{
       game_id: game_id,
       guild_id: guild_id,
       mode: mode,
-      round_number: round_number,
       timestamp: timestamp,
       metadata: metadata
     }
   end
 
   @doc """
-  Creates a base event map with all required fields, including optional fields.
-
-  More flexible version of create_event_map that allows for additional fields.
-  """
-  def create_base_event(fields, metadata) do
-    fields
-    |> Map.put(:timestamp, create_timestamp())
-    |> Map.put(:metadata, metadata)
-  end
-
-  @doc """
-  Validates an event to ensure it meets the standard requirements.
-
-  Performs both base field validation and metadata validation.
-  Also performs mode-specific validation when applicable.
-  """
-  def validate(event) do
-    with :ok <- validate_base_fields(event),
-         :ok <- validate_metadata(event),
-         :ok <- validate_mode_specific(event) do
-      :ok
-    end
-  end
-
-  @doc """
-  Validates the required fields of an event against a list.
-
-  Returns :ok if all fields are present, or an error with the missing field.
-  """
-  def validate_fields(event, required_fields) do
-    Enum.find_value(required_fields, :ok, fn field ->
-      if Map.get(event, field) == nil do
-        {:error, "#{field} is required"}
-      else
-        false
-      end
-    end)
-  end
-
-  @doc """
   Validates that field values have the correct types.
-
   Takes a map of field names to type-checking functions.
   """
+  @spec validate_types(struct(), %{atom() => (term() -> boolean())}) :: :ok | {:error, String.t()}
   def validate_types(event, field_types) do
     Enum.find_value(field_types, :ok, fn {field, type_check} ->
       value = Map.get(event, field)
@@ -162,9 +201,9 @@ defmodule GameBot.Domain.Events.EventStructure do
 
   @doc """
   Parses a timestamp string into a DateTime struct.
-
   Raises an error if the timestamp is invalid.
   """
+  @spec parse_timestamp(String.t()) :: DateTime.t()
   def parse_timestamp(timestamp) do
     case DateTime.from_iso8601(timestamp) do
       {:ok, datetime, _offset} -> datetime
@@ -172,151 +211,101 @@ defmodule GameBot.Domain.Events.EventStructure do
     end
   end
 
-  @doc """
-  Serializes a map or struct for storage by converting complex types to serializable formats.
+  # Private Functions
 
-  Handles:
-  - DateTime objects (converts to ISO8601 strings)
-  - MapSet objects (converts to maps with special markers)
-  - Nested maps (recursively processes all values)
-  - Lists (recursively processes all items)
-  - Structs (converts to maps with type information)
-
-  ## Parameters
-  - data: The data to serialize (map, struct, or other value)
-
-  ## Returns
-  - The serialized data suitable for storage
-  """
-  @spec serialize(any()) :: any()
-  def serialize(data) when is_struct(data, DateTime) do
-    DateTime.to_iso8601(data)
+  defp validate_required_fields(event, fields) do
+    Enum.find_value(fields, :ok, fn field ->
+      if Map.get(event, field) == nil do
+        {:error, "#{field} is required"}
+      else
+        false
+      end
+    end)
   end
 
-  def serialize(data) when is_struct(data, MapSet) do
+  defp validate_id_fields(event) do
+    with true <- is_binary(event.game_id) and byte_size(event.game_id) > 0,
+         true <- is_binary(event.guild_id) and byte_size(event.guild_id) > 0 do
+      :ok
+    else
+      false -> {:error, "game_id and guild_id must be non-empty strings"}
+    end
+  end
+
+  defp validate_timestamp(%DateTime{} = timestamp) do
+    case DateTime.compare(timestamp, DateTime.utc_now()) do
+      :gt -> {:error, "timestamp cannot be in the future"}
+      _ -> :ok
+    end
+  end
+  defp validate_timestamp(_), do: {:error, "timestamp must be a DateTime"}
+
+  defp validate_mode(mode) when is_atom(mode), do: :ok
+  defp validate_mode(_), do: {:error, "mode must be an atom"}
+
+  # Serialization Functions
+
+  @doc """
+  Serializes a map or struct for storage by converting complex types to serializable formats.
+  """
+  @spec serialize(term()) :: term()
+  def serialize(data)
+
+  def serialize(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+
+  def serialize(%MapSet{} = set) do
     %{
       "__mapset__" => true,
-      "items" => MapSet.to_list(data)
+      "items" => MapSet.to_list(set) |> Enum.map(&serialize/1)
     }
   end
 
-  def serialize(data) when is_struct(data) do
-    # Convert struct to a map, stringify keys, and add type information
-    data
+  def serialize(%_{} = struct) do
+    struct
     |> Map.from_struct()
     |> Enum.map(fn {k, v} -> {to_string(k), serialize(v)} end)
     |> Map.new()
-    |> Map.put("__struct__", data.__struct__ |> to_string())
+    |> Map.put("__struct__", struct.__struct__ |> to_string())
   end
 
-  def serialize(data) when is_map(data) do
-    # Process each key-value pair recursively
-    Enum.map(data, fn {k, v} -> {k, serialize(v)} end)
-    |> Map.new()
+  def serialize(map) when is_map(map) do
+    Enum.map(map, fn {k, v} -> {k, serialize(v)} end) |> Map.new()
   end
 
-  def serialize(data) when is_list(data) do
-    # Process each item in the list recursively
-    Enum.map(data, &serialize/1)
+  def serialize(list) when is_list(list) do
+    Enum.map(list, &serialize/1)
   end
 
-  def serialize(data), do: data
+  def serialize(other), do: other
 
   @doc """
   Deserializes data from storage format back to its original format.
-
-  Handles:
-  - ISO8601 strings (converts to DateTime objects)
-  - MapSet markers (converts back to MapSet)
-  - Nested maps (recursively processes all values)
-  - Lists (recursively processes all items)
-  - Structs (attempts to restore original struct type)
-
-  ## Parameters
-  - data: The serialized data to deserialize
-
-  ## Returns
-  - The deserialized data with complex types restored
   """
-  @spec deserialize(any()) :: any()
+  @spec deserialize(term()) :: term()
+  def deserialize(data)
+
   def deserialize(%{"__mapset__" => true, "items" => items}) when is_list(items) do
-    MapSet.new(deserialize(items))
+    MapSet.new(Enum.map(items, &deserialize/1))
   end
 
   def deserialize(%{"__struct__" => struct_name} = data) when is_binary(struct_name) do
-    # Try to convert back to the original struct
     try do
       module = String.to_existing_atom(struct_name)
-
-      # Remove the struct marker and deserialize values
       data = Map.delete(data, "__struct__")
-      deserialized_data = deserialize(data)
-
-      # Create struct from deserialized data
-      struct(module, deserialized_data)
+      data = Enum.map(data, fn {k, v} -> {String.to_existing_atom(k), deserialize(v)} end)
+      struct(module, data)
     rescue
-      # If module doesn't exist or any other error, return as map
-      _ ->
-        data
-        |> Map.delete("__struct__")
-        |> deserialize()
+      ArgumentError -> data
     end
   end
 
-  def deserialize(data) when is_map(data) do
-    # Process each key-value pair recursively
-    Enum.map(data, fn {k, v} -> {k, deserialize(v)} end)
-    |> Map.new()
+  def deserialize(map) when is_map(map) do
+    Enum.map(map, fn {k, v} -> {k, deserialize(v)} end) |> Map.new()
   end
 
-  def deserialize(data) when is_list(data) do
-    # Process each item in the list recursively
-    Enum.map(data, &deserialize/1)
+  def deserialize(list) when is_list(list) do
+    Enum.map(list, &deserialize/1)
   end
 
-  def deserialize(data) when is_binary(data) do
-    # Try to parse ISO8601 datetime strings
-    if Regex.match?(~r/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, data) do
-      try do
-        case DateTime.from_iso8601(data) do
-          {:ok, datetime, _} -> datetime
-          _ -> data
-        end
-      rescue
-        _ -> data
-      end
-    else
-      data
-    end
-  end
-
-  def deserialize(data), do: data
-
-  # Private functions for mode-specific validation
-
-  defp validate_mode_specific(%{mode: :two_player} = event) do
-    case Code.ensure_loaded?(GameBot.Domain.GameModes.TwoPlayerMode) and
-         function_exported?(GameBot.Domain.GameModes.TwoPlayerMode, :validate_event, 1) do
-      true -> GameBot.Domain.GameModes.TwoPlayerMode.validate_event(event)
-      false -> :ok
-    end
-  end
-
-  defp validate_mode_specific(%{mode: :knockout} = event) do
-    case Code.ensure_loaded?(GameBot.Domain.GameModes.KnockoutMode) and
-         function_exported?(GameBot.Domain.GameModes.KnockoutMode, :validate_event, 1) do
-      true -> GameBot.Domain.GameModes.KnockoutMode.validate_event(event)
-      false -> :ok
-    end
-  end
-
-  defp validate_mode_specific(%{mode: :race} = event) do
-    case Code.ensure_loaded?(GameBot.Domain.GameModes.RaceMode) and
-         function_exported?(GameBot.Domain.GameModes.RaceMode, :validate_event, 1) do
-      true -> GameBot.Domain.GameModes.RaceMode.validate_event(event)
-      false -> :ok
-    end
-  end
-
-  defp validate_mode_specific(_event), do: :ok
+  def deserialize(other), do: other
 end

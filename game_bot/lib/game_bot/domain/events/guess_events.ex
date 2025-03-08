@@ -83,23 +83,13 @@ defmodule GameBot.Domain.Events do
 
     # EventValidator implementation
 
-    defimpl GameBot.Domain.Events.EventValidator do
+    defimpl GameBot.Domain.Events.EventValidator, for: GuessProcessed do
       def validate(event) do
         with :ok <- validate_base_fields(event),
              :ok <- validate_metadata(event),
              :ok <- validate_guess_fields(event) do
           :ok
         end
-      end
-
-      def validate_fields(event, required_fields) do
-        Enum.find_value(required_fields, :ok, fn field ->
-          if Map.get(event, field) == nil do
-            {:error, "#{field} is required"}
-          else
-            false
-          end
-        end)
       end
 
       defp validate_base_fields(event) do
@@ -139,6 +129,16 @@ defmodule GameBot.Domain.Events do
           event.guess_duration < 0 -> {:error, "guess_duration must be non-negative"}
           true -> :ok
         end
+      end
+
+      defp validate_fields(event, required_fields) do
+        Enum.find_value(required_fields, :ok, fn field ->
+          if Map.get(event, field) == nil do
+            {:error, "#{field} is required"}
+          else
+            false
+          end
+        end)
       end
     end
   end
