@@ -126,12 +126,18 @@ defmodule GameBot.Domain.GameModes.TwoPlayerModeValidationTest do
     test "validates GuessProcessed event" do
       event = %GuessProcessed{
         game_id: "game123",
+        guild_id: "guild123",
         mode: :two_player,
         team_id: "team1",
         player1_info: %{id: "player1", word: "hello"},
         player2_info: %{id: "player2", word: "hello"},
         guess_successful: true,
         guess_count: 1,
+        round_number: 1,
+        round_guess_count: 1,
+        total_guesses: 1,
+        guess_duration: 100,
+        match_score: 1,
         timestamp: DateTime.utc_now(),
         metadata: %{}
       }

@@ -7,7 +7,7 @@ defmodule GameBot.Application do
 
   @impl true
   def start(_type, _args) do
-    children = base_children() ++ word_service_child()
+    children = base_children() ++ word_service_child() ++ event_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -50,5 +50,18 @@ defmodule GameBot.Application do
       true -> [GameBot.Domain.WordService]
       false -> []
     end
+  end
+
+  defp event_children do
+    [
+      # Start the Event Registry
+      GameBot.Domain.Events.Registry,
+
+      # Start the Event Cache
+      GameBot.Domain.Events.Cache,
+
+      # Start the Event Processor Task Supervisor
+      {Task.Supervisor, name: GameBot.EventProcessor.TaskSupervisor}
+    ]
   end
 end

@@ -1,53 +1,96 @@
 # GameStarted Event
 
-## Description
-Emitted when a new game is started. This event marks the beginning of a game session and contains all initial game configuration and player information.
+## Overview
 
-## Structure
+The `GameStarted` event is emitted when a game officially begins. This occurs after all players have been assigned to teams and roles, and the game configuration has been finalized.
+
+## Event Definition
+
 ```elixir
-@type t :: %GameStarted{
-  game_id: String.t(),           # Unique identifier for the game
-  mode: atom(),                  # Game mode (e.g. :two_player, :knockout, :race)
-  round_number: pos_integer(),   # Always 1 for game start
-  teams: %{String.t() => [String.t()]},  # Map of team_id to list of player_ids
-  team_ids: [String.t()],        # Ordered list of team IDs
-  player_ids: [String.t()],      # Ordered list of all player IDs
-  roles: %{String.t() => atom()}, # Map of player_id to role
-  config: map(),                 # Mode-specific configuration
-  timestamp: DateTime.t(),        # When the event occurred
-  metadata: metadata()           # Additional context information
-}
+defmodule GameBot.Domain.Events.GameEvents.GameStarted do
+  use GameBot.Domain.Events.BaseEvent,
+    event_type: "game_started",
+    version: 1,
+    fields: [
+      field(:teams, :map),
+      field(:team_ids, {:array, :string}),
+      field(:player_ids, {:array, :string}),
+      field(:roles, :map),
+      field(:config, :map),
+      field(:started_at, :utc_datetime_usec)
+    ]
+end
 ```
 
 ## Fields
-- `game_id`: A unique identifier for the game session
-- `mode`: The game mode being played
-- `round_number`: Always 1 for game start event
-- `teams`: Map of team IDs to lists of player IDs, defining team composition
-- `team_ids`: Ordered list of team IDs for maintaining team order
-- `player_ids`: Ordered list of all player IDs in the game
-- `roles`: Map of player IDs to their assigned roles
-- `config`: Mode-specific configuration parameters
-- `timestamp`: When the event occurred
-- `metadata`: Additional context information (client version, correlation ID, etc.)
 
-## Validation
-The event validates:
-- All required fields are present
-- Team IDs in teams map match team_ids list
-- Player IDs in teams match player_ids list
+### Base Fields (Inherited)
+- `game_id` (string, required) - Unique identifier for the game
+- `guild_id` (string, required) - Discord guild ID where the game is being played
+- `mode` (enum, required) - Game mode (:two_player, :knockout, :race)
+- `round_number` (integer, required) - Initial round number (typically 1)
+- `timestamp` (utc_datetime_usec, required) - When the event occurred
+- `metadata` (map, required) - Additional context about the event
 
-## Usage
-This event is used to:
-1. Initialize game state
-2. Set up team structures
-3. Assign player roles
-4. Configure mode-specific settings
+### Custom Fields
+- `teams` (map, required) - Map of team IDs to player IDs
+  ```elixir
+  %{
+    "team_id" => [player_id_1, player_id_2]
+  }
+  ```
+- `team_ids` (list of strings, required) - List of all team IDs in play order
+- `player_ids` (list of strings, required) - List of all player IDs
+- `roles` (map, required) - Map of player IDs to their roles
+  ```elixir
+  %{
+    "player_id" => :giver | :guesser
+  }
+  ```
+- `config` (map, required) - Game configuration settings
+  ```elixir
+  %{
+    max_guesses: pos_integer(),
+    time_limit: pos_integer() | nil,
+    word_list: String.t(),
+    scoring: :standard | :time_bonus | :streak
+  }
+  ```
+- `started_at` (utc_datetime_usec, required) - Timestamp when the game started
 
-## Example
+## Validation Rules
+
+1. Base field validation (handled by BaseEvent)
+2. Required fields must be present
+3. Custom field validation:
+   ```elixir
+   def validate_custom_fields(changeset) do
+     super(changeset)
+     |> validate_teams()
+     |> validate_roles()
+     |> validate_config()
+   end
+   ```
+4. Team validation:
+   - All teams must have exactly 2 players
+   - All player IDs must be unique
+   - Team IDs must match team_ids list
+5. Role validation:
+   - Each team must have one giver and one guesser
+   - All player IDs must have assigned roles
+6. Config validation:
+   - max_guesses must be positive
+   - time_limit must be positive or nil
+   - word_list must be a valid identifier
+   - scoring must be a valid strategy
+
+## Example Usage
+
 ```elixir
-%GameStarted{
-  game_id: "two_player-1234567890",
+# Creating a new GameStarted event
+event = %GameBot.Domain.Events.GameEvents.GameStarted{
+  game_id: "game-123",
+  guild_id: "guild-456",
   mode: :two_player,
   round_number: 1,
   teams: %{
@@ -63,13 +106,78 @@ This event is used to:
     "player4" => :guesser
   },
   config: %{
-    max_guesses: 3,
-    time_limit: 300
+    max_guesses: 10,
+    time_limit: 300,
+    word_list: "standard",
+    scoring: :standard
   },
-  timestamp: ~U[2024-03-04 00:00:00Z],
+  started_at: DateTime.utc_now(),
+  timestamp: DateTime.utc_now(),
   metadata: %{
-    client_version: "1.0.0",
-    correlation_id: "abc123"
+    source_id: "msg-123",
+    correlation_id: "corr-456",
+    causation_id: "cmd-789"
   }
 }
-``` 
+
+# Validating the event
+case GameBot.Domain.Events.EventValidator.validate(event) do
+  :ok ->
+    # Event is valid
+    {:ok, event}
+  
+  {:error, reason} ->
+    # Handle validation error
+    {:error, reason}
+end
+```
+
+## Testing
+
+Required test cases:
+
+1. Valid event creation
+   ```elixir
+   test "creates valid game started event" do
+     event = build(:game_started_event)
+     assert :ok = EventValidator.validate(event)
+   end
+   ```
+
+2. Team validation
+   ```elixir
+   test "validates team structure" do
+     event = build(:game_started_event, teams: %{"team1" => ["player1"]})
+     assert {:error, _} = EventValidator.validate(event)
+   end
+   ```
+
+3. Role validation
+   ```elixir
+   test "validates role assignments" do
+     event = build(:game_started_event, roles: %{"player1" => :giver, "player2" => :giver})
+     assert {:error, _} = EventValidator.validate(event)
+   end
+   ```
+
+4. Config validation
+   ```elixir
+   test "validates game configuration" do
+     event = build(:game_started_event, config: %{max_guesses: 0})
+     assert {:error, _} = EventValidator.validate(event)
+   end
+   ```
+
+## Event Flow
+
+The GameStarted event is typically part of the following flow:
+
+1. GameCreated event
+2. GameStarted event
+3. RoundStarted event
+
+## Related Events
+
+- GameCreated - Initial game creation before player assignments
+- RoundStarted - First round begins after game starts
+- GameCompleted - Game ends after all rounds are complete 

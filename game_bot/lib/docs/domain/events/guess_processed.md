@@ -1,90 +1,192 @@
 # GuessProcessed Event
 
-## Description
-Emitted when both players in a team have submitted their guesses and the attempt has been processed. This event captures the outcome of a guess attempt, including whether it was successful and the words that were guessed.
+## Overview
 
-## Structure
+The `GuessProcessed` event is emitted when a guess attempt is processed in the game. This event represents the complete lifecycle of a guess:
+1. Both players have submitted their words
+2. The guess has been validated
+3. The match has been checked
+4. The result has been recorded
+
+## Event Definition
+
 ```elixir
-@type t :: %GuessProcessed{
-  game_id: String.t(),           # Unique identifier for the game
-  mode: atom(),                  # Game mode
-  round_number: pos_integer(),   # Current round number
-  team_id: String.t(),           # Team making the guess
-  player1_info: player_info(),   # First player's information
-  player2_info: player_info(),   # Second player's information
-  player1_word: String.t(),      # Word submitted by first player
-  player2_word: String.t(),      # Word submitted by second player
-  guess_successful: boolean(),    # Whether the words matched
-  guess_count: pos_integer(),    # Number of attempts made
-  match_score: integer(),        # Points awarded for this match
-  timestamp: DateTime.t(),        # When the event occurred
-  metadata: metadata()           # Additional context information
-}
-
-@type player_info :: %{
-  player_id: String.t(),
-  team_id: String.t(),
-  role: atom()                   # :giver or :guesser
-}
+defmodule GameBot.Domain.Events.GameEvents.GuessProcessed do
+  use GameBot.Domain.Events.BaseEvent,
+    event_type: "guess_processed",
+    version: 1,
+    fields: [
+      field(:team_id, :string),
+      field(:player1_info, :map),
+      field(:player2_info, :map),
+      field(:player1_word, :string),
+      field(:player2_word, :string),
+      field(:guess_successful, :boolean),
+      field(:match_score, :integer),
+      field(:guess_count, :integer),
+      field(:round_guess_count, :integer),
+      field(:total_guesses, :integer),
+      field(:guess_duration, :integer)
+    ]
+end
 ```
 
 ## Fields
-- `game_id`: A unique identifier for the game session
-- `mode`: The game mode being played
-- `round_number`: The current round number
-- `team_id`: Identifier of the team making the guess
-- `player1_info`: Information about the first player (ID, team, role)
-- `player2_info`: Information about the second player (ID, team, role)
-- `player1_word`: The word submitted by the first player
-- `player2_word`: The word submitted by the second player
-- `guess_successful`: Boolean indicating if the words matched
-- `guess_count`: Number of attempts made by the team in this round
-- `match_score`: Points awarded for this match (if successful)
-- `timestamp`: When the event occurred
-- `metadata`: Additional context information
 
-## Validation
-The event validates:
-- All required fields are present
-- Player information is complete
-- Words are provided for both players
-- Guess count is positive
-- Match score is valid for the game mode
+### Base Fields (Inherited)
+- `game_id` (string, required) - Unique identifier for the game
+- `guild_id` (string, required) - Discord guild ID where the game is being played
+- `mode` (enum, required) - Game mode (:two_player, :knockout, :race)
+- `round_number` (integer, required) - Current round number
+- `timestamp` (utc_datetime_usec, required) - When the event occurred
+- `metadata` (map, required) - Additional context about the event
 
-## Usage
-This event is used to:
-1. Track guess attempts and outcomes
-2. Update team scores
-3. Record word matching history
-4. Calculate player statistics
-5. Trigger game progression logic
+### Custom Fields
+- `team_id` (string, required) - ID of the team making the guess
+- `player1_info` (map, required) - Information about the first player
+  ```elixir
+  %{
+    player_id: String.t(),
+    username: String.t(),
+    role: :giver | :guesser
+  }
+  ```
+- `player2_info` (map, required) - Information about the second player
+  ```elixir
+  %{
+    player_id: String.t(),
+    username: String.t(),
+    role: :giver | :guesser
+  }
+  ```
+- `player1_word` (string, required) - Word submitted by player 1
+- `player2_word` (string, required) - Word submitted by player 2
+- `guess_successful` (boolean, required) - Whether the guess matched
+- `match_score` (integer, optional) - Points awarded for the match (nil if unsuccessful)
+- `guess_count` (integer, required) - Number of guesses made in this attempt
+- `round_guess_count` (integer, required) - Total guesses made in the current round
+- `total_guesses` (integer, required) - Total guesses made in the game
+- `guess_duration` (integer, required) - Time taken for this guess attempt in milliseconds
 
-## Example
+## Validation Rules
+
+1. Base field validation (handled by BaseEvent)
+2. Required fields must be present
+3. Custom field validation:
+   ```elixir
+   def validate_custom_fields(changeset) do
+     super(changeset)
+     |> validate_number(:guess_count, greater_than: 0)
+     |> validate_number(:round_guess_count, greater_than: 0)
+     |> validate_number(:total_guesses, greater_than: 0)
+     |> validate_number(:guess_duration, greater_than_or_equal_to: 0)
+     |> validate_match_score()
+   end
+   ```
+4. Match score validation:
+   - Must be present and positive when guess is successful
+   - Must be nil when guess is unsuccessful
+
+## Example Usage
+
 ```elixir
-%GuessProcessed{
-  game_id: "two_player-1234567890",
+# Creating a new GuessProcessed event
+event = %GameBot.Domain.Events.GameEvents.GuessProcessed{
+  game_id: "game-123",
+  guild_id: "guild-456",
   mode: :two_player,
   round_number: 1,
-  team_id: "team1",
+  team_id: "team-789",
   player1_info: %{
     player_id: "player1",
-    team_id: "team1",
+    username: "Player One",
     role: :giver
   },
   player2_info: %{
     player_id: "player2",
-    team_id: "team1",
+    username: "Player Two",
     role: :guesser
   },
-  player1_word: "mountain",
-  player2_word: "hill",
-  guess_successful: false,
-  guess_count: 2,
-  match_score: 0,
-  timestamp: ~U[2024-03-04 00:05:00Z],
+  player1_word: "apple",
+  player2_word: "apple",
+  guess_successful: true,
+  match_score: 10,
+  guess_count: 1,
+  round_guess_count: 5,
+  total_guesses: 15,
+  guess_duration: 12500,
+  timestamp: DateTime.utc_now(),
   metadata: %{
-    client_version: "1.0.0",
-    correlation_id: "ghi789"
+    source_id: "msg-123",
+    correlation_id: "corr-456",
+    causation_id: "cmd-789"
   }
 }
-``` 
+
+# Validating the event
+case GameBot.Domain.Events.EventValidator.validate(event) do
+  :ok ->
+    # Event is valid
+    {:ok, event}
+  
+  {:error, reason} ->
+    # Handle validation error
+    {:error, reason}
+end
+```
+
+## Testing
+
+Required test cases:
+
+1. Valid event creation
+   ```elixir
+   test "creates valid guess processed event" do
+     event = build(:guess_processed_event)
+     assert :ok = EventValidator.validate(event)
+   end
+   ```
+
+2. Field validation
+   ```elixir
+   test "validates guess count is positive" do
+     event = build(:guess_processed_event, guess_count: 0)
+     assert {:error, _} = EventValidator.validate(event)
+   end
+   ```
+
+3. Match score validation
+   ```elixir
+   test "requires match score when guess is successful" do
+     event = build(:guess_processed_event, guess_successful: true, match_score: nil)
+     assert {:error, _} = EventValidator.validate(event)
+   end
+   ```
+
+4. Serialization roundtrip
+   ```elixir
+   test "serializes and deserializes correctly" do
+     event = build(:guess_processed_event)
+     serialized = EventSerializer.to_map(event)
+     deserialized = EventSerializer.from_map(serialized)
+     assert event == deserialized
+   end
+   ```
+
+## Event Flow
+
+The GuessProcessed event is typically part of the following flow:
+
+1. RoundStarted event
+2. Multiple GuessProcessed events
+3. Either:
+   - RoundCompleted event (when successful match)
+   - GuessAbandoned event (when attempt abandoned)
+   - TeamEliminated event (when max guesses reached)
+
+## Related Events
+
+- RoundStarted - Initiates a round where guesses can be made
+- GuessAbandoned - When a guess attempt is abandoned
+- RoundCompleted - When a successful guess completes a round
+- TeamEliminated - When a team is eliminated due to max guesses 

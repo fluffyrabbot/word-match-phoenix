@@ -321,6 +321,9 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   @spec handle_guess_abandoned(GameState.t(), team_id(), atom(), map() | nil) ::
     {:ok, GameState.t(), GuessAbandoned.t()} | error()
   def handle_guess_abandoned(state, team_id, reason, last_guess) do
+    team_state = get_in(state.teams, [team_id])
+    now = DateTime.utc_now()
+
     event = %GuessAbandoned{
       game_id: game_id(state),
       guild_id: state.guild_id,
@@ -342,7 +345,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       round_guess_count: team_state.guess_count,
       total_guesses: Map.get(team_state, :total_guesses, team_state.guess_count),
       guess_duration: nil,  # No duration for abandoned guesses
-      timestamp: DateTime.utc_now(),
+      timestamp: now,
       metadata: %{}
     }
 

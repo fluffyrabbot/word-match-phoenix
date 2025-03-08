@@ -1,335 +1,259 @@
-# Game Events Documentation
+# Game Events
 
 ## Overview
 
-The game events system implements an event-sourced architecture for tracking game state changes. All game state modifications are recorded as immutable events, which can be used to rebuild game state and provide an audit trail of game progression.
-
-## Core Event Behaviour
-
-All events must implement the `GameBot.Domain.Events.GameEvents` behaviour, which requires:
-
-```elixir
-@callback event_type() :: String.t()
-@callback event_version() :: pos_integer()
-@callback to_map(struct()) :: map()
-@callback from_map(map()) :: struct()
-@callback validate(struct()) :: :ok | {:error, term()}
-```
+Game events represent all state changes in the game system. Each event is an immutable record of something that has happened. Events are processed through a validation and serialization pipeline before being stored and broadcast to interested subscribers.
 
 ## Event Types
 
-### Game Lifecycle Events
+### Core Game Events
 
-#### GameCreated
-Emitted when a new game is initially created, before player assignments.
+1. **GameCreated**
+   - Emitted when a new game is created
+   - Fields:
+     ```elixir
+     field :game_id, :string
+     field :guild_id, :string
+     field :mode, Ecto.Enum, values: [:two_player, :knockout, :race]
+     field :created_by, :string
+     field :created_at, :utc_datetime_usec
+     field :team_ids, {:array, :string}
+     ```
 
-```elixir
-%GameCreated{
-  game_id: String.t(),
-  guild_id: String.t(),
-  mode: atom(),
-  created_by: String.t(),
-  created_at: DateTime.t(),
-  team_ids: [String.t()],
-  timestamp: DateTime.t(),
-  metadata: map()
-}
-```
+2. **GameStarted**
+   - Emitted when a game begins
+   - Fields:
+     ```elixir
+     field :teams, :map
+     field :team_ids, {:array, :string}
+     field :player_ids, {:array, :string}
+     field :roles, :map
+     field :config, :map
+     field :started_at, :utc_datetime_usec
+     ```
 
-#### GameStarted
-Emitted when a game officially begins with all players assigned.
-
-```elixir
-%GameStarted{
-  game_id: String.t(),
-  guild_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  teams: %{String.t() => [String.t()]},
-  team_ids: [String.t()],
-  player_ids: [String.t()],
-  roles: %{String.t() => atom()},
-  config: map(),
-  started_at: DateTime.t(),
-  timestamp: DateTime.t(),
-  metadata: map()
-}
-```
-
-#### GameCompleted
-Emitted when a game ends with final scores and statistics.
-
-```elixir
-%GameCompleted{
-  game_id: String.t(),
-  guild_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  winners: [String.t()],
-  final_scores: %{String.t() => %{
-    score: integer(),
-    matches: integer(),
-    total_guesses: integer(),
-    average_guesses: float(),
-    player_stats: %{String.t() => %{
-      total_guesses: integer(),
-      successful_matches: integer(),
-      abandoned_guesses: integer(),
-      average_guess_count: float()
-    }}
-  }},
-  game_duration: integer(),
-  total_rounds: pos_integer(),
-  timestamp: DateTime.t(),
-  finished_at: DateTime.t(),
-  metadata: map()
-}
-```
+3. **GameCompleted**
+   - Emitted when a game ends
+   - Fields:
+     ```elixir
+     field :winners, {:array, :string}
+     field :final_scores, :map
+     field :game_duration, :integer
+     field :total_rounds, :integer
+     field :finished_at, :utc_datetime_usec
+     ```
 
 ### Round Events
 
-#### RoundStarted
-Emitted when a new round begins.
+1. **RoundStarted**
+   - Emitted when a new round begins
+   - Fields:
+     ```elixir
+     field :team_states, :map
+     ```
 
+2. **RoundCompleted**
+   - Emitted when a round ends
+   - Fields:
+     ```elixir
+     field :winner_team_id, :string
+     field :round_score, :integer
+     field :round_stats, :map
+     ```
+
+### Guess Events
+
+1. **GuessProcessed**
+   - Emitted when a guess attempt is processed
+   - Fields:
+     ```elixir
+     field :team_id, :string
+     field :player1_info, :map
+     field :player2_info, :map
+     field :player1_word, :string
+     field :player2_word, :string
+     field :guess_successful, :boolean
+     field :match_score, :integer
+     field :guess_count, :integer
+     field :round_guess_count, :integer
+     field :total_guesses, :integer
+     field :guess_duration, :integer
+     ```
+
+2. **GuessAbandoned**
+   - Emitted when a guess attempt is abandoned
+   - Fields:
+     ```elixir
+     field :team_id, :string
+     field :player1_info, :map
+     field :player2_info, :map
+     field :reason, Ecto.Enum, values: [:timeout, :player_quit, :disconnected]
+     field :abandoning_player_id, :string
+     field :last_guess, :map
+     field :guess_count, :integer
+     field :round_guess_count, :integer
+     field :total_guesses, :integer
+     field :guess_duration, :integer
+     ```
+
+### Game Mode Events
+
+1. **TeamEliminated**
+   - Emitted when a team is eliminated (Knockout mode)
+   - Fields:
+     ```elixir
+     field :team_id, :string
+     field :reason, Ecto.Enum, values: [:timeout, :max_guesses, :round_loss, :forfeit]
+     field :final_state, :map
+     field :final_score, :integer
+     field :player_stats, :map
+     ```
+
+2. **KnockoutRoundCompleted**
+   - Emitted when a knockout round ends
+   - Fields:
+     ```elixir
+     field :eliminated_teams, {:array, :map}
+     field :advancing_teams, {:array, :map}
+     field :round_duration, :integer
+     ```
+
+3. **RaceModeTimeExpired**
+   - Emitted when time runs out in race mode
+   - Fields:
+     ```elixir
+     field :final_matches, :map
+     field :game_duration, :integer
+     ```
+
+## Base Fields
+
+All events include these base fields:
 ```elixir
-%RoundStarted{
-  game_id: String.t(),
-  guild_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  team_states: map(),
-  timestamp: DateTime.t(),
-  metadata: map()
+field :game_id, :string
+field :guild_id, :string
+field :mode, Ecto.Enum, values: [:two_player, :knockout, :race]
+field :round_number, :integer
+field :timestamp, :utc_datetime_usec
+field :metadata, :map
+```
+
+## Metadata Structure
+
+Required metadata fields:
+```elixir
+%{
+  source_id: String.t() | nil,    # Discord message ID or other source identifier
+  correlation_id: String.t(),     # For tracking related events
+  causation_id: String.t() | nil  # ID of event that caused this one
 }
 ```
 
-### Gameplay Events
+## Event Processing Pipeline
 
-#### GuessProcessed
-Emitted when both players have submitted their guesses and the attempt is processed.
+1. **Validation**
+   ```elixir
+   with :ok <- validate_base_fields(event),
+        :ok <- validate_metadata(event),
+        :ok <- validate_custom_fields(event) do
+     :ok
+   end
+   ```
 
-```elixir
-%GuessProcessed{
-  game_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  team_id: String.t(),
-  player1_info: player_info(),
-  player2_info: player_info(),
-  player1_word: String.t(),
-  player2_word: String.t(),
-  guess_successful: boolean(),
-  guess_count: pos_integer(),
-  match_score: integer(),
-  timestamp: DateTime.t(),
-  metadata: map()
-}
-```
+2. **Serialization**
+   ```elixir
+   def to_map(event) do
+     Map.from_struct(event)
+     |> Map.update!(:timestamp, &DateTime.to_iso8601/1)
+   end
+   ```
 
-#### GuessAbandoned
-Emitted when a guess attempt is abandoned due to timeout or player giving up.
+3. **Storage**
+   - Events are stored in the EventStore
+   - Indexed by game_id and timestamp
+   - Versioned for schema evolution
 
-```elixir
-%GuessAbandoned{
-  game_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  team_id: String.t(),
-  player1_info: player_info(),
-  player2_info: player_info(),
-  reason: :timeout | :player_quit | :disconnected,
-  abandoning_player_id: String.t(),
-  last_guess: %{
-    player_id: String.t(),
-    word: String.t(),
-    timestamp: DateTime.t()
-  } | nil,
-  guess_count: pos_integer(),
-  timestamp: DateTime.t(),
-  metadata: map()
-}
-```
+4. **Broadcasting**
+   - Events are broadcast on PubSub channels
+   - Channel format: "game:{game_id}"
+   - Subscribers receive `{:event, event}`
 
-#### TeamEliminated
-Emitted when a team is eliminated from the game.
+## Usage Example
 
 ```elixir
-%TeamEliminated{
-  game_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  team_id: String.t(),
-  reason: :timeout | :max_guesses | :round_loss | :forfeit,
-  final_state: team_info(),
-  final_score: integer(),
-  player_stats: %{String.t() => %{
-    total_guesses: integer(),
-    successful_matches: integer(),
-    abandoned_guesses: integer(),
-    average_guess_count: float()
-  }},
-  timestamp: DateTime.t(),
-  metadata: map()
-}
-```
-
-### Mode-Specific Events
-
-#### KnockoutRoundCompleted
-Emitted when a knockout round ends.
-
-```elixir
-%KnockoutRoundCompleted{
-  game_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  eliminated_teams: [%{
-    team_id: String.t(),
-    reason: :timeout | :max_guesses | :round_loss | :forfeit,
-    final_score: integer(),
-    player_stats: %{String.t() => map()}
-  }],
-  advancing_teams: [%{
-    team_id: String.t(),
-    score: integer(),
-    matches: integer(),
-    total_guesses: integer()
-  }],
-  round_duration: integer(),
-  timestamp: DateTime.t(),
-  metadata: map()
-}
-```
-
-#### RaceModeTimeExpired
-Emitted when time runs out in race mode.
-
-```elixir
-%RaceModeTimeExpired{
-  game_id: String.t(),
-  mode: atom(),
-  round_number: pos_integer(),
-  final_matches: %{String.t() => %{
-    matches: integer(),
-    total_guesses: integer(),
-    average_guesses: float(),
-    last_match_timestamp: DateTime.t(),
-    player_stats: %{String.t() => map()}
-  }},
-  game_duration: integer(),
-  timestamp: DateTime.t(),
-  metadata: map()
-}
-```
-
-## Event Handling
-
-### Event Store Integration
-
-Events are persisted using the EventStore with proper versioning and concurrency control:
-
-```elixir
-# Storing events
-{:ok, _} = EventStore.append_to_stream(
-  game_id,
-  :any_version,
-  [event]
-)
-
-# Reading events
-{:ok, events} = EventStore.read_stream_forward(game_id)
-```
-
-### Event Validation
-
-All events are validated before being stored:
-
-1. Required fields are checked
-2. Data types are verified
-3. Business rules are enforced
-4. DateTime fields are properly formatted
-
-### Event Serialization
-
-Events are serialized to maps for storage:
-
-```elixir
-def serialize(event) do
-  %{
-    "event_type" => event.__struct__.event_type(),
-    "event_version" => event.__struct__.event_version(),
-    "data" => event.__struct__.to_map(event),
-    "stored_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+# Creating a new event
+event = %GameBot.Domain.Events.GameEvents.GuessProcessed{
+  game_id: "game-123",
+  guild_id: "guild-456",
+  mode: :two_player,
+  round_number: 1,
+  team_id: "team-789",
+  player1_info: %{player_id: "player1"},
+  player2_info: %{player_id: "player2"},
+  player1_word: "word1",
+  player2_word: "word2",
+  guess_successful: true,
+  match_score: 10,
+  guess_count: 1,
+  round_guess_count: 1,
+  total_guesses: 1,
+  guess_duration: 100,
+  timestamp: DateTime.utc_now(),
+  metadata: %{
+    source_id: "msg-123",
+    correlation_id: "corr-123"
   }
+}
+
+# Processing the event
+case GameBot.Domain.Events.Pipeline.process_event(event) do
+  {:ok, processed_event} ->
+    # Event was successfully processed
+    Logger.info("Event processed: #{processed_event.id}")
+  
+  {:error, reason} ->
+    # Event processing failed
+    Logger.error("Event processing failed: #{inspect(reason)}")
 end
 ```
 
-### Event Deserialization
+## Testing Events
 
-Events are reconstructed from stored data:
+Required test cases for each event:
 
+1. Valid event creation
+2. Field validation
+3. Required field checks
+4. Serialization roundtrip
+5. Processing pipeline
+6. Error cases
+
+Example test:
 ```elixir
-def deserialize(%{"event_type" => type, "data" => data}) do
-  module = get_event_module(type)
-  module.from_map(data)
-end
-```
-
-## Best Practices
-
-1. **Event Versioning**
-   - All events must have a version number
-   - Version changes require migration strategy
-   - Store schema version with event data
-
-2. **DateTime Handling**
-   - Always use UTC for timestamps
-   - Store in ISO8601 format
-   - Include both creation and occurrence times
-
-3. **Metadata**
-   - Include relevant context
-   - Add correlation IDs
-   - Track originating command
-
-4. **Validation**
-   - Validate before storing
-   - Include business rule checks
-   - Ensure data consistency
-
-5. **Guild Context**
-   - Include guild_id in relevant events
-   - Maintain proper data segregation
-   - Filter queries by guild
-
-## Event Flow Examples
-
-### Game Creation and Start
-```elixir
-[
-  %GameCreated{...},
-  %GameStarted{...}
-]
-```
-
-### Successful Game Round
-```elixir
-[
-  %RoundStarted{...},
-  %GuessProcessed{guess_successful: true},
-  %RoundCompleted{...}
-]
-```
-
-### Game Completion
-```elixir
-[
-  %GameCompleted{
-    winners: ["team_1"],
-    final_scores: %{
-      "team_1" => %{score: 100, ...},
-      "team_2" => %{score: 80, ...}
+test "creates a valid event" do
+  event = %GuessProcessed{
+    game_id: "game-123",
+    guild_id: "guild-456",
+    mode: :two_player,
+    round_number: 1,
+    team_id: "team-789",
+    player1_info: %{player_id: "player1"},
+    player2_info: %{player_id: "player2"},
+    player1_word: "word1",
+    player2_word: "word2",
+    guess_successful: true,
+    match_score: 10,
+    guess_count: 1,
+    round_guess_count: 1,
+    total_guesses: 1,
+    guess_duration: 100,
+    timestamp: DateTime.utc_now(),
+    metadata: %{
+      source_id: "msg-123",
+      correlation_id: "corr-123"
     }
   }
-]
+
+  assert :ok = GameBot.Domain.Events.EventValidator.validate(event)
+end
 ``` 

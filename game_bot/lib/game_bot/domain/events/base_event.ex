@@ -1,116 +1,181 @@
 defmodule GameBot.Domain.Events.BaseEvent do
   @moduledoc """
-  Base behaviour that all events must implement.
-  Provides standard interface for validation, serialization, and application.
+  Base module for all events in the system.
+  Provides common functionality and ensures consistent event structure.
+  """
 
-  When creating a new event type, use this module as the foundation:
+  use Ecto.Schema
+  import Ecto.Changeset
 
-  ```elixir
-  defmodule MyEvent do
-    use GameBot.Domain.Events.BaseEvent, type: "my_event", version: 1
+  alias GameBot.Domain.Events.{EventSerializer, EventValidator, Metadata}
 
-    @required_fields [:game_id, :guild_id, :mode, :timestamp, :metadata]
-    defstruct @required_fields ++ [:optional_field]
+  # Define base fields as a module attribute for reuse
+  @base_fields [
+    :game_id,
+    :guild_id,
+    :mode,
+    :round_number,
+    :timestamp,
+    :metadata
+  ]
 
-    # Override validation if needed
-    @impl true
-    def validate(event) do
-      with :ok <- EventStructure.validate_fields(event, @required_fields),
-           :ok <- super(event) do
-        :ok
-      end
-    end
+  @base_required_fields [
+    :game_id,
+    :guild_id,
+    :mode,
+    :round_number,
+    :timestamp
+  ]
 
-    # Event constructor
-    def new(game_id, guild_id, mode, metadata, opts \\ []) do
-      %__MODULE__{
-        game_id: game_id,
-        guild_id: guild_id,
-        mode: mode,
-        optional_field: Keyword.get(opts, :optional_field),
-        metadata: metadata,
-        timestamp: EventStructure.create_timestamp()
-      }
-    end
+  @base_optional_fields [:metadata]
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  embedded_schema do
+    field :game_id, :string
+    field :guild_id, :string
+    field :mode, Ecto.Enum, values: [:two_player, :knockout, :race]
+    field :round_number, :integer
+    field :timestamp, :utc_datetime_usec
+    field :metadata, :map
   end
-  """
 
-  alias GameBot.Domain.Events.EventStructure
-  alias GameBot.Domain.Events.Metadata
-
-  # Define a generic event type for use in callbacks
-  @typedoc """
-  Generic event type that can be specialized by implementing modules.
-  This is used as a placeholder in callback definitions.
-  """
-  @type t :: %{
-    optional(atom()) => any(),
-    required(:metadata) => map()
+  @type t :: %__MODULE__{
+    id: Ecto.UUID.t(),
+    game_id: String.t(),
+    guild_id: String.t(),
+    mode: :two_player | :knockout | :race,
+    round_number: pos_integer(),
+    timestamp: DateTime.t(),
+    metadata: map()
   }
 
-  # Define callbacks that implementing modules must provide
-  @callback validate(t()) :: :ok | {:error, term()}
-  @callback serialize(t()) :: map()
-  @callback deserialize(map()) :: t()
+  # Public API for accessing base fields
+  def base_fields, do: @base_fields
+  def base_required_fields, do: @base_required_fields
+  def base_optional_fields, do: @base_optional_fields
 
-  # Optional callback for applying event to state
-  @callback apply(state :: term(), t()) ::
-    {:ok, new_state :: term()} |
-    {:ok, new_state :: term(), [term()]} |
-    {:error, term()}
-
-  @optional_callbacks [apply: 2]
-
+  @doc """
+  Macro for setting up event modules with common functionality.
+  """
   defmacro __using__(opts) do
-    event_type = Keyword.get(opts, :type, "unknown")
-    version = Keyword.get(opts, :version, 1)
-
     quote do
-      @behaviour GameBot.Domain.Events.BaseEvent
-      import GameBot.Domain.Events.EventStructure
+      use Ecto.Schema
+      import Ecto.Changeset
 
-      @event_type unquote(event_type)
-      @event_version unquote(version)
+      @event_type unquote(opts[:event_type])
+      @event_version unquote(opts[:version] || 1)
+      @before_compile GameBot.Domain.Events.BaseEvent
 
-      def type, do: @event_type
-      def version, do: @event_version
+      @primary_key {:id, :binary_id, autogenerate: true}
+      schema "events" do
+        # Base fields that all events must have
+        field :game_id, :string
+        field :guild_id, :string
+        field :mode, Ecto.Enum, values: [:two_player, :knockout, :race]
+        field :round_number, :integer
+        field :timestamp, :utc_datetime_usec
+        field :metadata, :map
+        field :type, :string, default: @event_type
+        field :version, :integer, default: @event_version
 
-      # Default implementations
-      @impl GameBot.Domain.Events.BaseEvent
-      def validate(event) do
-        EventStructure.validate(event)
+        # Allow child modules to add their own fields
+        unquote(opts[:fields] || [])
+
+        timestamps()
       end
 
-      @impl GameBot.Domain.Events.BaseEvent
-      def serialize(event) do
-        # Convert struct to plain map
-        map = Map.from_struct(event)
-        # Remove keys with nil values
-        map = Enum.filter(map, fn {_k, v} -> v != nil end) |> Map.new()
-        # Add event type and version
-        Map.merge(map, %{
-          event_type: @event_type,
-          event_version: @event_version
-        })
+      @doc """
+      Returns the event type.
+      """
+      def event_type, do: @event_type
+
+      @doc """
+      Returns the event version.
+      """
+      def event_version, do: @event_version
+
+      @doc """
+      Creates a changeset for validating event data.
+      """
+      def changeset(event, attrs) do
+        event
+        |> cast(attrs, required_fields() ++ optional_fields())
+        |> validate_required(required_fields())
+        |> validate_metadata()
+        |> validate_custom_fields()
       end
 
-      @impl GameBot.Domain.Events.BaseEvent
-      def deserialize(data) do
-        # Allow for both string and atom keys
-        data =
-          data
-          |> Map.new(fn {k, v} when is_binary(k) -> {String.to_atom(k), v}
-                        {k, v} -> {k, v}
-                     end)
-          # Filter out event_type and event_version
-          |> Map.drop([:event_type, :event_version, "event_type", "event_version"])
-
-        # Convert to struct
-        struct(__MODULE__, data)
+      @doc """
+      Returns the list of required fields for this event.
+      Override this function to add custom required fields.
+      """
+      def required_fields do
+        GameBot.Domain.Events.BaseEvent.base_required_fields()
       end
 
-      # Override these in specific event implementations
-      defoverridable validate: 1, serialize: 1, deserialize: 1
+      @doc """
+      Returns the list of optional fields for this event.
+      Override this function to add custom optional fields.
+      """
+      def optional_fields do
+        GameBot.Domain.Events.BaseEvent.base_optional_fields()
+      end
+
+      @doc """
+      Validates custom fields specific to this event type.
+      Override this function to add custom validation.
+      """
+      def validate_custom_fields(changeset), do: changeset
+
+      # Implement EventSerializer protocol
+      defimpl GameBot.Domain.Events.EventSerializer do
+        def to_map(event) do
+          Map.from_struct(event)
+          |> Map.update!(:timestamp, &DateTime.to_iso8601/1)
+        end
+
+        def from_map(data) do
+          data = if is_map(data) and map_size(data) > 0 and is_binary(hd(Map.keys(data))),
+            do: data,
+            else: Map.new(data, fn {k, v} -> {to_string(k), v} end)
+
+          struct = struct(__MODULE__)
+
+          Map.merge(struct, Map.new(data, fn
+            {"timestamp", v} -> {:timestamp, DateTime.from_iso8601!(v)}
+            {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+            {k, v} -> {k, v}
+          end))
+        end
+      end
+
+      defoverridable [required_fields: 0, optional_fields: 0, validate_custom_fields: 1]
+    end
+  end
+
+  defmacro __before_compile__(_env) do
+    quote do
+      @doc """
+      Validates the metadata structure of an event.
+      """
+      def validate_metadata(changeset) do
+        validate_change(changeset, :metadata, fn :metadata, metadata ->
+          case validate_metadata_structure(metadata) do
+            :ok -> []
+            {:error, reason} -> [metadata: reason]
+          end
+        end)
+      end
+
+      defp validate_metadata_structure(metadata) when is_map(metadata) do
+        if Map.has_key?(metadata, "guild_id") or Map.has_key?(metadata, :guild_id) or
+           Map.has_key?(metadata, "source_id") or Map.has_key?(metadata, :source_id) do
+          :ok
+        else
+          {:error, "guild_id or source_id is required in metadata"}
+        end
+      end
+      defp validate_metadata_structure(_), do: {:error, "metadata must be a map"}
     end
   end
 
@@ -119,7 +184,8 @@ defmodule GameBot.Domain.Events.BaseEvent do
   """
   def create_base(fields) do
     fields
-    |> Map.put_new(:timestamp, EventStructure.create_timestamp())
+    |> Map.put_new(:timestamp, DateTime.utc_now())
+    |> Map.put_new(:metadata, %{})
   end
 
   @doc """

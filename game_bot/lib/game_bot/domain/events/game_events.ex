@@ -224,6 +224,7 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     @type t :: %__MODULE__{
       game_id: String.t(),
+      guild_id: String.t(),
       mode: atom(),
       round_number: pos_integer(),
       team_id: String.t(),
@@ -234,12 +235,15 @@ defmodule GameBot.Domain.Events.GameEvents do
       guess_successful: boolean(),
       guess_count: pos_integer(),
       match_score: integer(),
+      round_guess_count: pos_integer(),
+      total_guesses: pos_integer(),
+      guess_duration: integer(),
       timestamp: DateTime.t(),
       metadata: GameBot.Domain.Events.GameEvents.metadata()
     }
-    defstruct [:game_id, :mode, :round_number, :team_id, :player1_info, :player2_info,
+    defstruct [:game_id, :guild_id, :mode, :round_number, :team_id, :player1_info, :player2_info,
                :player1_word, :player2_word, :guess_successful, :guess_count, :match_score,
-               :timestamp, :metadata]
+               :round_guess_count, :total_guesses, :guess_duration, :timestamp, :metadata]
 
     def event_type(), do: "guess_processed"
     def event_version(), do: 1
@@ -262,6 +266,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
+        "guild_id" => event.guild_id,
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "team_id" => event.team_id,
@@ -272,6 +277,9 @@ defmodule GameBot.Domain.Events.GameEvents do
         "guess_successful" => event.guess_successful,
         "guess_count" => event.guess_count,
         "match_score" => event.match_score,
+        "round_guess_count" => event.round_guess_count,
+        "total_guesses" => event.total_guesses,
+        "guess_duration" => event.guess_duration,
         "timestamp" => DateTime.to_iso8601(event.timestamp),
         "metadata" => event.metadata || %{}
       }
@@ -280,6 +288,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
+        guild_id: data["guild_id"],
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         team_id: data["team_id"],
@@ -290,6 +299,9 @@ defmodule GameBot.Domain.Events.GameEvents do
         guess_successful: data["guess_successful"],
         guess_count: data["guess_count"],
         match_score: data["match_score"],
+        round_guess_count: data["round_guess_count"],
+        total_guesses: data["total_guesses"],
+        guess_duration: data["guess_duration"],
         timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
         metadata: data["metadata"] || %{}
       }
@@ -302,6 +314,7 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     @type t :: %__MODULE__{
       game_id: String.t(),
+      guild_id: String.t(),
       mode: atom(),
       round_number: pos_integer(),
       team_id: String.t(),
@@ -315,11 +328,15 @@ defmodule GameBot.Domain.Events.GameEvents do
         timestamp: DateTime.t()
       } | nil,
       guess_count: pos_integer(),
+      round_guess_count: pos_integer(),
+      total_guesses: pos_integer(),
+      guess_duration: integer() | nil,
       timestamp: DateTime.t(),
       metadata: GameBot.Domain.Events.GameEvents.metadata()
     }
-    defstruct [:game_id, :mode, :round_number, :team_id, :player1_info, :player2_info,
-               :reason, :abandoning_player_id, :last_guess, :guess_count, :timestamp, :metadata]
+    defstruct [:game_id, :guild_id, :mode, :round_number, :team_id, :player1_info, :player2_info,
+               :reason, :abandoning_player_id, :last_guess, :guess_count, :round_guess_count,
+               :total_guesses, :guess_duration, :timestamp, :metadata]
 
     def event_type(), do: "guess_abandoned"
     def event_version(), do: 1
@@ -342,6 +359,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
+        "guild_id" => event.guild_id,
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "team_id" => event.team_id,
@@ -351,6 +369,9 @@ defmodule GameBot.Domain.Events.GameEvents do
         "abandoning_player_id" => event.abandoning_player_id,
         "last_guess" => if(event.last_guess, do: Map.update!(event.last_guess, :timestamp, &DateTime.to_iso8601/1)),
         "guess_count" => event.guess_count,
+        "round_guess_count" => event.round_guess_count,
+        "total_guesses" => event.total_guesses,
+        "guess_duration" => event.guess_duration,
         "timestamp" => DateTime.to_iso8601(event.timestamp),
         "metadata" => event.metadata || %{}
       }
@@ -359,6 +380,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
+        guild_id: data["guild_id"],
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         team_id: data["team_id"],
@@ -368,6 +390,9 @@ defmodule GameBot.Domain.Events.GameEvents do
         abandoning_player_id: data["abandoning_player_id"],
         last_guess: if(data["last_guess"], do: Map.update!(data["last_guess"], "timestamp", &GameBot.Domain.Events.GameEvents.parse_timestamp/1)),
         guess_count: data["guess_count"],
+        round_guess_count: data["round_guess_count"],
+        total_guesses: data["total_guesses"],
+        guess_duration: data["guess_duration"],
         timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
         metadata: data["metadata"] || %{}
       }

@@ -83,9 +83,8 @@ defmodule GameBot.Domain.Projections.GameProjection do
     updated_game = %GameSummaryView{game |
       status: :completed,
       finished_at: event.finished_at,
-      winner_team_ids: event.winners,
-      final_scores: event.final_scores,
-      game_duration: event.game_duration,
+      winner_team_id: List.first(event.winners),
+      final_score: event.final_scores,
       total_rounds: event.total_rounds
     }
 

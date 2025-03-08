@@ -60,7 +60,9 @@ defmodule GameBot.MixProject do
       {:hackney, "~> 1.9"},
       {:bandit, ">= 0.0.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
-      {:mock, "~> 0.3.0", only: :test}
+      {:mock, "~> 0.3.0", only: :test},
+      {:benchee, "~> 1.1", only: [:dev, :test]},
+      {:benchee_html, "~> 1.0", only: [:dev, :test]}
     ]
   end
 
