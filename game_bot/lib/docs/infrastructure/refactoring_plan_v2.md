@@ -102,71 +102,211 @@
 ## Phase 2: Infrastructure Layer Cleanup
 
 ### 2.1 Error Handling Consolidation 🚧
-- [ ] Create dedicated error module:
+- [x] Create unified error module in Infrastructure.Error:
   ```elixir
-  defmodule GameBot.Infrastructure.Error do
-    @type error_type :: :validation | :concurrency | :system | :not_found
-    
-    defstruct [:type, :context, :message, :details]
-    
-    def new(type, context, message, details \\ nil)
+  # Unified error types and consistent interface
+  @type error_type ::
+    :validation |
+    :serialization |
+    :not_found |
+    :concurrency |
+    :timeout |
+    :connection |
+    :system |
+    :stream_too_large
+  ```
+- [x] Create error helpers module:
+  ```elixir
+  defmodule GameBot.Infrastructure.ErrorHelpers do
+    def wrap_error(operation, context)
+    def with_retries(operation, context, opts \\ [])
+    def translate_error(reason, context)
   end
   ```
-- [ ] Update error handling in:
-  - [ ] EventStore adapter
-  - [ ] Repository implementations
-  - [ ] Transaction management
+- [ ] Migration steps for existing code:
+  - [x] Update EventStore.Error usage:
+    - [x] Replace error creation with new Error module
+    - [x] Update error handling to use ErrorHelpers
+    - [x] Add context tracking
+  - [x] Update Persistence.Error usage:
+    - [x] Replace error creation with new Error module
+    - [x] Update error handling to use ErrorHelpers
+    - [x] Add context tracking
+  - [ ] Update error translation layers:
+    - [ ] Add translation for external dependencies
+    - [ ] Update error message formatting
+    - [ ] Add proper context propagation
 
-### 2.2 Layer Separation 🚧
-- [ ] Move serialization to infrastructure:
+### 2.2 Layer Separation ✅
+- [x] Create proper infrastructure boundaries:
   ```
   infrastructure/
   └── persistence/
-      └── event_store/
-          ├── serializer/
-          │   ├── behaviour.ex
-          │   └── json_serializer.ex
-          └── adapter.ex
+      ├── event_store/
+      │   ├── serialization/
+      │   │   ├── behaviour.ex ✅
+      │   │   ├── json_serializer.ex ✅
+      │   │   └── event_translator.ex ✅
+      │   ├── adapter/
+      │   │   ├── behaviour.ex ✅
+      │   │   ├── base.ex ✅
+      │   │   └── postgres.ex ✅
+      │   └── config.ex
+      └── repository/
+          ├── behaviour.ex
+          ├── postgres_repo.ex
+          └── cache.ex
   ```
-- [ ] Remove domain dependencies from adapter:
-  - [ ] Extract EventStructure validation
-  - [ ] Move event-specific logic to domain
-  - [ ] Create proper boundary interfaces
+- [x] Implement clean serialization layer:
+  - [x] Create serialization behaviour
+  - [x] Move event serialization to infrastructure
+  - [x] Add versioning support
+  - [x] Implement event translation
+- [x] Create proper adapter interfaces:
+  - [x] Define clear adapter behaviors
+  - [x] Add base implementation
+  - [x] Add proper error translation
+  - [x] Remove domain dependencies
+- [x] Clean up deprecated implementations:
+  - [x] Remove old adapter.ex
+  - [x] Remove old postgres.ex
+  - [x] Remove old serializer.ex
+  - [x] Remove old behaviour.ex
+  - [x] Update all references to new implementations
+  - [x] Update test files
+
+### Next Steps:
+1. Update repository layer:
+   - Create repository behaviour
+   - Implement base repository
+   - Add caching support
+   - Add telemetry
+
+2. Create configuration:
+   - Add config module
+   - Define settings schema
+   - Add validation
+   - Add documentation
+
+3. Testing and validation:
+   - Add integration tests
+   - Test error scenarios
+   - Verify boundaries
+   - Test performance
+
+4. Documentation:
+   - Update module docs
+   - Add examples
+   - Document error handling
+   - Add architecture diagrams
+
+5. Final cleanup:
+   - Remove old modules
+   - Update dependencies
+   - Fix warnings
+   - Add missing tests
+
+### Migration Guide:
+1. Error Handling:
+   - Use new Error module for all errors
+   - Add proper context tracking
+   - Use ErrorHelpers for retries
+   - Add telemetry for errors
+
+2. Serialization:
+   - Use JsonSerializer for events
+   - Add version support
+   - Implement migrations
+   - Update tests
+
+3. Adapters:
+   - Use Base adapter
+   - Implement required callbacks
+   - Add telemetry
+   - Add error handling
+
+4. Repository:
+   - Use new behaviours
+   - Add caching
+   - Add telemetry
+   - Update tests
 
 ## Phase 3: Function and Type Cleanup
 
 ### 3.1 Function Signature Fixes 🚧
 - [ ] Update event creation functions:
   ```elixir
-  # Fix arity mismatches
-  def new(game_id, team_id, player_id, word, reason, metadata)  # GuessError
-  def new(game_id, reason, metadata)  # RoundCheckError
-  def new(game_id, team_id, word1, word2, reason, metadata)  # GuessPairError
+  # Standardize event creation
+  def new(attrs, metadata) when is_map(attrs) do
+    with {:ok, event} <- validate_attrs(attrs),
+         {:ok, meta} <- validate_metadata(metadata) do
+      {:ok, struct(__MODULE__, Map.merge(event, %{metadata: meta}))}
+    end
+  end
   ```
-- [ ] Fix DateTime usage:
+- [ ] Implement proper validation:
   ```elixir
-  # Replace deprecated calls
-  - DateTime.from_iso8601!/1
-  + DateTime.from_iso8601/1
+  # Add type validation
+  @type validation_error :: {:error, :invalid_type | :missing_field | :invalid_format}
+  
+  @spec validate_attrs(map()) :: {:ok, map()} | validation_error
+  def validate_attrs(attrs) do
+    # Implementation
+  end
   ```
-- [ ] Update System calls:
-  ```elixir
-  # Replace deprecated calls
-  - System.get_pid()
-  + System.pid()
-  ```
+- [ ] Add proper type specs:
+  - [ ] Update all public function specs
+  - [ ] Add proper return type annotations
+  - [ ] Document error conditions
 
 ### 3.2 Code Organization 🚧
 - [ ] Group related functions:
   ```elixir
-  # In UserProjection
-  def handle_event(%UserCreated{} = event), do: ...
-  def handle_event(%UserUpdated{} = event), do: ...
-  def handle_event(_, state), do: {:ok, state}
+  # Example organization pattern
+  defmodule GameBot.Domain.Events.GameEvent do
+    # Type definitions
+    @type t :: %__MODULE__{}
+    
+    # Struct definition
+    defstruct [:id, :type, :data, :metadata]
+    
+    # Public API
+    @spec new(map(), map()) :: {:ok, t()} | {:error, term()}
+    
+    # Validation functions
+    @spec validate_attrs(map()) :: {:ok, map()} | {:error, term()}
+    
+    # Private helpers
+    defp build_event(attrs, meta)
+  end
   ```
-- [ ] Fix duplicate docs:
-  - [ ] Remove redundant @doc in ReplayCommands
-  - [ ] Consolidate documentation
+- [ ] Implement consistent patterns:
+  - [ ] Use proper type specs
+  - [ ] Follow consistent naming
+  - [ ] Group related functions
+  - [ ] Add proper documentation
+
+### 3.3 Compiler Warning Resolution 🚧
+- [ ] Address pattern match warnings:
+  ```elixir
+  # Before
+  def handle_event(event, state) do
+    # Missing pattern match
+  end
+  
+  # After
+  def handle_event(%Event{} = event, %State{} = state) do
+    # Proper pattern match
+  end
+  ```
+- [ ] Fix unused variable warnings:
+  - [ ] Add underscore prefix to unused vars
+  - [ ] Remove unnecessary bindings
+  - [ ] Document intentional unused vars
+- [ ] Address type specification warnings:
+  - [ ] Add missing type specs
+  - [ ] Fix incorrect specs
+  - [ ] Document complex types
 
 ## Phase 4: Testing and Validation
 
@@ -236,9 +376,36 @@
 
 ## Next Steps
 
-1. ~~Add macro integration documentation to all macro-using modules~~ ✅
-2. ~~Fix existing macro conflicts~~ ✅
-3. ~~Add proper tests~~ ✅
-4. Continue with layer separation 🚧
-5. Complete error handling consolidation 🚧
-6. Finish function signature cleanup 🚧 
+1. Create serialization behaviour:
+   - Define behaviour interface
+   - Document versioning requirements
+   - Add type specifications
+   - Create test helpers
+
+2. Implement JSON serializer:
+   - Create basic implementation
+   - Add versioning support
+   - Handle error cases
+   - Add comprehensive tests
+
+3. Create event translator:
+   - Define translation rules
+   - Handle version migrations
+   - Add validation
+   - Test edge cases
+
+4. Update adapter interfaces:
+   - Review current implementations
+   - Define clear boundaries
+   - Remove domain dependencies
+   - Add proper error handling
+
+5. Testing and validation:
+   - Add integration tests
+   - Verify error handling
+   - Test version migrations
+   - Validate boundaries
+
+6. Continue with layer separation 🚧
+7. Complete error handling consolidation 🚧
+8. Finish function signature cleanup 🚧 

@@ -79,11 +79,4 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Transaction do
       opts
     )
   end
-
-  defp handle_transaction_error(error, guild_id) do
-    error_with_guild = Map.put(error, :guild_id, guild_id)
-    log_prefix = "[#{__MODULE__}]"
-    Logger.warning("#{log_prefix} Transaction failed: #{inspect(error_with_guild)}")
-    {:error, error_with_guild}
-  end
 end

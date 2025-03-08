@@ -2,14 +2,14 @@
 
 ## Overview
 
-This document outlines the testing guidelines for the EventStore implementations in GameBot. It covers proper macro integration, test setup, and best practices for ensuring reliable event storage and retrieval.
+This document outlines the testing guidelines for the EventStore implementations in GameBot. It covers proper adapter integration, test setup, and best practices for ensuring reliable event storage and retrieval.
 
 ## Core Principles
 
-1. **Proper Macro Integration**
-   - Follow EventStore macro guidelines
-   - Use correct behavior implementations
-   - Maintain clear separation between macro and custom code
+1. **Proper Adapter Integration**
+   - Follow Base adapter guidelines
+   - Use correct behaviour implementations
+   - Maintain clear separation of concerns
 
 2. **Test Isolation**
    - Each test should start with a clean state
@@ -28,15 +28,11 @@ This document outlines the testing guidelines for the EventStore implementations
 
 ```elixir
 # config/test.exs
-config :game_bot, GameBot.Infrastructure.EventStore.Config,
-  serializer: GameBot.Infrastructure.EventStore.Serializer,
+config :game_bot, GameBot.Infrastructure.EventStore,
   username: System.get_env("EVENT_STORE_USER", "postgres"),
   password: System.get_env("EVENT_STORE_PASS", "postgres"),
   database: System.get_env("EVENT_STORE_DB", "game_bot_eventstore_test"),
   hostname: System.get_env("EVENT_STORE_HOST", "localhost"),
-  schema_prefix: "game_events",
-  column_data_type: "jsonb",
-  types: EventStore.PostgresTypes,
   pool_size: 2
 ```
 
@@ -48,12 +44,12 @@ defmodule GameBot.Test.EventStoreCase do
 
   alias EventStore.Storage.Initializer
   alias GameBot.Infrastructure.EventStore
-  alias GameBot.Infrastructure.Persistence.EventStore.Postgres
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
 
   using do
     quote do
       alias GameBot.Infrastructure.EventStore
-      alias GameBot.Infrastructure.Persistence.EventStore.Postgres
+      alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
       alias GameBot.TestEventStore
       
       import GameBot.Test.EventStoreCase
@@ -71,20 +67,18 @@ end
 
 ## Testing Categories
 
-### 1. Macro Integration Tests
+### 1. Adapter Integration Tests
 
 ```elixir
-describe "EventStore macro integration" do
-  test "core EventStore implementation" do
-    verify_event_store_implementation(EventStore)
-    verify_event_store_macro_usage(EventStore)
-    verify_macro_integration_guidelines(EventStore)
+describe "EventStore adapter integration" do
+  test "core adapter implementation" do
+    verify_adapter_implementation(EventStore)
+    verify_adapter_behaviour(EventStore)
   end
 
   test "PostgreSQL implementation" do
-    verify_event_store_implementation(Postgres)
-    verify_event_store_macro_usage(Postgres)
-    verify_macro_integration_guidelines(Postgres)
+    verify_adapter_implementation(Postgres)
+    verify_adapter_behaviour(Postgres)
   end
 end
 ```
@@ -124,7 +118,7 @@ describe "error handling" do
   test "handles concurrent modifications" do
     event = create_test_event()
     assert {:ok, _} = EventStore.append_to_stream("stream", 0, [event])
-    assert {:error, :wrong_expected_version} = 
+    assert {:error, %Error{type: :concurrency}} = 
       EventStore.append_to_stream("stream", 0, [event])
   end
 end
@@ -151,13 +145,12 @@ end
 ### 2. Verification Helpers
 
 ```elixir
-def verify_event_store_implementation(module) do
+def verify_adapter_implementation(module) do
   required_callbacks = [
-    {:init, 1},
     {:append_to_stream, 4},
     {:read_stream_forward, 4},
-    {:subscribe_to_stream, 3},
-    {:ack, 2}
+    {:subscribe_to_stream, 4},
+    {:stream_version, 2}
   ]
 
   for {fun, arity} <- required_callbacks do
@@ -166,14 +159,9 @@ def verify_event_store_implementation(module) do
   end
 end
 
-def verify_event_store_macro_usage(module) do
-  assert function_exported?(module, :config, 0),
-         "#{inspect(module)} must use EventStore macro"
-end
-
-def verify_macro_integration_guidelines(module) do
-  refute function_exported?(module, :ack, 1),
-         "#{inspect(module)} should not implement ack/1"
+def verify_adapter_behaviour(module) do
+  assert function_exported?(module, :init, 1),
+         "#{inspect(module)} must implement init/1"
 end
 ```
 
@@ -208,10 +196,10 @@ end
 
 ## Common Pitfalls
 
-1. **Macro Integration**
-   - Overriding macro-generated functions
-   - Missing @impl annotations
-   - Incorrect behavior implementations
+1. **Adapter Integration**
+   - Missing behaviour callbacks
+   - Incorrect error handling
+   - Improper state management
 
 2. **Test Isolation**
    - Insufficient cleanup between tests
@@ -233,7 +221,7 @@ end
 ### Required Tests
 
 1. **Core Functionality**
-   - Stream operations (append, read, delete)
+   - Stream operations (append, read)
    - Subscription handling
    - Event serialization
    - Transaction management
@@ -264,7 +252,7 @@ end
 
 ## Next Steps
 
-1. Add missing macro integration tests
+1. Add missing adapter integration tests
 2. Implement performance benchmarks
 3. Add property-based tests
 4. Expand error scenario coverage

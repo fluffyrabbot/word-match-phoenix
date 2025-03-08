@@ -37,7 +37,8 @@ defmodule GameBot.GameSessions.Recovery do
   require Logger
 
   alias GameBot.Domain.Events.{GameEvents, TeamEvents}
-  alias GameBot.Infrastructure.EventStore
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base, as: EventStore
+  alias GameBot.Infrastructure.Error
   alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{
     GameStarted,
@@ -177,7 +178,6 @@ defmodule GameBot.GameSessions.Recovery do
   @spec fetch_events(String.t(), keyword()) :: {:ok, [Event.t()]} | {:error, error_reason()}
   def fetch_events(game_id, opts \\ []) do
     # Use the adapter's safe functions instead of direct EventStore access
-    alias GameBot.Infrastructure.Persistence.EventStore.Adapter, as: EventStore
     case EventStore.read_stream_forward(game_id, 0, @max_events, opts) do
       {:ok, events} -> {:ok, events}
       {:error, reason} -> {:error, {:event_fetch_failed, reason}}
@@ -395,7 +395,7 @@ defmodule GameBot.GameSessions.Recovery do
         {:error, :too_many_events}
       {:ok, events} ->
         {:ok, events}
-      {:error, %EventStore.Error{type: :connection}} = error when retries > 0 ->
+      {:error, %Error{type: :connection}} = error when retries > 0 ->
         Process.sleep(exponential_backoff(retries))
         fetch_events_with_retry(game_id, retries - 1)
       error ->

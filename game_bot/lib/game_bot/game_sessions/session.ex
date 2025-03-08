@@ -15,6 +15,7 @@ defmodule GameBot.GameSessions.Session do
     ErrorEvents.GuessPairError,
     ErrorEvents.RoundCheckError
   }
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base, as: EventStore
 
   # Constants for timeouts
   @round_check_interval :timer.seconds(5)  # How often to check round status
@@ -325,7 +326,6 @@ defmodule GameBot.GameSessions.Session do
 
   defp persist_events(game_id, events) do
     # Use the adapter's safe functions instead of direct EventStore access
-    alias GameBot.Infrastructure.Persistence.EventStore.Adapter, as: EventStore
     EventStore.append_to_stream(game_id, :any, events)
   end
 

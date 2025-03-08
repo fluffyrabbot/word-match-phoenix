@@ -1,8 +1,9 @@
 defmodule GameBot.Test.Mocks.EventStore do
   @moduledoc """
-  Mock EventStore implementation for testing retry mechanisms and error conditions.
+  Mock implementation of the EventStore behaviour for testing.
   """
-  @behaviour GameBot.Infrastructure.Persistence.EventStore.Behaviour
+
+  @behaviour GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
 
   use GenServer
   alias GameBot.Infrastructure.Persistence.Error

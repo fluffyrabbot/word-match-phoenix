@@ -9,7 +9,7 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Postgres do
 
   import Ecto.Query
   alias Ecto.Multi
-  alias GameBot.Infrastructure.Persistence.Error
+  alias GameBot.Infrastructure.{Error, ErrorHelpers}
 
   @doc """
   Execute a function within a transaction.
@@ -19,66 +19,45 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Postgres do
     * `:isolation` - The isolation level for the transaction
   """
   def execute_transaction(fun, opts \\ []) do
-    try do
-      transaction(fn ->
-        case fun.() do
-          {:ok, result} -> result
-          {:error, reason} -> Repo.rollback(reason)
-          other -> other
-        end
-      end, opts)
-    rescue
-      e in DBConnection.ConnectionError ->
-        {:error, connection_error(e)}
-      e ->
-        {:error, system_error("Transaction failed", e)}
-    end
+    ErrorHelpers.with_retries(
+      fn ->
+        transaction(fn ->
+          case fun.() do
+            {:ok, result} -> result
+            {:error, reason} -> Repo.rollback(reason)
+            other -> other
+          end
+        end, opts)
+      end,
+      __MODULE__,
+      max_retries: 3
+    )
   end
 
   @doc """
   Execute multiple operations in a transaction using Ecto.Multi.
   """
   def execute_multi(multi, opts \\ []) do
-    try do
-      case transaction(fn -> Multi.to_list(multi) end, opts) do
-        {:ok, results} -> {:ok, results}
-        {:error, operation, reason, _changes} ->
-          {:error, transaction_error(operation, reason)}
-      end
-    rescue
-      e in DBConnection.ConnectionError ->
-        {:error, connection_error(e)}
-      e ->
-        {:error, system_error("Multi transaction failed", e)}
-    end
+    ErrorHelpers.with_retries(
+      fn ->
+        case transaction(fn -> Multi.to_list(multi) end, opts) do
+          {:ok, results} -> {:ok, results}
+          {:error, operation, reason, _changes} ->
+            {:error, transaction_error(operation, reason)}
+        end
+      end,
+      __MODULE__,
+      max_retries: 3
+    )
   end
 
   # Private Functions
 
   defp transaction_error(operation, reason) do
-    %Error{
-      type: :transaction,
-      context: __MODULE__,
-      message: "Transaction failed on operation: #{operation}",
-      details: %{operation: operation, reason: reason}
-    }
-  end
-
-  defp connection_error(error) do
-    %Error{
-      type: :connection,
-      context: __MODULE__,
-      message: "Database connection error",
-      details: %{error: error, retryable: true}
-    }
-  end
-
-  defp system_error(message, error) do
-    %Error{
-      type: :system,
-      context: __MODULE__,
-      message: message,
-      details: error
-    }
+    Error.system_error(
+      __MODULE__,
+      "Transaction failed on operation: #{operation}",
+      %{operation: operation, reason: reason}
+    )
   end
 end
