@@ -14,8 +14,7 @@ config :game_bot, GameBot.Infrastructure.Repo,
   pool_size: 2
 
 # Configure EventStore for testing
-config :game_bot, GameBot.Infrastructure.EventStore,
-  implementation: GameBot.TestEventStore,
+config :game_bot, GameBot.Infrastructure.EventStore.Config,
   serializer: GameBot.Infrastructure.EventStore.Serializer,
   username: System.get_env("EVENT_STORE_USER", "postgres"),
   password: System.get_env("EVENT_STORE_PASS", "csstarahid"),
@@ -25,10 +24,9 @@ config :game_bot, GameBot.Infrastructure.EventStore,
   column_data_type: "jsonb",
   types: EventStore.PostgresTypes,
   pool_size: 2,
-  schema_wait: true,  # Wait for schema to be ready in tests
-  max_append_retries: 1,
-  max_stream_size: 100,
-  subscription_timeout: :timer.seconds(5)
+  max_append_retries: 3,
+  max_stream_size: 10_000,
+  subscription_timeout: :timer.seconds(30)
 
 # Configure Commanded for testing
 config :game_bot, GameBot.Infrastructure.CommandedApp,
@@ -39,9 +37,12 @@ config :game_bot, GameBot.Infrastructure.CommandedApp,
   pubsub: :local,
   registry: :local
 
-# Configure Nostrum to use our mock in test
+# Configure Nostrum for testing
 config :nostrum,
-  api_module: GameBot.Test.Mocks.NostrumApiMock
+  token: System.get_env("DISCORD_TOKEN", "test_token"),
+  gateway_intents: :all,
+  api_module: GameBot.Test.Mocks.NostrumApiMock,
+  cache_module: GameBot.Test.Mocks.NostrumCacheMock
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
@@ -60,37 +61,11 @@ config :phoenix, :plug_init_mode, :runtime
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
 
-config :game_bot, :event_store, GameBot.TestEventStore
-
-# Use in-memory store for tests
-config :game_bot, event_store_adapter: GameBot.TestEventStore
-
-# Configure the database connection for tests
-config :game_bot, GameBot.Infrastructure.Persistence.Repo,
-  username: "postgres",
-  password: "csstarahid",
-  database: "game_bot_test",
-  hostname: "localhost",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 2
-
-# Configure EventStore for tests
-config :game_bot, :event_store,
-  username: "postgres",
-  password: "csstarahid",
-  database: "game_bot_eventstore_test",
-  hostname: "localhost",
-  serializer: GameBot.Infrastructure.EventStore.Serializer,
-  schema_prefix: "game_events",
-  column_data_type: "jsonb",
-  types: EventStore.PostgresTypes,
-  pool_size: 2
-
-# Configure Nostrum for tests
-config :game_bot, :start_word_service, false
-config :nostrum,
-  token: "mock_token",
-  api_module: GameBot.Test.Mocks.NostrumApiMock
+# Configure test adapters
+config :game_bot,
+  event_store_adapter: GameBot.TestEventStore,
+  start_word_service: false,
+  start_nostrum: false  # Don't start Nostrum in tests
 
 # Configure Discord message handling settings
 config :game_bot,
@@ -98,3 +73,14 @@ config :game_bot,
   max_messages_per_window: 30,
   max_word_length: 50,
   min_word_length: 2
+
+# Configure your repositories
+config :game_bot, ecto_repos: [GameBot.Infrastructure.Persistence.Repo.Postgres]
+
+# Configure the test repository
+config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
+  username: "postgres",
+  password: "csstarahid",
+  database: "game_bot_test",
+  hostname: "localhost",
+  pool: Ecto.Adapters.SQL.Sandbox

@@ -3,8 +3,54 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Postgres do
   PostgreSQL-based event store implementation.
   Implements EventStore behaviour through macro.
 
+  ## Macro Integration Guidelines
+
+  This module uses the EventStore macro which generates several callback implementations.
+  To maintain compatibility with the macro:
+
+  1. DO NOT override these macro-generated functions:
+     - `ack/2` - Event acknowledgment
+     - `config/1` - Configuration handling
+     - `subscribe/2` - Subscription management
+     - Other standard EventStore callbacks
+
+  2. ONLY override callbacks when adding functionality:
+     - `init/1` - For additional initialization (e.g., telemetry)
+     - Other callbacks where specific customization is needed
+
+  3. DO add custom functions that:
+     - Wrap macro-generated functions with additional safety/validation
+     - Provide domain-specific functionality
+     - Add monitoring or logging
+
+  4. ALWAYS check the EventStore behaviour documentation before adding new functions
+     to avoid naming conflicts with macro-generated functions.
+
+  ## Implementation Notes
+
   This module is intentionally kept minimal to avoid conflicts with macro-generated functions.
   All custom functionality is implemented in the adapter layer.
+
+  ## Example Usage
+
+  ```elixir
+  # DO - Add custom wrapper functions
+  def safe_stream_version(stream_id) do
+    # Custom validation and error handling
+  end
+
+  # DO - Override callbacks with @impl true when adding functionality
+  @impl true
+  def init(config) do
+    # Add telemetry
+    {:ok, config}
+  end
+
+  # DON'T - Override macro-generated functions
+  # def config do  # This would conflict
+  #   ...
+  # end
+  ```
   """
 
   use EventStore, otp_app: :game_bot
@@ -33,6 +79,13 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Postgres do
   # Configuration
   @telemetry_prefix [:game_bot, :event_store]
 
+  @doc """
+  Initialize the event store with configuration and setup monitoring.
+
+  This is an override of the macro-generated init/1 to add telemetry support.
+  We keep the original functionality (returning {:ok, config}) while adding our
+  custom telemetry setup.
+  """
   @impl true
   def init(config) do
     :telemetry.attach(
@@ -55,6 +108,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Postgres do
 
   @doc """
   Get the current version of a stream with type safety and error handling.
+
+  This is a custom wrapper around the macro-generated stream_info/1 function,
+  adding additional validation and error handling.
 
   ## Parameters
     * `stream_id` - The stream identifier
@@ -81,7 +137,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Postgres do
 
   @doc """
   Type-safe wrapper for appending events to a stream.
-  Validates inputs and provides detailed error handling.
+
+  This is a custom wrapper around the macro-generated append_to_stream/4 function,
+  adding validation, error handling, and logging.
   """
   @spec safe_append_to_stream(stream_id(), expected_version(), [event()], keyword()) ::
     {:ok, non_neg_integer()} | {:error, append_error()}
@@ -115,7 +173,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Postgres do
 
   @doc """
   Type-safe wrapper for reading events from a stream.
-  Validates inputs and provides detailed error handling.
+
+  This is a custom wrapper around the macro-generated read_stream_forward/4 function,
+  adding validation, error handling, and logging.
   """
   @spec safe_read_stream_forward(stream_id(), non_neg_integer(), read_batch_size()) ::
     {:ok, [event()]} | {:error, read_error()}

@@ -2,25 +2,80 @@
 
 This document outlines the remaining critical and high priority warnings to address in the GameBot codebase.
 
+## Priority 0: Architectural Issues
+
+### 0.1 EventStore Architecture Inconsistencies
+- [ ] Resolve layering violations:
+  - [ ] Move EventStore.Serializer to Infrastructure layer
+  - [ ] Remove direct EventStructure dependency from adapter
+  - [ ] Create proper boundary between Domain and Infrastructure layers
+- [ ] Consolidate error handling:
+  - [ ] Create unified error type system across all EventStore modules
+  - [ ] Move Error module to separate file
+  - [ ] Standardize error conversion from EventStore to domain
+- [ ] Fix transaction management:
+  - [ ] Remove redundant validation in transaction module
+  - [ ] Implement proper transaction boundaries
+  - [ ] Add transaction logging and monitoring
+- [ ] Improve configuration management:
+  - [ ] Centralize configuration in single location
+  - [ ] Add runtime configuration validation
+  - [ ] Document all configuration options
+
+### 0.2 EventStore Integration Design
+- [ ] Implement proper event versioning:
+  - [ ] Add event schema versioning
+  - [ ] Add event upgrade mechanisms
+  - [ ] Add version validation on read/write
+- [ ] Improve concurrency handling:
+  - [ ] Add proper stream locking mechanisms
+  - [ ] Implement retry strategies with backoff
+  - [ ] Add deadlock detection
+- [ ] Add proper monitoring:
+  - [ ] Implement comprehensive telemetry
+  - [ ] Add performance metrics
+  - [ ] Add health checks
+- [ ] Improve error recovery:
+  - [ ] Add event replay capability
+  - [ ] Implement proper cleanup on failures
+  - [ ] Add automatic recovery strategies
+
+### 0.3 Code Organization
+- [ ] Reorganize EventStore modules:
+  - [ ] Split adapter into smaller focused modules
+  - [ ] Create proper type specifications
+  - [ ] Add comprehensive documentation
+- [ ] Implement proper testing infrastructure:
+  - [ ] Add integration test helpers
+  - [ ] Add proper mocking support
+  - [ ] Add performance test suite
+
 ## Priority 1: Critical Functionality Issues
 
 ### 1.1 EventStore Integration (CRITICAL)
 - [ ] Fix EventStore API compatibility issues:
-  - [ ] Replace `EventStore.Config.parse/2` with `parse/1` in migrate.ex
+  - [ ] Replace `EventStore.Config.parse/2` with `parse/1` in migrate.ex and event_store.ex
   - [ ] Fix `EventStore.Storage.Initializer.migrate/2` usage in migrate.ex
   - [ ] Update `EventStore.Storage.Initializer.reset!/1` to use correct arity
+  - [ ] Fix undefined `Ecto.Repo.transaction/3` in postgres.ex
 - [ ] Implement proper stream versioning and concurrency control
 - [ ] Add proper error handling for EventStore operations
 
-### 1.2 Critical Type Violations
-- [ ] Fix pattern match that will never match in TestHelpers:
+### 1.2 Critical Type and Function Violations
+- [ ] Fix DateTime API usage:
   ```elixir
-  {:ok, new_state} -> new_state  # Incompatible with return type
+  DateTime.from_iso8601!/1 is undefined or private
   ```
-- [ ] Fix missing fields in events:
+- [ ] Fix undefined event functions:
   ```elixir
-  event.finished_at  # Unknown key in GameFinished event
-  event.started_at   # Unknown key in RoundStarted event
+  GameBot.Domain.Events.GameCompleted.new/5 is undefined
+  GameBot.Domain.Events.EventStructure.validate/1 is undefined
+  ```
+- [ ] Fix undefined error event functions:
+  ```elixir
+  GuessError.new/5 is undefined (should be new/6)
+  RoundCheckError.new/2 is undefined (should be new/3)
+  GuessPairError.new/5 is undefined (should be new/6)
   ```
 
 ### 1.3 Critical Behaviour Conflicts
@@ -28,39 +83,53 @@ This document outlines the remaining critical and high priority warnings to addr
   ```elixir
   warning: conflicting behaviours found. Callback function init/1 is defined by both EventStore and GenServer
   ```
-- [ ] Fix module redefinition issues in test mocks:
-  - [ ] `Nostrum.Api.Message`
-  - [ ] `Nostrum.Api.Interaction`
+- [ ] Fix missing @impl annotations for EventStore callbacks:
+  - [ ] `ack/2` in GameBot.Infrastructure.EventStore
+  - [ ] `ack/2` in GameBot.Infrastructure.Persistence.EventStore.Postgres
 
-### 1.4 Safe Function Implementation
-- [ ] Implement missing safe functions in TestEventStore:
-  - [ ] `safe_append_to_stream/4`
-  - [ ] `safe_read_stream_forward/3`
-  - [ ] `safe_stream_version/1`
+### 1.4 Deprecated API Usage
+- [ ] Replace deprecated System calls:
+  ```elixir
+  System.get_pid/0 is deprecated. Use System.pid/0 instead
+  ```
+- [ ] Fix range syntax warnings:
+  ```elixir
+  1..-1 has a default step of -1, please write 1..-1//-1 instead
+  ```
 
 ## Priority 2: High Priority Issues
 
-### 2.1 Documentation and Type Specifications
-- [ ] Add proper @moduledoc for all EventStore modules
-- [ ] Add @doc for all public functions
-- [ ] Add @typedoc for all custom types
-- [ ] Add @type specifications for all custom types
-- [ ] Add @spec for all public functions
-- [ ] Document error handling and recovery procedures
-
-### 2.2 Testing Requirements
-- [ ] Add unit tests for all EventStore operations
-- [ ] Add integration tests for stream operations
-- [ ] Add concurrency tests
-- [ ] Add error handling tests
-- [ ] Add tests for timeout and validation errors
-
-### 2.3 Function Organization
+### 2.1 Function Organization and Documentation
 - [ ] Group related function clauses together:
-  - [ ] `handle_call/3` in NostrumApiMock
+  - [ ] `handle_event/1` and `handle_event/2` in UserProjection
   - [ ] `handle_game_summary/2` in ReplayCommands
-  - [ ] `handle_event/1` and `handle_event/2` in GameProjection
-- [ ] Fix duplicate @doc attributes in ReplayCommands
+  - [ ] `handle_call/3` in TestEventStore
+  - [ ] `init/1` in TestEventStore
+- [ ] Fix duplicate @doc attributes:
+  - [ ] Remove duplicate docs in ReplayCommands.handle_game_summary/2
+
+### 2.2 Function Signature Issues
+- [ ] Fix unused default arguments:
+  ```elixir
+  fetch_game_events/2 default values are never used
+  ```
+- [ ] Fix function arity mismatches:
+  - [ ] GuessError.new/5 vs new/6
+  - [ ] RoundCheckError.new/2 vs new/3
+  - [ ] GuessPairError.new/5 vs new/6
+
+### 2.3 Unused Code Cleanup (High Priority)
+- [ ] Clean up unused functions in EventStore.Adapter:
+  - [ ] Error handling functions (validation_error, timeout_error, etc.)
+  - [ ] Helper functions (prepare_events, extract_event_data, etc.)
+  - [ ] Retry mechanism functions (exponential_backoff, do_append_with_retry)
+- [ ] Remove unused module attributes:
+  - [ ] `@min_word_length` and `@max_word_length` in Listener
+- [ ] Clean up unused imports and aliases:
+  - [ ] `Mix.Ecto` in migrate.ex
+  - [ ] `Message` in team_commands.ex
+  - [ ] `EventStore` in stats_commands.ex
+  - [ ] `BaseEvent` in event_store/serializer.ex
 
 ## Priority 3: Code Quality Issues
 

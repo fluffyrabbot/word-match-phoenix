@@ -19,7 +19,7 @@ defmodule GameBot.MixProject do
   def application do
     [
       mod: {GameBot.Application, []},
-      extra_applications: [:logger, :runtime_tools],
+      extra_applications: [:logger, :runtime_tools, :eventstore],
       included_applications: (if Mix.env() == :test, do: [:nostrum], else: [])
     ]
   end
@@ -73,18 +73,21 @@ defmodule GameBot.MixProject do
   #
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
-    setup_aliases = if Mix.env() == :test do
-      ["deps.get", "ecto.setup"]
-    else
-      ["deps.get", "ecto.setup", "event_store.setup"]
-    end
-
     [
-      setup: setup_aliases,
+      setup: ["deps.get", "ecto.setup", "event_store.setup", "assets.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "event_store.setup": ["event_store.create", "event_store.migrate"],
+      test: [
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "event_store.setup",
+        "test"
+      ],
+      "event_store.setup": [
+        "event_store.create",
+        "event_store.init",
+        "game_bot.migrate"
+      ],
       "event_store.reset": ["event_store.drop", "event_store.setup"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind default", "esbuild default"],

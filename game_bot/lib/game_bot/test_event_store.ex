@@ -1,6 +1,7 @@
 defmodule GameBot.TestEventStore do
   @moduledoc """
   In-memory implementation of EventStore for testing.
+  Implements both EventStore behavior for the interface and GenServer for the implementation.
   """
 
   @behaviour EventStore
@@ -20,12 +21,16 @@ defmodule GameBot.TestEventStore do
 
   # Client API
 
-  @impl EventStore
+  @doc """
+  Starts the test event store.
+  """
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @impl EventStore
+  @doc """
+  Stops the test event store.
+  """
   def stop(server, timeout \\ :infinity) do
     case server do
       pid when is_pid(pid) ->
@@ -87,11 +92,15 @@ defmodule GameBot.TestEventStore do
     GenServer.call(__MODULE__, {:version, stream_id})
   end
 
-  # EventStore Callbacks
+  # EventStore Behaviour Callbacks
+
+  @impl EventStore
+  def init(config) do
+    {:ok, config}
+  end
 
   @impl EventStore
   def config do
-    # Return test configuration for the in-memory event store
     Application.get_env(:game_bot, __MODULE__, [])
   end
 
@@ -151,7 +160,7 @@ defmodule GameBot.TestEventStore do
   end
 
   @impl EventStore
-  def delete_subscription(stream_id, subscription_name, opts) do
+  def delete_subscription(stream_id, subscription_name, _opts) do
     GenServer.call(__MODULE__, {:delete_subscription, stream_id, subscription_name})
   end
 
@@ -215,10 +224,19 @@ defmodule GameBot.TestEventStore do
     GenServer.call(__MODULE__, {:delete_snapshot, source_uuid})
   end
 
-  # Server Callbacks
+  @impl EventStore
+  def handle_call({:unsubscribe_all, subscription}, _from, state) do
+    new_state = %{state |
+      subscriptions: Map.delete(state.subscriptions, subscription),
+      subscribers: Map.delete(state.subscribers, subscription)
+    }
+    {:reply, :ok, new_state}
+  end
+
+  # GenServer Callbacks
 
   @impl GenServer
-  def init(_opts) do
+  def init(_) do
     {:ok, %State{}}
   end
 
@@ -486,26 +504,5 @@ defmodule GameBot.TestEventStore do
   @impl GenServer
   def handle_call({:delete_snapshot, _source_uuid}, _from, state) do
     {:reply, :ok, state}
-  end
-
-  @impl GenServer
-  def handle_call({:unsubscribe_all, subscription}, _from, state) do
-    new_state = %{state |
-      subscriptions: Map.delete(state.subscriptions, subscription),
-      subscribers: Map.delete(state.subscribers, subscription)
-    }
-    {:reply, :ok, new_state}
-  end
-
-  # Explicitly implement init/1 for both GenServer and EventStore behaviours
-  @impl GenServer
-  def init(_) do
-    {:ok, %State{}}
-  end
-
-  # EventStore behaviour init is different - it's for initializing the event store config
-  @impl EventStore
-  def init(config) do
-    {:ok, config}
   end
 end

@@ -14,7 +14,7 @@ defmodule GameBot.Infrastructure.EventStore do
   @doc """
   Initialize the event store with configuration and setup monitoring.
   """
-  @impl true
+  @impl EventStore
   def init(config) do
     :telemetry.attach(
       "event-store-handler",
@@ -27,6 +27,14 @@ defmodule GameBot.Infrastructure.EventStore do
   end
 
   @doc """
+  Acknowledge receipt of an event.
+  """
+  @impl EventStore
+  def ack(subscription, events) do
+    :ok = EventStore.ack(subscription, events)
+  end
+
+  @doc """
   Resets the event store by deleting all events.
   Only available in test environment.
   """
@@ -36,10 +44,10 @@ defmodule GameBot.Infrastructure.EventStore do
     end
 
     config = Application.get_env(:game_bot, __MODULE__, [])
-    {:ok, conn} = EventStore.Config.parse(config, [])
+    {:ok, conn} = EventStore.Config.parse(config)
 
-    # Drop and recreate the event store database
-    :ok = EventStore.Storage.Initializer.reset!(conn)
+    # Drop and recreate the event store database with explicit options
+    :ok = EventStore.Storage.Initializer.reset!(conn, [])
   end
 
   @doc """
