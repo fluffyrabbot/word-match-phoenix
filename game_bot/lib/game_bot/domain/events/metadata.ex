@@ -17,7 +17,7 @@ defmodule GameBot.Domain.Events.Metadata do
     optional(:ip_address) => String.t()         # IP address (for security)
   }
 
-  @type validation_error :: {:error, :invalid_type | :missing_field | :invalid_format}
+  @type validation_error :: {:error, String.t()}
 
   @doc """
   Creates a new metadata map with base fields.
@@ -44,17 +44,10 @@ defmodule GameBot.Domain.Events.Metadata do
     # Merge options with normalized attributes (options take precedence)
     merged_attrs = Map.merge(normalized_attrs, Enum.into(opts, %{}))
 
-    # Add defaults for required fields if missing
-    attrs_with_defaults = merged_attrs
-      |> Map.put_new_lazy(:correlation_id, &generate_correlation_id/0)
-      |> Map.put_new_lazy(:server_version, fn ->
-          Application.spec(:game_bot, :vsn) |> to_string()
-        end)
-
     # Validate the metadata
-    with :ok <- validate_source_id(attrs_with_defaults),
-         :ok <- validate_correlation_id(attrs_with_defaults) do
-      {:ok, attrs_with_defaults |> remove_nils()}
+    case validate(merged_attrs) do
+      :ok -> {:ok, merged_attrs}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -67,7 +60,8 @@ defmodule GameBot.Domain.Events.Metadata do
     attrs = %{
       source_id: "#{msg.id}",
       guild_id: msg.guild_id && "#{msg.guild_id}",
-      actor_id: msg.author && "#{msg.author.id}"
+      actor_id: msg.author && "#{msg.author.id}",
+      correlation_id: opts[:correlation_id] || generate_correlation_id()
     }
 
     new(attrs, opts)
@@ -78,7 +72,8 @@ defmodule GameBot.Domain.Events.Metadata do
     attrs = %{
       source_id: "#{id}",
       guild_id: Map.get(msg, :guild_id) && "#{Map.get(msg, :guild_id)}",
-      actor_id: Map.get(author, :id) && "#{Map.get(author, :id)}"
+      actor_id: Map.get(author, :id) && "#{Map.get(author, :id)}",
+      correlation_id: opts[:correlation_id] || generate_correlation_id()
     }
 
     new(attrs, opts)
@@ -92,7 +87,8 @@ defmodule GameBot.Domain.Events.Metadata do
     attrs = %{
       source_id: "#{interaction.id}",
       guild_id: interaction.guild_id && "#{interaction.guild_id}",
-      actor_id: interaction.user && "#{interaction.user.id}"
+      actor_id: interaction.user && "#{interaction.user.id}",
+      correlation_id: opts[:correlation_id] || generate_correlation_id()
     }
 
     new(attrs, opts)
@@ -145,7 +141,7 @@ defmodule GameBot.Domain.Events.Metadata do
   @doc """
   Validates that metadata contains required fields and has correct types.
   """
-  @spec validate(map()) :: :ok | {:error, String.t()}
+  @spec validate(map()) :: :ok | validation_error()
   def validate(metadata) when is_map(metadata) do
     with :ok <- validate_source_id(metadata),
          :ok <- validate_correlation_id(metadata) do
@@ -153,7 +149,7 @@ defmodule GameBot.Domain.Events.Metadata do
     end
   end
 
-  def validate(_), do: {:error, :invalid_type}
+  def validate(_), do: {:error, "metadata must be a map"}
 
   # Private helpers
 
@@ -161,7 +157,7 @@ defmodule GameBot.Domain.Events.Metadata do
     if Map.has_key?(metadata, :source_id) or Map.has_key?(metadata, "source_id") do
       :ok
     else
-      {:error, :missing_field}
+      {:error, "source_id is required in metadata"}
     end
   end
 
@@ -169,7 +165,7 @@ defmodule GameBot.Domain.Events.Metadata do
     if Map.has_key?(metadata, :correlation_id) or Map.has_key?(metadata, "correlation_id") do
       :ok
     else
-      {:error, :missing_field}
+      {:error, "correlation_id is required in metadata"}
     end
   end
 
@@ -183,10 +179,6 @@ defmodule GameBot.Domain.Events.Metadata do
   rescue
     # If key doesn't exist as atom, keep as string
     ArgumentError -> map
-  end
-
-  defp remove_nils(map) do
-    Enum.filter(map, fn {_, v} -> v != nil end) |> Map.new()
   end
 
   defp generate_correlation_id do

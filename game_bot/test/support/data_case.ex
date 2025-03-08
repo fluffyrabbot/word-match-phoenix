@@ -21,7 +21,7 @@ defmodule GameBot.DataCase do
 
   using do
     quote do
-      alias GameBot.Infrastructure.Repo
+      alias GameBot.Infrastructure.Persistence.Repo
 
       import Ecto
       import Ecto.Changeset
@@ -54,7 +54,7 @@ defmodule GameBot.DataCase do
   def setup_sandbox(tags) do
     # Start owner with better error handling
     try do
-      pid = Ecto.Adapters.SQL.Sandbox.start_owner!(GameBot.Infrastructure.Repo, shared: not tags[:async])
+      pid = Ecto.Adapters.SQL.Sandbox.start_owner!(GameBot.Infrastructure.Persistence.Repo, shared: not tags[:async])
       on_exit(fn ->
         try do
           Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
@@ -66,8 +66,8 @@ defmodule GameBot.DataCase do
       e ->
         IO.puts("Error setting up sandbox: #{inspect(e)}")
         # Try to ensure repo is started and retry once
-        RepositoryManager.ensure_started(GameBot.Infrastructure.Repo)
-        pid = Ecto.Adapters.SQL.Sandbox.start_owner!(GameBot.Infrastructure.Repo, shared: not tags[:async])
+        RepositoryManager.ensure_started(GameBot.Infrastructure.Persistence.Repo)
+        pid = Ecto.Adapters.SQL.Sandbox.start_owner!(GameBot.Infrastructure.Persistence.Repo, shared: not tags[:async])
         on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     end
   end

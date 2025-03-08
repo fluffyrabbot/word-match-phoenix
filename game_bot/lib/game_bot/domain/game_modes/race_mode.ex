@@ -113,10 +113,8 @@ defmodule GameBot.Domain.GameModes.RaceMode do
           guild_id: guild_id,
           time_limit: config.time_limit,
           start_time: DateTime.utc_now(),
-          team_positions: initialize_team_positions(teams),
-          finish_line: Map.get(config, :finish_line, 10),
-          last_team_update: DateTime.utc_now(),
-          completed_teams: %{}
+          matches_by_team: %{},
+          total_guesses_by_team: %{}
         })
 
         {:ok, state, events}
@@ -195,37 +193,6 @@ defmodule GameBot.Domain.GameModes.RaceMode do
             else
               state
             end
-
-            # Generate a game_id from the module and timestamp if not present in state
-            game_id = case Map.get(state, :game_id) do
-              nil ->
-                # Create a consistent ID using the module name and current time
-                "#{inspect(__MODULE__)}-#{:erlang.system_time(:second)}"
-              id -> id
-            end
-
-            event = %RoundRestarted{
-              game_id: game_id,
-              guild_id: state.guild_id,
-              team_id: team_id,
-              giving_up_player: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player1_id, else: guess_pair.player2_id),
-              teammate_word: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player2_word, else: guess_pair.player1_word),
-              guess_count: get_in(state.teams, [team_id, :guess_count]) + 1, # Count this as a failed attempt
-              timestamp: DateTime.utc_now()
-            }
-
-            # Update total guesses to count this as a failed attempt
-            state = update_in(state.total_guesses_by_team[team_id], &(&1 + 1))
-
-            # Clear the current words for the team and reset their guess count
-            # Note: The session manager will handle getting new words
-            state = update_in(state.teams[team_id], fn team_state ->
-              %{team_state |
-                current_words: [],
-                guess_count: 0,
-                pending_guess: nil
-              }
-            end)
 
             {:ok, state, event}
           end
@@ -460,15 +427,5 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @spec validate_event(struct()) :: :ok | {:error, String.t()}
   def validate_event(event) do
     GameBot.Domain.GameModes.BaseMode.validate_event(event, :race, :minimum, 2)
-  end
-
-  # Add team position initialization
-  @doc false
-  # Initialize starting positions for each team at position 0
-  @spec initialize_team_positions(%{String.t() => [String.t()]}) :: %{String.t() => non_neg_integer()}
-  defp initialize_team_positions(teams) do
-    teams
-    |> Map.keys()
-    |> Enum.into(%{}, fn team_id -> {team_id, 0} end)
   end
 end

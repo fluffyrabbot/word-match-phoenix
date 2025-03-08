@@ -26,7 +26,7 @@ defmodule GameBot.Application do
   defp base_children do
     # Start the Ecto repositories
     repos = [
-      GameBot.Infrastructure.Repo,
+      GameBot.Infrastructure.Persistence.Repo,
       GameBot.Infrastructure.Persistence.Repo.Postgres
     ]
 

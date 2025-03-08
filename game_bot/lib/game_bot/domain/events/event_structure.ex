@@ -151,7 +151,12 @@ defmodule GameBot.Domain.Events.EventStructure do
   def validate_metadata(%{metadata: metadata}) when is_map(metadata) do
     Metadata.validate(metadata)
   end
-  def validate_metadata(_), do: {:error, "metadata is required"}
+  def validate_metadata(%{metadata: _}) do
+    {:error, "metadata must be a map"}
+  end
+  def validate_metadata(_) do
+    {:error, "metadata is required"}
+  end
 
   @doc """
   Validates an event has all required base fields and a valid metadata structure.
@@ -299,49 +304,49 @@ defmodule GameBot.Domain.Events.EventStructure do
   def serialize(%_{} = struct) do
     struct
     |> Map.from_struct()
+    |> serialize()
+  end
+
+  def serialize(data) when is_map(data) do
+    data
     |> Enum.map(fn {k, v} -> {to_string(k), serialize(v)} end)
     |> Map.new()
-    |> Map.put("__struct__", struct.__struct__ |> to_string())
   end
 
-  def serialize(map) when is_map(map) do
-    Enum.map(map, fn {k, v} -> {k, serialize(v)} end) |> Map.new()
+  def serialize(data) when is_list(data) do
+    Enum.map(data, &serialize/1)
   end
 
-  def serialize(list) when is_list(list) do
-    Enum.map(list, &serialize/1)
-  end
-
-  def serialize(other), do: other
+  def serialize(data), do: data
 
   @doc """
-  Deserializes data from storage format back to its original format.
+  Deserializes data from storage format back into rich types.
   """
   @spec deserialize(term()) :: term()
   def deserialize(data)
 
-  def deserialize(%{"__mapset__" => true, "items" => items}) when is_list(items) do
-    MapSet.new(Enum.map(items, &deserialize/1))
+  def deserialize(%{"__mapset__" => true, "items" => items}) do
+    items
+    |> Enum.map(&deserialize/1)
+    |> MapSet.new()
   end
 
-  def deserialize(%{"__struct__" => struct_name} = data) when is_binary(struct_name) do
-    try do
-      module = String.to_existing_atom(struct_name)
-      data = Map.delete(data, "__struct__")
-      data = Enum.map(data, fn {k, v} -> {String.to_existing_atom(k), deserialize(v)} end)
-      struct(module, data)
-    rescue
-      ArgumentError -> data
+  def deserialize(data) when is_map(data) do
+    data
+    |> Enum.map(fn {k, v} -> {k, deserialize(v)} end)
+    |> Map.new()
+  end
+
+  def deserialize(data) when is_list(data) do
+    Enum.map(data, &deserialize/1)
+  end
+
+  def deserialize(data) when is_binary(data) do
+    case DateTime.from_iso8601(data) do
+      {:ok, datetime, _} -> datetime
+      _ -> data
     end
   end
 
-  def deserialize(map) when is_map(map) do
-    Enum.map(map, fn {k, v} -> {k, deserialize(v)} end) |> Map.new()
-  end
-
-  def deserialize(list) when is_list(list) do
-    Enum.map(list, &deserialize/1)
-  end
-
-  def deserialize(other), do: other
+  def deserialize(data), do: data
 end

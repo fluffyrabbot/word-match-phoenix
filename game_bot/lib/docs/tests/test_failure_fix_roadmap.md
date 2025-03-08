@@ -57,6 +57,11 @@ This document outlines the prioritized approach to fixing the failing tests in t
   - [x] Implement proper `event_type/0` function in test event modules
   - [x] Fix event registration in `EventTranslator`
   - [x] Fix JSON serialization in `EventStore.Serializer`
+  - [x] Fix DateTime serialization in EventStructure
+  - [x] Fix MapSet serialization in EventStructure
+  - [x] Fix nested structure serialization in EventStructure
+  - [ ] Fix metadata validation in EventStructure (failing tests)
+  - [ ] Fix ExampleEvent implementation (missing new/6 and validate/1)
 
 ### 3.2 Event Migration Paths
 
@@ -126,6 +131,38 @@ This document outlines the prioritized approach to fixing the failing tests in t
   - [ ] Ensure proper endpoint initialization in test environment
   - [ ] Fix secret_key_base lookups in test environment
 
+## Priority 6: Event Implementation Issues
+
+### 6.1 ExampleEvent Implementation
+- [ ] Fix ExampleEvent module:
+  - [ ] Implement missing `new/6` function
+  - [ ] Implement missing `validate/1` function
+  - [ ] Add proper event version handling
+  - [ ] Add proper event type registration
+  - [ ] Fix serialization tests
+
+### 6.2 CommandHandler Implementation
+- [ ] Fix CommandHandler module:
+  - [ ] Implement missing `handle_start_game/3` function
+  - [ ] Implement missing `handle_team_create/2` function
+  - [ ] Implement missing `handle_guess/4` function
+  - [ ] Add proper metadata inheritance
+  - [ ] Add proper correlation chain handling
+
+### 6.3 EventRegistry Issues
+- [ ] Fix EventRegistry module:
+  - [ ] Fix ETS table name conflicts
+  - [ ] Add proper cleanup between tests
+  - [ ] Fix event registration process
+  - [ ] Add proper error handling for registration failures
+
+### 6.4 EventStructure Validation
+- [ ] Fix EventStructure validation:
+  - [ ] Fix metadata validation error messages
+  - [ ] Fix metadata field requirements
+  - [ ] Add proper error format standardization
+  - [ ] Fix validation error handling in tests
+
 ## Implementation Guidelines
 
 ### Testing Strategy
@@ -159,25 +196,29 @@ This document outlines the prioritized approach to fixing the failing tests in t
 - [x] EventStore adapter tests passing in isolation: 4/4
 - [x] EventStore macro integration tests: 4/4
 - [x] EventStore BaseTest: 11/11
-- [x] Game mode validation tests passing: 45/45 (COMPLETED)
-- [ ] EventStore adapter tests passing in full suite: 0/12
+- [x] Game mode validation tests passing: 45/45
 - [x] Event serialization tests passing: 12/12
-- [ ] Web controller tests passing: 0/1
-- [ ] Overall test pass rate: ~146/347 (42.1%)
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
 
 ## Next Steps
 
-1. ✓ Fix critical database connection issues
-2. ✓ Fix missing EventStore API functions
-3. ✓ Fix EventStore transaction handling and serialization
-4. ✓ Fix TestAdapter implementation for BaseTests
-5. ✓ Fix event translator migration paths
-6. ✓ Implement bypass mechanism for word_forbidden validation in tests
-7. ✓ Fix error format consistency across game modes
-8. Fix sandbox mode configuration in EventStore tests
-9. Fix web endpoint configuration 
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
 
 ## Recently Fixed Issues
+
+### Event Serialization Fixes (2024-03-08)
+- Fixed DateTime serialization in EventStructure
+- Fixed MapSet serialization with proper type preservation
+- Fixed nested structure serialization with complex types
+- Added comprehensive serialization tests
+- Fixed string vs atom key handling in serialization
 
 ### Game Mode Validation Test Fixes (2023-03-08)
 
@@ -197,4 +238,6176 @@ This document outlines the prioritized approach to fixing the failing tests in t
 
 #### Error Format Consistency
 - Standardized error return formats across game modes
-- Ensured round time expiry errors follow the consistent format: `{:error, {:round_time_expired, message}}` 
+- Ensured round time expiry errors follow the consistent format: `{:error, {:round_time_expired, message}}`
+
+### Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test pass rate: ~84/105 (80%)
+
+## Current Test Failures Summary
+
+1. **EventStructure Tests (4 failures)**:
+   - Metadata validation error message mismatch
+   - Inconsistent error formats
+   - Missing field validation issues
+
+2. **ExampleEvent Tests (5 failures)**:
+   - Missing new/6 function
+   - Missing validate/1 function
+   - Serialization test failures
+
+3. **CommandHandler Tests (4 failures)**:
+   - Missing handle_start_game/3
+   - Missing handle_team_create/2
+   - Missing handle_guess/4
+   - Event correlation chain issues
+
+4. **EventRegistry Tests (6 failures)**:
+   - ETS table name conflicts
+   - Registration process issues
+   - Cleanup between tests failing
+
+## Next Steps (Updated)
+1. Fix metadata validation in EventStructure
+2. Implement ExampleEvent missing functions
+3. Fix CommandHandler missing implementations
+4. Fix EventRegistry ETS table conflicts
+5. Fix remaining test failures
+
+## Test Suite Health Metrics (Updated)
+
+- [x] Repository manager tests passing: 4/4
+- [x] EventStore adapter tests passing in isolation: 4/4
+- [x] EventStore macro integration tests: 4/4
+- [x] EventStore BaseTest: 11/11
+- [x] Game mode validation tests passing: 45/45
+- [x] Event serialization tests passing: 12/12
+- [ ] Event structure tests passing: 4/19
+- [ ] Command handler tests passing: 0/4
+- [ ] Event registry tests passing: 0/6
+- [ ] Overall test

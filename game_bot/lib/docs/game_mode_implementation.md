@@ -251,21 +251,17 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   defstruct [
     time_limit: 180,              # 3 minutes in seconds
     guild_id: nil,                # Required for word validation
-    team_positions: %{},          # Map of team_id to current position (not used in win condition)
-    finish_line: 10,              # Position to reach for victory (not currently implemented)
     matches_by_team: %{},         # Map of team_id to match count
     total_guesses_by_team: %{},   # Map of team_id to total guesses
-    start_time: nil,
-    last_team_update: nil,
-    completed_teams: %{}          # Teams that have reached the finish line (not used in win condition)
+    start_time: nil               # Game start timestamp
   ]
   
   # Special commands
   @give_up_command "give up"      # Command to skip difficult word pairs
   
-  # NOTE: While team positions and finish line are initialized in the state,
-  # the actual win condition is currently based solely on matches completed 
-  # when time expires, with average guesses as a tiebreaker.
+  # NOTE: Win condition is based on matches completed when time expires,
+  # with average guesses as a tiebreaker. Team rankings can be dynamically 
+  # computed from the matches_by_team and total_guesses_by_team maps.
 end
 ```
 

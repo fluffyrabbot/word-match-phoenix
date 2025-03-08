@@ -3,54 +3,71 @@ defmodule GameBot.Domain.Events.MetadataTest do
   alias GameBot.Domain.Events.Metadata
 
   describe "new/2" do
-    test "creates metadata with required fields" do
-      attrs = %{source_id: "test-123"}
-      {:ok, metadata} = Metadata.new(attrs)
+    test "creates valid metadata with required fields" do
+      attrs = %{
+        source_id: "source_123",
+        correlation_id: "corr_123",
+        guild_id: "guild_123"
+      }
 
-      assert metadata.source_id == "test-123"
-      assert is_binary(metadata.correlation_id)
-      assert String.length(metadata.correlation_id) > 0
-      assert is_binary(metadata.server_version)
+      assert {:ok, metadata} = Metadata.new(attrs)
+      assert metadata.source_id == "source_123"
+      assert metadata.correlation_id == "corr_123"
+      assert metadata.guild_id == "guild_123"
     end
 
-    test "allows overriding with options" do
-      attrs = %{source_id: "test-123"}
-      {:ok, metadata} = Metadata.new(attrs, correlation_id: "custom-correlation")
+    test "accepts string keys" do
+      attrs = %{
+        "source_id" => "source_123",
+        "correlation_id" => "corr_123",
+        "guild_id" => "guild_123"
+      }
 
-      assert metadata.source_id == "test-123"
-      assert metadata.correlation_id == "custom-correlation"
-    end
-
-    test "handles string keys in attrs" do
-      attrs = %{"source_id" => "test-123"}
-      {:ok, metadata} = Metadata.new(attrs)
-
-      assert metadata.source_id == "test-123"
+      assert {:ok, metadata} = Metadata.new(attrs)
+      assert metadata.source_id == "source_123"
     end
 
     test "returns error when source_id is missing" do
-      attrs = %{other_field: "value"}
-      result = Metadata.new(attrs)
+      result = Metadata.new(%{correlation_id: "corr_123"})
+      assert {:error, "source_id is required in metadata"} = result
+    end
 
-      assert {:error, :missing_field} = result
+    test "returns error when correlation_id is missing" do
+      result = Metadata.new(%{source_id: "source_123"})
+      assert {:error, "correlation_id is required in metadata"} = result
+    end
+
+    test "accepts source_id as first argument" do
+      assert {:ok, metadata} = Metadata.new("source_123", correlation_id: "corr_123")
+      assert metadata.source_id == "source_123"
+      assert metadata.correlation_id == "corr_123"
     end
   end
 
   describe "from_discord_message/2" do
-    test "creates metadata from discord message" do
-      # Create a mock Discord message
-      message = %Nostrum.Struct.Message{
+    test "creates metadata from Discord message" do
+      msg = %Nostrum.Struct.Message{
         id: 123456,
         guild_id: 789012,
         author: %{id: 345678}
       }
 
-      {:ok, metadata} = Metadata.from_discord_message(message)
-
+      assert {:ok, metadata} = Metadata.from_discord_message(msg)
       assert metadata.source_id == "123456"
       assert metadata.guild_id == "789012"
       assert metadata.actor_id == "345678"
-      assert is_binary(metadata.correlation_id)
+    end
+
+    test "handles missing guild_id" do
+      msg = %Nostrum.Struct.Message{
+        id: 123456,
+        author: %{id: 345678}
+      }
+
+      assert {:ok, metadata} = Metadata.from_discord_message(msg)
+      assert metadata.source_id == "123456"
+      assert metadata.guild_id == nil
+      assert metadata.actor_id == "345678"
     end
   end
 
@@ -109,33 +126,36 @@ defmodule GameBot.Domain.Events.MetadataTest do
   end
 
   describe "validate/1" do
-    test "validates required fields exist" do
-      valid_metadata = %{
-        source_id: "test-123",
-        correlation_id: "corr-456"
-      }
-
-      assert :ok = Metadata.validate(valid_metadata)
-    end
-
     test "validates source_id is required" do
       invalid_metadata = %{
-        correlation_id: "corr-456"
+        correlation_id: "corr_123",
+        guild_id: "guild_123"
       }
 
-      assert {:error, :missing_field} = Metadata.validate(invalid_metadata)
+      assert {:error, "source_id is required in metadata"} = Metadata.validate(invalid_metadata)
     end
 
     test "validates correlation_id is required" do
       invalid_metadata = %{
-        source_id: "test-123"
+        source_id: "source_123",
+        guild_id: "guild_123"
       }
 
-      assert {:error, :missing_field} = Metadata.validate(invalid_metadata)
+      assert {:error, "correlation_id is required in metadata"} = Metadata.validate(invalid_metadata)
     end
 
     test "validates input must be a map" do
-      assert {:error, :invalid_type} = Metadata.validate("not a map")
+      assert {:error, "metadata must be a map"} = Metadata.validate("not a map")
+    end
+
+    test "accepts valid metadata" do
+      valid_metadata = %{
+        source_id: "source_123",
+        correlation_id: "corr_123",
+        guild_id: "guild_123"
+      }
+
+      assert :ok = Metadata.validate(valid_metadata)
     end
   end
 end

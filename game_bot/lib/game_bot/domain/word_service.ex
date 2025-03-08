@@ -297,7 +297,7 @@ defmodule GameBot.Domain.WordService do
     words
     |> Enum.each(fn word ->
       variations = do_variations(word, %{variations: file_variations})
-      :ets.insert(@variations_cache, {word, variations})
+      cache_result(@variations_cache, word, variations)
     end)
 
     Logger.info("Variation precomputation complete")

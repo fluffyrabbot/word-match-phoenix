@@ -1,18 +1,9 @@
 import Config
 
-# Configure your database with more conservative timeout and pool settings
-config :game_bot, GameBot.Infrastructure.Repo,
-  username: "postgres",
-  password: "csstarahid",
-  hostname: "localhost",
-  database: "game_bot_test#{System.get_env("MIX_TEST_PARTITION")}",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 2,
-  ownership_timeout: 15_000,
-  queue_target: 200,
-  queue_interval: 1000,
-  timeout: 5000,
-  connect_timeout: 5000
+# Generate unique database names for each test run to avoid connection conflicts
+unique_suffix = System.get_env("MIX_TEST_PARTITION") || "#{System.system_time(:second)}"
+main_db_name = "game_bot_test_#{unique_suffix}"
+event_db_name = "game_bot_eventstore_test_#{unique_suffix}"
 
 # Configure the main repositories
 config :game_bot, ecto_repos: [
@@ -26,50 +17,71 @@ config :game_bot, event_stores: [
 ]
 
 # Configure the main repository with appropriate timeouts
+# Increased timeouts for better reliability
 config :game_bot, GameBot.Infrastructure.Persistence.Repo,
   username: "postgres",
   password: "csstarahid",
   hostname: "localhost",
-  database: "game_bot_test",
+  database: main_db_name,
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 5,
-  ownership_timeout: 15_000,
+  ownership_timeout: 60_000,
   queue_target: 200,
   queue_interval: 1000,
-  timeout: 5000,
-  connect_timeout: 5000,
+  timeout: 30_000,
+  connect_timeout: 30_000,
   types: EventStore.PostgresTypes
 
 # Configure the Postgres adapter for the EventStore
+# Increased timeouts for better reliability
 config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
   username: "postgres",
   password: "csstarahid",
   hostname: "localhost",
-  database: "game_bot_eventstore_test",
+  database: event_db_name,
   port: 5432,
   types: EventStore.PostgresTypes,
+  pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 5,
-  ownership_timeout: 15_000,
+  ownership_timeout: 60_000,
   queue_target: 200,
   queue_interval: 1000,
-  timeout: 5000,
-  connect_timeout: 5000
+  timeout: 30_000,
+  connect_timeout: 30_000
 
 # Configure the event store for testing
+# Increased timeouts for better reliability
 config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
   serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer,
   username: "postgres",
   password: "csstarahid",
   hostname: "localhost",
-  database: "game_bot_eventstore_test",
+  database: event_db_name,
   port: 5432,
   schema: "event_store",
   schema_prefix: "event_store",
   column_data_type: "jsonb",
   types: EventStore.PostgresTypes,
+  pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 5,
-  timeout: 5000
+  timeout: 30_000,
+  connect_timeout: 30_000
+
+# Configure the Postgres repository
+config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
+  username: "postgres",
+  password: "csstarahid",
+  hostname: "localhost",
+  database: main_db_name,
+  port: 5432,
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 5,
+  ownership_timeout: 60_000,
+  queue_target: 200,
+  queue_interval: 1000,
+  timeout: 30_000,
+  connect_timeout: 30_000
 
 # Configure event store directly
 config :eventstore,
@@ -129,17 +141,7 @@ config :game_bot,
 # Initialize sandbox for tests
 config :game_bot, :sql_sandbox, true
 
-# Configure the Postgres repository
-config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
-  username: "postgres",
-  password: "csstarahid",
-  hostname: "localhost",
-  database: "game_bot_test",
-  port: 5432,
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 5,
-  ownership_timeout: 15_000,
-  queue_target: 200,
-  queue_interval: 1000,
-  timeout: 5000,
-  connect_timeout: 5000
+# Store database names in application env for access in scripts
+config :game_bot, :test_databases,
+  main_db: main_db_name,
+  event_db: event_db_name

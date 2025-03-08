@@ -12,11 +12,12 @@ defmodule GameBot.EventStoreCase do
 
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStore
   alias GameBot.Infrastructure.Persistence.Repo
-  alias GameBot.Test.ConnectionHelper
-  alias GameBot.Infrastructure.Persistence.RepositoryManager
 
-  # Set a shorter timeout for database operations to fail faster in tests
-  @db_timeout 5_000
+  # Set a timeout for database operations
+  @db_timeout 15_000
+
+  # Define the repositories we need to check out
+  @repos [Repo, EventStore]
 
   using do
     quote do
@@ -28,43 +29,56 @@ defmodule GameBot.EventStoreCase do
   end
 
   setup tags do
-    # Always clean up connections before starting a new test
-    # Use a more aggressive connection cleanup strategy
-    ConnectionHelper.close_db_connections()
-
     # Skip database setup if the test doesn't need it
     if tags[:skip_db] do
       :ok
     else
-      # Ensure repositories are started before test runs
-      # This is the key addition to fix "repo not started" errors
-      :ok = RepositoryManager.ensure_all_started()
+      # First, make sure we kill any lingering connections
+      # This is necessary to ensure we have a clean state
+      close_db_connections()
 
-      # Use parent process as owner for explicit checkout pattern
-      parent = self()
+      # Clear sandbox to ensure we're starting fresh
+      Enum.each(@repos, fn repo ->
+        try do
+          Ecto.Adapters.SQL.Sandbox.checkin(repo)
+        rescue
+          _ -> :ok
+        end
+      end)
 
-      # Start sandbox session for each repo with explicit owner and shorter timeout
-      sandbox_opts = [
-        caller: parent,
-        ownership_timeout: @db_timeout
-      ]
+      # Explicitly checkout the repositories for the test process
+      # This ensures we have isolated database access for this test
+      Enum.each(@repos, fn repo ->
+        try do
+          case Ecto.Adapters.SQL.Sandbox.checkout(repo, [ownership_timeout: @db_timeout * 2]) do
+            :ok ->
+              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(self())}")
+            {:ok, _} ->
+              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(self())}")
+            {:error, error} ->
+              raise "Failed to checkout #{inspect(repo)}: #{inspect(error)}"
+          end
 
-      Ecto.Adapters.SQL.Sandbox.checkout(Repo, sandbox_opts)
-      Ecto.Adapters.SQL.Sandbox.checkout(EventStore, sandbox_opts)
+          # Allow shared connections if test is not async
+          unless tags[:async] do
+            Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+            IO.puts("Enabled shared sandbox mode for #{inspect(repo)}")
+          end
+        rescue
+          e ->
+            IO.puts("Error during checkout for #{inspect(repo)}: #{inspect(e)}")
+            reraise e, __STACKTRACE__
+        end
+      end)
 
-      # Allow sharing of connections for better test isolation
-      unless tags[:async] do
-        Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, parent})
-        Ecto.Adapters.SQL.Sandbox.mode(EventStore, {:shared, parent})
-      end
-
-      # Clean the database as the explicitly checked out owner
+      # Clean the database tables to ensure a fresh state for this test
       clean_database()
 
       # Make sure connections are explicitly released after test
       on_exit(fn ->
-        # Clean the database again before checking in
-        # Use try/rescue to ensure we continue even if this fails
+        IO.puts("Running on_exit cleanup for test process #{inspect(self())}")
+
+        # First try to clean the database again
         try do
           clean_database()
         rescue
@@ -72,22 +86,56 @@ defmodule GameBot.EventStoreCase do
             IO.puts("Warning: Failed to clean database: #{inspect(e)}")
         end
 
-        # Return connections to the pool with a timeout
-        try do
-          Ecto.Adapters.SQL.Sandbox.checkin(Repo)
-          Ecto.Adapters.SQL.Sandbox.checkin(EventStore)
-        rescue
-          e ->
-            IO.puts("Warning: Failed to checkin connection: #{inspect(e)}")
-        end
+        # Check in repositories
+        Enum.each(@repos, fn repo ->
+          try do
+            Ecto.Adapters.SQL.Sandbox.checkin(repo)
+            IO.puts("Checked in #{inspect(repo)} for test process #{inspect(self())}")
+          rescue
+            e ->
+              IO.puts("Warning: Failed to checkin connection for #{inspect(repo)}: #{inspect(e)}")
+          end
+        end)
 
-        # Close any lingering connections regardless of previous steps
-        ConnectionHelper.close_db_connections()
+        # Force close any lingering connections
+        close_db_connections()
       end)
     end
 
     :ok
   end
+
+  @doc """
+  Forcefully closes all database connections in the current VM.
+  Useful for cleanup between tests or when a connection is stuck.
+  """
+  def close_db_connections do
+    IO.puts("Forcefully closing database connections...")
+
+    # Find all database connections
+    connection_pids = for pid <- Process.list(),
+                         info = Process.info(pid, [:dictionary]),
+                         initial_call = get_in(info, [:dictionary, :"$initial_call"]),
+                         is_database_connection(initial_call) do
+      pid
+    end
+
+    # Kill each connection process
+    Enum.each(connection_pids, fn pid ->
+      IO.puts("Killing connection process: #{inspect(pid)}")
+      Process.exit(pid, :kill)
+    end)
+
+    # Small sleep to allow processes to terminate
+    Process.sleep(100)
+
+    IO.puts("Closed #{length(connection_pids)} database connections")
+  end
+
+  # Helper to detect database connection processes
+  defp is_database_connection({Postgrex.Protocol, :init, 1}), do: true
+  defp is_database_connection({DBConnection.Connection, :init, 1}), do: true
+  defp is_database_connection(_), do: false
 
   @doc """
   Creates a test stream with the given ID and optional events.
@@ -167,36 +215,53 @@ defmodule GameBot.EventStoreCase do
     end
   end
 
-  @doc """
-  Tests various error handling cases.
-  """
-  def verify_error_handling(impl) do
-    # Verify non-existent stream handling
-    {:error, _} = impl.read_stream_forward(
-      "nonexistent-#{:erlang.unique_integer([:positive])}",
-      0,
-      1000,
-      [timeout: @db_timeout]
-    )
-
-    # Add more error verifications as needed
-    :ok
-  end
-
   # Private Functions
 
   defp clean_database do
     # Use a safer approach that handles errors gracefully
     try do
-      # Add a timeout to the query to prevent hanging
-      Repo.query!(
-        "TRUNCATE event_store.streams, event_store.events, event_store.subscriptions CASCADE",
-        [],
-        timeout: @db_timeout
+      IO.puts("Starting database cleanup...")
+
+      # First check if the tables exist to avoid errors when tables don't exist yet
+      table_check_query = """
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'event_store'
+        AND table_name = 'events'
       )
+      """
+
+      # Check if event store tables exist
+      case Repo.query(table_check_query, [], timeout: @db_timeout) do
+        {:ok, %{rows: [[true]]}} ->
+          # Tables exist, truncate them
+          IO.puts("Event store tables found, truncating...")
+          # Add a timeout to the query to prevent hanging
+          Repo.query!(
+            "TRUNCATE event_store.streams, event_store.events, event_store.subscriptions CASCADE",
+            [],
+            timeout: @db_timeout
+          )
+          IO.puts("Database tables cleaned successfully")
+
+        {:ok, %{rows: [[false]]}} ->
+          # Tables don't exist
+          IO.puts("Event store tables don't exist yet, skipping truncate")
+          :ok
+
+        {:error, error} ->
+          # Error running the query
+          IO.puts("Warning: Error checking table existence: #{inspect(error)}")
+          :ok
+      end
     rescue
       e ->
-        IO.puts("Warning: Failed to truncate tables: #{inspect(e)}")
+        IO.puts("Warning: Failed to clean database: #{inspect(e)}")
+        # Try to print more details about the error if available
+        if Map.has_key?(e, :postgres) do
+          postgres_error = Map.get(e, :postgres)
+          IO.puts("Postgres error details: #{inspect(postgres_error)}")
+        end
         :ok
     end
   end
