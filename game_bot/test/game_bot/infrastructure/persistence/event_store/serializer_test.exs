@@ -1,5 +1,5 @@
 defmodule GameBot.Infrastructure.Persistence.EventStore.SerializerTest do
-  use GameBot.Test.RepositoryCase, async: true
+  use GameBot.RepositoryCase, async: true
   use ExUnitProperties
 
   alias GameBot.Infrastructure.Persistence.EventStore.Serializer

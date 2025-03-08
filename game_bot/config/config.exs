@@ -10,20 +10,20 @@ import Config
 config :game_bot,
   ecto_repos: [GameBot.Infrastructure.Repo],
   generators: [timestamp_type: :utc_datetime],
-  event_stores: [GameBot.Infrastructure.EventStore.Config]
+  event_stores: [GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres]
 
 # Configure Commanded for event sourcing
 config :game_bot, GameBot.Infrastructure.CommandedApp,
   event_store: [
     adapter: Commanded.EventStore.Adapters.EventStore,
-    event_store: GameBot.Infrastructure.EventStore.Config
+    event_store: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   ],
   pubsub: :local,
   registry: :local
 
 # Configure EventStore
-config :game_bot, GameBot.Infrastructure.EventStore.Config,
-  serializer: GameBot.Infrastructure.EventStore.Serializer,
+config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer,
   username: "postgres",
   password: "csstarahid",
   database: "game_bot_eventstore_dev",

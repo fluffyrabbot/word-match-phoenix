@@ -36,7 +36,7 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
   @behaviour GameBot.Domain.GameModes.BaseMode
 
   alias GameBot.Domain.GameState
-  alias GameBot.Domain.Events.GameEvents.{GameStarted, GuessProcessed, GuessAbandoned}
+  alias GameBot.Domain.Events.GameEvents.{GuessProcessed, GuessAbandoned}
 
   # Configuration
   @default_rounds 5
@@ -315,10 +315,10 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
       player1_id == player2_id ->
         {:error, :same_player}
 
-      GameBot.Domain.GameState.word_forbidden?(state, player1_id, player1_word) ->
+      GameBot.Domain.GameState.word_forbidden?(state, state.guild_id, player1_id, player1_word) ->
         {:error, :word_forbidden}
 
-      GameBot.Domain.GameState.word_forbidden?(state, player2_id, player2_word) ->
+      GameBot.Domain.GameState.word_forbidden?(state, state.guild_id, player2_id, player2_word) ->
         {:error, :word_forbidden}
 
       true ->

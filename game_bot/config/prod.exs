@@ -7,8 +7,7 @@ config :logger, level: :info
 # of environment variables, is done on config/runtime.exs.
 
 # Configure EventStore for production
-config :game_bot, GameBot.Infrastructure.EventStore,
-  serializer: GameBot.Infrastructure.EventStore.Serializer,
+config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
   username: System.get_env("EVENT_STORE_USER"),
   password: System.get_env("EVENT_STORE_PASS"),
   database: System.get_env("EVENT_STORE_DB", "game_bot_eventstore"),

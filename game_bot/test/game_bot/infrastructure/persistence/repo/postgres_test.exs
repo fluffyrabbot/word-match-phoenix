@@ -1,5 +1,5 @@
 defmodule GameBot.Infrastructure.Persistence.Repo.PostgresTest do
-  use GameBot.Test.RepositoryCase, async: true
+  use GameBot.RepositoryCase, async: true
 
   alias GameBot.Infrastructure.Persistence.Repo.Postgres
   alias GameBot.Infrastructure.Persistence.Error
@@ -40,10 +40,10 @@ defmodule GameBot.Infrastructure.Persistence.Repo.PostgresTest do
     :ok
   end
 
-  describe "transaction/1" do
+  describe "execute_transaction/1" do
     test "successfully executes transaction" do
-      result = Postgres.transaction(fn ->
-        {:ok, record} = Postgres.insert(%TestSchema{name: "test", value: 1})
+      result = Postgres.execute_transaction(fn ->
+        {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
         record
       end)
 
@@ -51,20 +51,20 @@ defmodule GameBot.Infrastructure.Persistence.Repo.PostgresTest do
     end
 
     test "rolls back on error" do
-      result = Postgres.transaction(fn ->
-        {:ok, _} = Postgres.insert(%TestSchema{name: "test1", value: 1})
-        {:error, _} = Postgres.insert(%TestSchema{name: "t", value: 2})  # Invalid name
+      result = Postgres.execute_transaction(fn ->
+        {:ok, _} = Postgres.insert_record(%TestSchema{name: "test1", value: 1})
+        {:error, _} = Postgres.insert_record(%TestSchema{name: "t", value: 2})  # Invalid name
       end)
 
       assert {:error, %Error{type: :validation}} = result
       assert {:error, %Error{type: :not_found}} =
-        Postgres.get(TestSchema, 1)
+        Postgres.fetch(TestSchema, 1)
     end
 
     test "handles nested transactions" do
-      result = Postgres.transaction(fn ->
-        Postgres.transaction(fn ->
-          {:ok, record} = Postgres.insert(%TestSchema{name: "nested", value: 1})
+      result = Postgres.execute_transaction(fn ->
+        Postgres.execute_transaction(fn ->
+          {:ok, record} = Postgres.insert_record(%TestSchema{name: "nested", value: 1})
           record
         end)
       end)
@@ -73,56 +73,56 @@ defmodule GameBot.Infrastructure.Persistence.Repo.PostgresTest do
     end
   end
 
-  describe "insert/2" do
+  describe "insert_record/2" do
     test "successfully inserts valid record" do
-      assert {:ok, record} = Postgres.insert(%TestSchema{name: "test", value: 1})
+      assert {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
       assert record.id != nil
       assert record.name == "test"
     end
 
     test "handles validation errors" do
       assert {:error, %Error{type: :validation}} =
-        Postgres.insert(%TestSchema{name: "t", value: 1})
+        Postgres.insert_record(%TestSchema{name: "t", value: 1})
     end
 
     test "handles constraint violations" do
-      {:ok, _} = Postgres.insert(%TestSchema{name: "unique", value: 1})
+      {:ok, _} = Postgres.insert_record(%TestSchema{name: "unique", value: 1})
       assert {:error, %Error{type: :validation}} =
-        Postgres.insert(%TestSchema{name: "unique", value: 1})
+        Postgres.insert_record(%TestSchema{name: "unique", value: 1})
     end
   end
 
-  describe "update/2" do
+  describe "update_record/2" do
     test "successfully updates record" do
-      {:ok, record} = Postgres.insert(%TestSchema{name: "test", value: 1})
+      {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
 
-      assert {:ok, updated} = Postgres.update(
+      assert {:ok, updated} = Postgres.update_record(
         Changeset.change(record, value: 2)
       )
       assert updated.value == 2
     end
 
     test "handles concurrent modifications" do
-      {:ok, record} = Postgres.insert(%TestSchema{name: "test", value: 1})
+      {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
       stale_record = record
 
-      {:ok, _} = Postgres.update(Changeset.change(record, value: 2))
+      {:ok, _} = Postgres.update_record(Changeset.change(record, value: 2))
       assert {:error, %Error{type: :concurrency}} =
-        Postgres.update(Changeset.change(stale_record, value: 3))
+        Postgres.update_record(Changeset.change(stale_record, value: 3))
     end
   end
 
-  describe "delete/2" do
+  describe "delete_record/2" do
     test "successfully deletes record" do
-      {:ok, record} = Postgres.insert(%TestSchema{name: "test", value: 1})
-      assert {:ok, _} = Postgres.delete(record)
-      assert {:error, %Error{type: :not_found}} = Postgres.get(TestSchema, record.id)
+      {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+      assert {:ok, _} = Postgres.delete_record(record)
+      assert {:error, %Error{type: :not_found}} = Postgres.fetch(TestSchema, record.id)
     end
 
     test "handles concurrent deletions" do
-      {:ok, record} = Postgres.insert(%TestSchema{name: "test", value: 1})
-      {:ok, _} = Postgres.delete(record)
-      assert {:error, %Error{type: :concurrency}} = Postgres.delete(record)
+      {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+      {:ok, _} = Postgres.delete_record(record)
+      assert {:error, %Error{type: :concurrency}} = Postgres.delete_record(record)
     end
   end
 end

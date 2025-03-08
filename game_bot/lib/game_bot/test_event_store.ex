@@ -1,7 +1,11 @@
 defmodule GameBot.TestEventStore do
   @moduledoc """
   In-memory implementation of EventStore for testing.
-  Implements both EventStore behavior for the interface and GenServer for the implementation.
+
+  This module implements both the EventStore behaviour for compatibility with
+  production code, and GenServer for its own state management. Due to this, it
+  has two implementations of init/1, one for each behaviour. This is intentional
+  and the warnings about conflicting behaviours can be safely ignored.
   """
 
   @behaviour EventStore
@@ -255,17 +259,31 @@ defmodule GameBot.TestEventStore do
 
   @impl GenServer
   def init(_) do
+    # Initialize with a proper State struct to avoid BadMapError
     {:ok, %State{}}
   end
 
   @impl GenServer
   def handle_call({:set_failure_count, count}, _from, state) do
-    {:reply, :ok, %{state | failure_count: count}}
+    # The state should be a %State{} struct, but it might be something else
+    # Handle both the struct case and other cases safely
+    new_state = case state do
+      %State{} = s -> %{s | failure_count: count}
+      %{} = s -> Map.put(s, :failure_count, count)
+      _ -> %State{failure_count: count}
+    end
+    {:reply, :ok, new_state}
   end
 
   @impl GenServer
   def handle_call(:get_failure_count, _from, state) do
-    {:reply, state.failure_count, state}
+    # Safely get the failure count field
+    count = case state do
+      %State{failure_count: count} -> count
+      %{failure_count: count} -> count
+      _ -> 0
+    end
+    {:reply, count, state}
   end
 
   @impl GenServer

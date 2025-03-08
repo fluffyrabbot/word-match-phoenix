@@ -41,7 +41,6 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
 
   alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{
-    GameStarted,
     GuessProcessed,
     GuessAbandoned,
     TeamEliminated,
@@ -147,7 +146,7 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
     {:ok, state(), [struct()]} | {:error, term()}
   def process_guess_pair(state, team_id, guess_pair) do
     with :ok <- validate_round_state(state),
-         {:ok, team} <- validate_team_state(state, team_id),
+         {:ok, _team} <- validate_team_state(state, team_id),
          {:ok, state, event} <- GameBot.Domain.GameModes.BaseMode.process_guess_pair(state, team_id, guess_pair) do
 
       cond do
@@ -190,7 +189,7 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
     {:ok, state(), GuessAbandoned.t()} | {:error, term()}
   def handle_guess_abandoned(state, team_id, reason, last_guess) do
     with :ok <- validate_round_state(state),
-         {:ok, team} <- validate_team_state(state, team_id) do
+         {:ok, _team} <- validate_team_state(state, team_id) do
       GameBot.Domain.GameModes.BaseMode.handle_guess_abandoned(state, team_id, reason, last_guess)
     end
   end

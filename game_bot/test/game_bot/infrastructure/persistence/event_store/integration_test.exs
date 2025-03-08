@@ -20,13 +20,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
   use GameBot.Test.EventStoreCase
   use ExUnit.Case, async: false
 
-  alias GameBot.Infrastructure.EventStore
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   alias GameBot.TestEventStore
   alias GameBot.Test.Mocks.EventStore, as: MockEventStore
 
   @implementations [
-    {EventStore, "Infrastructure EventStore"},
     {Postgres, "PostgreSQL implementation"},
     {TestEventStore, "test implementation"},
     {MockEventStore, "mock implementation"}

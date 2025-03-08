@@ -3,7 +3,7 @@ defmodule GameBot.Domain.Commands.StatsCommands do
   Defines commands and queries for game statistics and analytics.
   """
 
-  alias GameBot.Infrastructure.EventStore
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter, as: EventStore
 
   defmodule FetchPlayerStats do
     @moduledoc "Command to fetch player statistics"

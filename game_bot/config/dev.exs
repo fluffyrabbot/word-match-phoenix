@@ -11,8 +11,7 @@ config :game_bot, GameBot.Infrastructure.Repo,
   pool_size: 10
 
 # Configure EventStore for development
-config :game_bot, GameBot.Infrastructure.EventStore,
-  serializer: GameBot.Infrastructure.EventStore.Serializer,
+config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
   username: System.get_env("EVENT_STORE_USER", "postgres"),
   password: System.get_env("EVENT_STORE_PASS", "csstarahid"),
   database: System.get_env("EVENT_STORE_DB", "game_bot_eventstore_dev"),
@@ -25,7 +24,7 @@ config :game_bot, GameBot.Infrastructure.EventStore,
 # Configure Commanded for development
 config :game_bot, :commanded,
   event_store_adapter: Commanded.EventStore.Adapters.EventStore,
-  event_store: GameBot.Infrastructure.EventStore.Config,
+  event_store: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
   pubsub: :local,
   registry: :local
 

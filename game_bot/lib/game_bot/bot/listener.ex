@@ -164,7 +164,9 @@ defmodule GameBot.Bot.Listener do
 
   @spec validate_interaction(Interaction.t()) :: :ok | {:error, :invalid_interaction_type}
   defp validate_interaction(%Interaction{type: type}) when type in [1, 2, 3], do: :ok
-  defp validate_interaction(%Interaction{type: _type}), do: {:error, :invalid_type}
+  defp validate_interaction(%Interaction{type: nil}), do: {:error, :missing_type}
+  defp validate_interaction(%Interaction{}), do: {:error, :invalid_type}
+  defp validate_interaction(_), do: {:error, :not_an_interaction}
 
   #
   # Rate Limiting

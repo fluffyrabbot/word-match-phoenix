@@ -43,11 +43,9 @@ defmodule GameBot.Domain.GameModes.RaceMode do
 
   alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{
-    GameStarted,
     GuessProcessed,
     GuessAbandoned,
     RaceModeTimeExpired,
-    GameCompleted,
     RoundRestarted
   }
 
@@ -349,10 +347,10 @@ defmodule GameBot.Domain.GameModes.RaceMode do
       player1_word == @give_up_command or player2_word == @give_up_command ->
         :ok
 
-      GameBot.Domain.GameState.word_forbidden?(state, player1_id, player1_word) ->
+      GameBot.Domain.GameState.word_forbidden?(state, state.guild_id, player1_id, player1_word) ->
         {:error, :word_forbidden}
 
-      GameBot.Domain.GameState.word_forbidden?(state, player2_id, player2_word) ->
+      GameBot.Domain.GameState.word_forbidden?(state, state.guild_id, player2_id, player2_word) ->
         {:error, :word_forbidden}
 
       true ->

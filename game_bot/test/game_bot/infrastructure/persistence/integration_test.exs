@@ -1,9 +1,10 @@
 defmodule GameBot.Infrastructure.Persistence.IntegrationTest do
-  use GameBot.Test.RepositoryCase, async: true
+  use GameBot.RepositoryCase, async: true
 
   alias GameBot.Infrastructure.Persistence.{Repo, EventStore}
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter
   alias GameBot.Infrastructure.Persistence.Error
+  alias GameBot.Infrastructure.Persistence.Repo.Postgres
 
   # Test schema for integration testing
   defmodule GameState do
@@ -51,7 +52,7 @@ defmodule GameBot.Infrastructure.Persistence.IntegrationTest do
       game_id = unique_stream_id()
       event = build_test_event("game_started")
 
-      result = Repo.transaction(fn ->
+      result = Postgres.execute_transaction(fn ->
         # Append event to stream
         {:ok, _} = Adapter.append_to_stream(game_id, 0, [event])
 
@@ -74,7 +75,7 @@ defmodule GameBot.Infrastructure.Persistence.IntegrationTest do
       game_id = unique_stream_id()
       event = build_test_event("game_started")
 
-      result = Repo.transaction(fn ->
+      result = Postgres.execute_transaction(fn ->
         {:ok, _} = Adapter.append_to_stream(game_id, 0, [event])
 
         # Trigger validation error
@@ -97,7 +98,7 @@ defmodule GameBot.Infrastructure.Persistence.IntegrationTest do
       event2 = build_test_event("game_updated")
 
       # First transaction
-      {:ok, state} = Repo.transaction(fn ->
+      {:ok, state} = Postgres.execute_transaction(fn ->
         {:ok, _} = Adapter.append_to_stream(game_id, 0, [event1])
         {:ok, state} = Repo.insert(%GameState{
           game_id: game_id,
@@ -108,7 +109,7 @@ defmodule GameBot.Infrastructure.Persistence.IntegrationTest do
       end)
 
       # Concurrent modification attempt
-      result = Repo.transaction(fn ->
+      result = Postgres.execute_transaction(fn ->
         # Try to append with wrong version
         {:ok, _} = Adapter.append_to_stream(game_id, 0, [event2])
 

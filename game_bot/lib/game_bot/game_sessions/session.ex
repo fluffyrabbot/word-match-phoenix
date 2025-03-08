@@ -8,7 +8,6 @@ defmodule GameBot.GameSessions.Session do
 
   alias GameBot.Bot.CommandHandler
   alias GameBot.Domain.{GameState, WordService, Events}
-  alias GameBot.Infrastructure.EventStore
   alias GameBot.Domain.Events.{
     GameEvents,
     ErrorEvents.GuessError,
@@ -16,6 +15,9 @@ defmodule GameBot.GameSessions.Session do
     ErrorEvents.RoundCheckError
   }
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base, as: EventStore
+  alias GameBot.Domain.Events.{EventRegistry, Metadata}
+  alias GameBot.Domain.Events.GameEvents.{GameCompleted, GuessProcessed}
+  alias GameBot.Domain.Events.ErrorEvents.{GuessError, GuessPairError}
 
   # Constants for timeouts
   @round_check_interval :timer.seconds(5)  # How often to check round status

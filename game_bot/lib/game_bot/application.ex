@@ -25,8 +25,9 @@ defmodule GameBot.Application do
 
   defp base_children do
     [
-      # Start the Ecto repository first
+      # Start the Ecto repositories
       GameBot.Infrastructure.Repo,
+      GameBot.Infrastructure.Persistence.Repo.Postgres,
 
       # Start Commanded application (which manages its own EventStore)
       GameBot.Infrastructure.CommandedApp,

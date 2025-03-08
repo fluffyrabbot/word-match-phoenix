@@ -118,7 +118,7 @@ defmodule GameBot.Infrastructure.ErrorHelpers do
           :timer.sleep(actual_delay)
 
           # Add retry context to the error for better tracking
-          updated_error = add_retry_context(error, retry_count, max_retries)
+          _updated_error = add_retry_context(error, retry_count, max_retries)
 
           do_with_retries(operation, context, max_retries, delay, retry_count + 1, jitter)
         else

@@ -16,7 +16,8 @@ config :game_bot, GameBot.Infrastructure.Repo,
 # Configure the main repositories
 config :game_bot, ecto_repos: [
   GameBot.Infrastructure.Persistence.Repo,
-  GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+  GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+  GameBot.Infrastructure.Persistence.Repo.Postgres
 ]
 
 # Configure the main repository
@@ -37,25 +38,16 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   database: "game_bot_test",
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
-
-# Configure EventStore for testing (for compatibility with existing code)
-config :game_bot, GameBot.Infrastructure.EventStore.Config,
-  serializer: GameBot.Infrastructure.EventStore.Serializer,
-  username: "postgres",
-  password: "csstarahid",
-  database: "game_bot_test",
-  hostname: "localhost",
+  pool_size: 10,
   schema_prefix: "event_store",
   column_data_type: "jsonb",
-  pool_size: 5,
   max_append_retries: 3
 
 # Configure Commanded for testing
 config :game_bot, GameBot.Infrastructure.CommandedApp,
   event_store: [
     adapter: Commanded.EventStore.Adapters.EventStore,
-    event_store: GameBot.Infrastructure.EventStore.Config
+    event_store: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   ],
   pubsub: :local,
   registry: :local
@@ -99,3 +91,13 @@ config :game_bot,
 
 # Initialize sandbox for tests
 config :game_bot, :sql_sandbox, true
+
+# Configure the Postgres repository
+config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
+  username: "postgres",
+  password: "csstarahid",
+  hostname: "localhost",
+  database: "game_bot_test",
+  port: 5432,
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10

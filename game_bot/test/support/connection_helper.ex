@@ -43,9 +43,8 @@ defmodule GameBot.Test.ConnectionHelper do
   # Private helpers
 
   defp close_eventstore_connections do
-    # Handle both main EventStore and adapter
+    # Handle the EventStore adapter
     modules = [
-      GameBot.Infrastructure.EventStore,
       GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
     ]
 

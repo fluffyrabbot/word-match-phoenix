@@ -5,8 +5,7 @@ defmodule Mix.Tasks.GameBot.Migrate do
 
   use Mix.Task
   import Mix.Ecto
-  alias EventStore.Storage.Initializer
-  alias GameBot.Infrastructure.EventStore.Config
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStoreDB
 
   @shortdoc "Runs all pending migrations"
 
@@ -41,7 +40,7 @@ defmodule Mix.Tasks.GameBot.Migrate do
   end
 
   defp migrate_event_store do
-    config = Application.get_env(:game_bot, Config)
+    config = Application.get_env(:game_bot, EventStoreDB)
 
     case EventStore.Tasks.Create.exec(config) do
       :ok ->

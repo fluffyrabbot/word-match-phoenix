@@ -154,6 +154,18 @@ defmodule GameBot.Domain.Events.EventStructure do
   def validate_metadata(_), do: {:error, "metadata is required"}
 
   @doc """
+  Validates an event has all required base fields and a valid metadata structure.
+  Used to standardize validation across all event types.
+  """
+  @spec validate(struct()) :: :ok | {:error, String.t()}
+  def validate(event) do
+    with :ok <- validate_base_fields(event),
+         :ok <- validate_metadata(event) do
+      :ok
+    end
+  end
+
+  @doc """
   Creates a timestamp for an event, defaulting to current UTC time.
   """
   @spec create_timestamp() :: DateTime.t()
