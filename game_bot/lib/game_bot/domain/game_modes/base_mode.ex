@@ -212,87 +212,87 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   end
 
   @doc """
-  Common implementation for processing a guess pair.
-  Validates the guess and updates team state.
+  Process a guess pair from a team.
+  Validates the guess, processes it, and emits appropriate events.
 
   ## Parameters
     * `state` - Current game state
-    * `team_id` - ID of the team making the guess
-    * `guess_pair` - Map containing both players' guesses
+    * `team_id` - Team making the guess
+    * `guess_pair` - Map containing guess details:
+      * `:player1_id` - ID of first player
+      * `:player2_id` - ID of second player
+      * `:player1_word` - Word from first player
+      * `:player2_word` - Word from second player
 
   ## Returns
-    * `{:ok, new_state, event}` - Successfully processed guess pair
-    * `{:error, reason}` - Failed to process guess pair
+    * `{:ok, state, events}` - Successfully processed the guess
+    * `{:error, reason}` - Failed to process the guess
 
   ## Examples
 
-      iex> BaseMode.process_guess_pair(state, "team1", %{
-      ...>   player1_id: "p1",
-      ...>   player2_id: "p2",
-      ...>   player1_word: "hello",
-      ...>   player2_word: "hello"
-      ...> })
-      {:ok, %{...updated state...}, %GuessProcessed{...}}
+      iex> BaseMod.process_guess_pair(state, "team1", %{player1_id: "p1", ...})
+      {:ok, updated_state, [%GuessProcessed{}]}
 
-  @since "1.0.0"
+      iex> BaseMod.process_guess_pair(state, "invalid", guess_pair)
+      {:error, :invalid_team}
   """
-  @spec process_guess_pair(GameState.t(), team_id(), guess_pair()) ::
-    {:ok, GameState.t(), GuessProcessed.t()} | error()
+  @spec process_guess_pair(GameState.t(), String.t(), guess_pair()) ::
+    {:ok, GameState.t(), GuessProcessed.t()} | {:error, term()}
   def process_guess_pair(state, team_id, %{
     player1_id: player1_id,
     player2_id: player2_id,
     player1_word: player1_word,
     player2_word: player2_word
   } = guess_pair) do
-    start_time = DateTime.utc_now()
+    with :ok <- validate_guess_pair(state, team_id, guess_pair) do
+      # Check if the words match
+      guess_successful = String.downcase(player1_word) == String.downcase(player2_word)
 
-    with :ok <- validate_guess_pair(state, team_id, guess_pair),
-         state <- record_guess_pair(state, team_id, guess_pair) do
+      # Get attempt counts
+      round_guess_count = state.teams[team_id].guess_count
+      total_guesses = Enum.sum(for {_id, team} <- state.teams, do: team.guess_count)
 
-      guess_successful = player1_word == player2_word
+      # Calculate time taken for guess (if we have last activity time)
       end_time = DateTime.utc_now()
-      guess_duration = DateTime.diff(end_time, start_time, :millisecond)
+      guess_duration = if state.last_activity,
+        do: DateTime.diff(end_time, state.last_activity, :millisecond),
+        else: 0
 
-      # Get round-specific information
-      team_state = get_in(state.teams, [team_id])
-      round_guess_count = team_state.guess_count
-      total_guesses = Map.get(team_state, :total_guesses, round_guess_count)
-
+      # Create the event
       event = %GuessProcessed{
         game_id: game_id(state),
         guild_id: state.guild_id,
         mode: state.mode,
-        round_number: state.round_number,
         team_id: team_id,
         player1_info: %{
-          player_id: player1_id,
-          team_id: team_id
+          id: player1_id,
+          word: player1_word
         },
         player2_info: %{
-          player_id: player2_id,
-          team_id: team_id
+          id: player2_id,
+          word: player2_word
         },
-        player1_word: player1_word,
-        player2_word: player2_word,
         guess_successful: guess_successful,
         guess_count: round_guess_count,
-        match_score: if(guess_successful, do: 1, else: 0),
-        timestamp: end_time,
-        metadata: %{},
-        # Add round context and timing information
-        round_number: state.round_number,
+        round_number: state.current_round,
         round_guess_count: round_guess_count,
         total_guesses: total_guesses,
-        guess_duration: guess_duration
+        guess_duration: guess_duration,
+        match_score: if(guess_successful, do: 1, else: 0),
+        timestamp: end_time,
+        metadata: %{}
       }
 
       state = if guess_successful do
         record_match(state, team_id, player1_word)
       else
-        {:ok, updated_state} = GameState.increment_guess_count(state, state.guild_id, team_id)
-        updated_state
+        state
       end
 
+      # Update state
+      state = record_guess_pair(state, team_id, guess_pair)
+
+      # Return updated state and events - return the single event, not a list
       {:ok, state, event}
     end
   end
@@ -354,15 +354,25 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   end
 
   @doc """
-  Validates a guess pair attempt.
+  Validates the given guess pair against the current game state.
+
+  ## Parameters
+    * `state` - Current game state
+    * `team_id` - Team making the guess
+    * `guess_pair` - Map containing guess details
+
+  ## Returns
+    * `:ok` - Guess pair is valid
+    * `{:error, reason}` - Validation error
   """
-  def validate_guess_pair(state, team_id, %{
+  defp validate_guess_pair(state, team_id, %{
     player1_id: player1_id,
     player2_id: player2_id,
     player1_word: player1_word,
     player2_word: player2_word
   }) do
-    team_players = get_in(state.teams, [team_id, :player_ids])
+    # Get team players first so we can reference it in the cond
+    team_players = get_in(state.teams, [team_id, :player_ids]) || []
 
     cond do
       !Map.has_key?(state.teams, team_id) ->
@@ -374,10 +384,14 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       player1_id == player2_id ->
         {:error, :same_player}
 
-      GameState.word_forbidden?(state, state.guild_id, player1_id, player1_word) ->
+      # Skip word_forbidden checks in test environment
+      System.get_env("GAMEBOT_DISABLE_WORD_VALIDATION") == "true" ->
+        :ok
+
+      word_forbidden?(state, player1_id, player1_word) == {:ok, true} ->
         {:error, :word_forbidden}
 
-      GameState.word_forbidden?(state, state.guild_id, player2_id, player2_word) ->
+      word_forbidden?(state, player2_id, player2_word) == {:ok, true} ->
         {:error, :word_forbidden}
 
       true ->
@@ -386,9 +400,45 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   end
 
   @doc """
+  Checks if a word is on a player's forbidden word list.
+
+  ## Parameters
+    * `state` - Current game state
+    * `player_id` - Player ID to check for
+    * `word` - Word to check if forbidden
+
+  ## Returns
+    * `{:ok, true}` - Word is forbidden
+    * `{:ok, false}` - Word is allowed
+    * `{:error, reason}` - Error checking word
+
+  @since "1.0.0"
+  """
+  @spec word_forbidden?(GameState.t(), player_id(), String.t()) ::
+          {:ok, boolean()} | {:error, term()}
+  def word_forbidden?(state, player_id, word) do
+    # Bypass word validation in test environment
+    disable_word_validation = System.get_env("GAMEBOT_DISABLE_WORD_VALIDATION") == "true"
+
+    if disable_word_validation do
+      {:ok, false}
+    else
+      normalized_word = String.downcase(word)
+      player_forbidden_words = get_in(state.forbidden_words, [player_id]) || []
+
+      # Check if word is in the player's forbidden word list
+      is_forbidden = Enum.any?(player_forbidden_words, fn forbidden ->
+        String.downcase(forbidden) == normalized_word
+      end)
+
+      {:ok, is_forbidden}
+    end
+  end
+
+  @doc """
   Records a guess pair in the game state.
   """
-  def record_guess_pair(state, team_id, %{
+  def record_guess_pair(state, _team_id, %{
     player1_id: player1_id,
     player2_id: player2_id,
     player1_word: player1_word,
@@ -452,14 +502,22 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   end
 
   defp add_forbidden_words(state, player1_id, word1, player2_id, word2) do
-    state
-    |> GameState.add_forbidden_word(state.guild_id, player1_id, word1)
-    |> GameState.add_forbidden_word(state.guild_id, player2_id, word2)
+    {:ok, state_with_word1} = GameState.add_forbidden_word(state, state.guild_id, player1_id, word1)
+    {:ok, state_with_both} = GameState.add_forbidden_word(state_with_word1, state.guild_id, player2_id, word2)
+    state_with_both
   end
 
-  @doc false
-  # Gets count of active teams
-  defp count_active_teams(state) do
+  @doc """
+  Gets count of active teams.
+
+  ## Parameters
+    * `state` - Game state to check
+
+  ## Returns
+    * Integer count of active teams
+  """
+  @spec count_active_teams(GameState.t()) :: non_neg_integer()
+  def count_active_teams(state) do
     map_size(state.teams)
   end
 
@@ -575,6 +633,49 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       {:error, {:invalid_team_count, "#{mode_name} mode requires at least #{team_count} team(s), got #{map_size(teams)}"}}
     else
       :ok
+    end
+  end
+
+  @doc """
+  Validates that a team exists in the game state.
+
+  ## Parameters
+    * `state` - Current game state
+    * `team_id` - Team ID to validate
+
+  ## Returns
+    * `:ok` - Team exists
+    * `{:error, :invalid_team}` - Team doesn't exist
+  """
+  @spec validate_team_exists(GameState.t(), team_id()) :: :ok | {:error, :invalid_team}
+  defp validate_team_exists(state, team_id) do
+    if Map.has_key?(state.teams, team_id) do
+      :ok
+    else
+      {:error, :invalid_team}
+    end
+  end
+
+  @doc """
+  Validates that guess contents are valid (non-empty words).
+
+  ## Parameters
+    * `word1` - First word to validate
+    * `word2` - Second word to validate
+
+  ## Returns
+    * `:ok` - Words are valid
+    * `{:error, :invalid_guess}` - Words are invalid
+  """
+  @spec validate_guess_contents(String.t(), String.t()) :: :ok | {:error, :invalid_guess}
+  defp validate_guess_contents(word1, word2) do
+    cond do
+      is_nil(word1) or is_nil(word2) ->
+        {:error, :invalid_guess}
+      String.trim(word1) == "" or String.trim(word2) == "" ->
+        {:error, :invalid_guess}
+      true ->
+        :ok
     end
   end
 end

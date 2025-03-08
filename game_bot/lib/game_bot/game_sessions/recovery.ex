@@ -47,8 +47,11 @@ defmodule GameBot.GameSessions.Recovery do
     GuessAbandoned,
     RoundStarted,
     RoundCompleted,
-    TeamEliminated
+    TeamEliminated,
+    KnockoutRoundCompleted,
+    RaceModeTimeExpired
   }
+  alias GameBot.Domain.Events.Event
 
   # Configuration
   @default_timeout :timer.seconds(30)
@@ -278,19 +281,17 @@ defmodule GameBot.GameSessions.Recovery do
           teams: team_states,
           team_ids: team_ids,
           forbidden_words: forbidden_words,
-          round_number: 1,
-          start_time: timestamp,
-          last_activity: timestamp,
+          current_round: 1,
+          status: :in_progress,
+          scores: Map.new(team_ids, &{&1, 0}),
           matches: [],
-          scores: %{},
-          status: :waiting
+          start_time: timestamp,
+          last_activity: timestamp
         },
-        teams: teams,
-        started_at: timestamp,
-        status: :active,
         guild_id: guild_id,
-        round_timer_ref: nil,
-        pending_events: []
+        status: :in_progress,
+        start_time: timestamp,
+        last_update: timestamp
       }}
     end
   end
@@ -385,27 +386,31 @@ defmodule GameBot.GameSessions.Recovery do
 
   # Private Functions
 
-  defp fetch_events_with_retry(game_id, retries, guild_id \\ nil) do
-    opts = if guild_id, do: [guild_id: guild_id], else: []
-
-    case EventStore.read_stream_forward(game_id, 0, @max_events, opts) do
-      {:ok, []} ->
-        {:error, :no_events}
-      {:ok, events} when length(events) > @max_events ->
-        {:error, :too_many_events}
-      {:ok, events} ->
-        {:ok, events}
-      {:error, %Error{type: :connection}} = error when retries > 0 ->
-        Process.sleep(exponential_backoff(retries))
-        fetch_events_with_retry(game_id, retries - 1)
+  @spec fetch_events_with_retry(String.t(), pos_integer(), non_neg_integer()) ::
+    {:ok, [Event.t()]} | {:error, term()}
+  def fetch_events_with_retry(stream_id, batch_size, retries \\ 3) do
+    try do
+      {:ok, fetch_events_from_store(stream_id, batch_size)}
+    rescue
       error ->
-        error
+        case error do
+          # Handle connection errors with retry
+          {:error, %Error{type: :connection}} = _error when retries > 0 ->
+            Process.sleep(50) # Brief backoff
+            fetch_events_with_retry(stream_id, batch_size, retries - 1)
+          # Re-raise other errors
+          _ -> reraise(error, __STACKTRACE__)
+        end
     end
   end
 
-  defp exponential_backoff(retry) do
-    # 50ms, 100ms, 200ms, etc.
-    trunc(:math.pow(2, @max_retries - retry) * @retry_base_delay)
+  # Private helper to fetch events from the store
+  defp fetch_events_from_store(stream_id, _batch_size) do
+    case EventStore.read_stream_forward(stream_id, 0, @max_events) do
+      {:ok, []} -> []
+      {:ok, events} -> events
+      {:error, reason} -> raise {:error, reason}
+    end
   end
 
   defp validate_event_order(events) do
@@ -445,14 +450,14 @@ defmodule GameBot.GameSessions.Recovery do
     end
   end
 
-  defp validate_mode_state(%GameState{} = state), do: :ok
-  defp validate_mode_state(_), do: {:error, :invalid_mode_state}
+  defp validate_mode_state(%GameState{} = _state), do: :ok
+  defp validate_mode_state(_), do: {:error, :invalid_state_format}
 
   defp event_type(event), do: event.__struct__
 
   defp apply_event(%GameStarted{}, state), do: state  # Already handled in build_initial_state
 
-  defp apply_event(%GameEvents.GuessProcessed{} = event, state) do
+  defp apply_event(%GuessProcessed{} = event, state) do
     Map.update!(state, :mode_state, fn mode_state ->
       %{mode_state |
         guess_count: event.guess_count,
@@ -489,6 +494,36 @@ defmodule GameBot.GameSessions.Recovery do
       }
     end)
     |> Map.put(:status, :completed)
+  end
+
+  defp apply_event(%TeamEliminated{} = event, state) do
+    # Remove the team from active teams
+    updated_mode_state = %{state.mode_state |
+      teams: Map.delete(state.mode_state.teams, event.team_id)
+    }
+
+    # Update any mode-specific state if needed
+    # For Knockout mode, we might add it to eliminated_teams
+    updated_mode_state = case state.mode do
+      :knockout ->
+        eliminated_teams = Map.get(updated_mode_state, :eliminated_teams, [])
+        Map.put(updated_mode_state, :eliminated_teams, [event.team_id | eliminated_teams])
+      _ -> updated_mode_state
+    end
+
+    {:ok, %{state | mode_state: updated_mode_state}}
+  end
+
+  defp apply_event(%KnockoutRoundCompleted{} = event, state) do
+    # Update the round number
+    updated_mode_state = %{state.mode_state | current_round: event.round_number + 1}
+    {:ok, %{state | mode_state: updated_mode_state}}
+  end
+
+  defp apply_event(state, %RaceModeTimeExpired{} = _event) do
+    # Mark race mode game as completed due to time expiry
+    updated_mode_state = %{state.mode_state | status: :completed}
+    {:ok, %{state | mode_state: updated_mode_state, status: :completed}}
   end
 
   defp apply_event(event, state) do

@@ -16,6 +16,9 @@ defmodule GameBot.DataCase do
 
   use ExUnit.CaseTemplate
 
+  alias GameBot.Infrastructure.Persistence.RepositoryManager
+  alias GameBot.Test.ConnectionHelper
+
   using do
     quote do
       alias GameBot.Infrastructure.Repo
@@ -28,7 +31,20 @@ defmodule GameBot.DataCase do
   end
 
   setup tags do
+    # Close connections before the test and ensure repositories are started
+    ConnectionHelper.close_db_connections()
+
+    # Ensure all repositories are started
+    :ok = RepositoryManager.ensure_all_started()
+
+    # Setup the sandbox using our custom function
     GameBot.DataCase.setup_sandbox(tags)
+
+    # Register cleanup
+    on_exit(fn ->
+      ConnectionHelper.close_db_connections()
+    end)
+
     :ok
   end
 
@@ -36,8 +52,24 @@ defmodule GameBot.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(GameBot.Infrastructure.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    # Start owner with better error handling
+    try do
+      pid = Ecto.Adapters.SQL.Sandbox.start_owner!(GameBot.Infrastructure.Repo, shared: not tags[:async])
+      on_exit(fn ->
+        try do
+          Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
+        rescue
+          e -> IO.puts("Warning: Failed to stop owner: #{inspect(e)}")
+        end
+      end)
+    rescue
+      e ->
+        IO.puts("Error setting up sandbox: #{inspect(e)}")
+        # Try to ensure repo is started and retry once
+        RepositoryManager.ensure_started(GameBot.Infrastructure.Repo)
+        pid = Ecto.Adapters.SQL.Sandbox.start_owner!(GameBot.Infrastructure.Repo, shared: not tags[:async])
+        on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    end
   end
 
   @doc """

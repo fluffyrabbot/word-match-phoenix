@@ -145,10 +145,14 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
     {:ok, state(), GuessProcessed.t()} | {:error, term()}
   def process_guess_pair(state, team_id, guess_pair) do
     with {:ok, state, event} <- GameBot.Domain.GameModes.BaseMode.process_guess_pair(state, team_id, guess_pair) do
-      state = if event.guess_successful do
+      # Make sure the event is accessible regardless of how it's retrieved
+      guess_successful = Map.get(event, :guess_successful)
+      guess_count = Map.get(event, :guess_count)
+
+      state = if guess_successful do
         # Update total guesses and advance round
         %{state |
-          total_guesses: state.total_guesses + event.guess_count,
+          total_guesses: state.total_guesses + guess_count,
           current_round: state.current_round + 1
         }
       else

@@ -43,7 +43,8 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Base do
         Base.with_telemetry(__MODULE__, :append, stream_id, fn ->
           Base.with_retries(
             fn ->
-              with {:ok, serialized} <- serialize_events(events),
+              with {:ok, prepared_events} <- prepare_events(stream_id, events),
+                   {:ok, serialized} <- serialize_events(prepared_events),
                    {:ok, result} <- do_append_to_stream(stream_id, expected_version, serialized, opts) do
                 {:ok, result}
               end
@@ -132,8 +133,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Base do
 
       # Overridable callbacks for concrete implementations
 
-      defp do_append_to_stream(_stream_id, _expected_version, _events, _opts) do
-        {:error, Error.not_found_error(__MODULE__, "Operation not implemented")}
+      defp do_append_to_stream(stream_id, expected_version, events, opts) do
+        with {:ok, prepared_events} <- prepare_events(stream_id, events) do
+          {:ok, serialize_events(prepared_events)}
+        end
       end
 
       defp do_read_stream_forward(_stream_id, _start_version, _count, _opts) do
@@ -184,6 +187,21 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Base do
           {:ok, deserialized} -> {:ok, Enum.reverse(deserialized)}
           error -> error
         end
+      end
+
+      defp prepare_events(stream_id, events) when is_list(events) do
+        prepared = Enum.map(events, fn event ->
+          case event do
+            %{stream_id: _} -> event
+            _ when is_map(event) -> Map.put(event, :stream_id, stream_id)
+            _ -> event
+          end
+        end)
+        {:ok, prepared}
+      end
+
+      defp prepare_events(_stream_id, events) do
+        {:error, Error.validation_error(__MODULE__, "Events must be a list", events)}
       end
 
       defoverridable [

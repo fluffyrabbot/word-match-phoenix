@@ -17,6 +17,8 @@ defmodule GameBotWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias GameBot.Infrastructure.Persistence.RepositoryManager
+
   using do
     quote do
       # The default endpoint for testing
@@ -32,7 +34,13 @@ defmodule GameBotWeb.ConnCase do
   end
 
   setup tags do
+    # Ensure repositories are started (double check since DataCase will also do this)
+    RepositoryManager.ensure_all_started()
+
+    # Use DataCase for sandbox setup
     GameBot.DataCase.setup_sandbox(tags)
+
+    # Return connection
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

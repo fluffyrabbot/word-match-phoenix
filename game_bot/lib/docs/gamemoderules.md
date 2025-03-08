@@ -30,7 +30,7 @@ Cooperative mode for two players working together, aiming for lowest average gue
 - No elimination - play all rounds
 
 ### Win Condition
-- Success threshold: Average of 5 guesses per round or lower (configurable)
+- Success threshold: Average of 4 guesses per round or lower (configurable)
 - Team wins if average guesses across all rounds is below threshold
 
 ## Knockout Mode
@@ -39,19 +39,19 @@ Teams compete in rounds, with teams being eliminated through various conditions 
 
 ### Initial setup
 - Teams are passed in from the game initialization system
-- Round time limit is 5 minutes (configurable via settings)
+- Round time limit is 5 minutes (300 seconds, configurable via settings)
 - Maximum guesses per round is 12 (configurable via settings)
-- Teams start each round with a guess count of 0
+- Teams start each round with a guess count of 1 (representing first attempt)
 
 ### Game logic
-- Teams are eliminated in three ways:
+- Teams are eliminated in four ways:
   1. Immediate elimination upon reaching 12 guesses without matching
   2. End of round elimination for teams that haven't matched within the time limit
-  3. End of round elimination for the 3 teams with highest guess counts (only when more than 8 teams remain)
-- If two teams tie for highest guess count in end-of-round elimination, both are eliminated unless they are the last two teams
-- If three or more teams tie for highest guess count in end-of-round elimination, no teams are eliminated
-- A discord embedded status update message is sent to the channel after each elimination
-- The round restarts with remaining teams after a 5 second delay (configurable)
+  3. End of round elimination for 3 teams with highest guess counts (when more than 8 teams remain)
+  4. End of round elimination for 1 team with highest guess count (when 8 or fewer teams remain)
+- Special validation prevents eliminating teams when only one team remains
+- The round restarts after eliminations, with the round number incrementing
+- Game state tracks elimination history with reason, round number, and timestamp
 
 ### Win Condition
 - Last team standing wins
@@ -81,6 +81,7 @@ Teams race to complete matches as quickly as possible.
 - The common game logic applies.
 - After each match, and a new round immediately begins for the team that matched (rounds are not shared between teams).
 - Teams play asynchronously, rewarding speed.
+- Teams can use the "give up" command to skip difficult word pairs. This counts as a failed attempt and resets the team's word pair.
 
 ### Scoring System
 - One point per successful match

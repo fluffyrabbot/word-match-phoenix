@@ -13,6 +13,7 @@ defmodule GameBot.EventStoreCase do
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStore
   alias GameBot.Infrastructure.Persistence.Repo
   alias GameBot.Test.ConnectionHelper
+  alias GameBot.Infrastructure.Persistence.RepositoryManager
 
   # Set a shorter timeout for database operations to fail faster in tests
   @db_timeout 5_000
@@ -35,6 +36,10 @@ defmodule GameBot.EventStoreCase do
     if tags[:skip_db] do
       :ok
     else
+      # Ensure repositories are started before test runs
+      # This is the key addition to fix "repo not started" errors
+      :ok = RepositoryManager.ensure_all_started()
+
       # Use parent process as owner for explicit checkout pattern
       parent = self()
 

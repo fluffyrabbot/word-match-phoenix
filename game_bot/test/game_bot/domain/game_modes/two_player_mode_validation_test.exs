@@ -2,6 +2,18 @@ defmodule GameBot.Domain.GameModes.TwoPlayerModeValidationTest do
   use ExUnit.Case
   alias GameBot.Domain.GameModes.TwoPlayerMode
   alias GameBot.Domain.Events.GameEvents.{GameStarted, GuessProcessed}
+  alias GameBot.TestHelpers
+
+  # Apply test environment settings before all tests
+  setup_all do
+    TestHelpers.apply_test_environment()
+
+    on_exit(fn ->
+      TestHelpers.cleanup_test_environment()
+    end)
+
+    :ok
+  end
 
   @valid_teams %{
     "team1" => ["player1", "player2"]
@@ -9,7 +21,8 @@ defmodule GameBot.Domain.GameModes.TwoPlayerModeValidationTest do
 
   @valid_config %{
     rounds_required: 5,
-    success_threshold: 4
+    success_threshold: 4,
+    guild_id: "guild123"
   }
 
   describe "init/3 validation" do
@@ -47,6 +60,10 @@ defmodule GameBot.Domain.GameModes.TwoPlayerModeValidationTest do
   describe "process_guess_pair/3 validation" do
     setup do
       {:ok, state, _} = TwoPlayerMode.init("game123", @valid_teams, @valid_config)
+
+      # Ensure state has empty forbidden_words
+      state = TestHelpers.bypass_word_validations(state)
+
       {:ok, state: state}
     end
 
@@ -94,6 +111,10 @@ defmodule GameBot.Domain.GameModes.TwoPlayerModeValidationTest do
   describe "check_round_end/1 validation" do
     setup do
       {:ok, state, _} = TwoPlayerMode.init("game123", @valid_teams, @valid_config)
+
+      # Ensure state has empty forbidden_words
+      state = TestHelpers.bypass_word_validations(state)
+
       {:ok, state: state}
     end
 

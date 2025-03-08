@@ -2,6 +2,18 @@ defmodule GameBot.Domain.GameModes.RaceModeValidationTest do
   use ExUnit.Case
   alias GameBot.Domain.GameModes.RaceMode
   alias GameBot.Domain.Events.GameEvents.{GameStarted, GuessProcessed, RaceModeTimeExpired}
+  alias GameBot.TestHelpers
+
+  # Apply test environment settings before all tests
+  setup_all do
+    TestHelpers.apply_test_environment()
+
+    on_exit(fn ->
+      TestHelpers.cleanup_test_environment()
+    end)
+
+    :ok
+  end
 
   @valid_teams %{
     "team1" => ["player1", "player2"],
@@ -40,6 +52,10 @@ defmodule GameBot.Domain.GameModes.RaceModeValidationTest do
   describe "process_guess_pair/3 validation" do
     setup do
       {:ok, state, _} = RaceMode.init("game123", @valid_teams, @valid_config)
+
+      # Ensure state has empty forbidden_words
+      state = TestHelpers.bypass_word_validations(state)
+
       {:ok, state: state}
     end
 

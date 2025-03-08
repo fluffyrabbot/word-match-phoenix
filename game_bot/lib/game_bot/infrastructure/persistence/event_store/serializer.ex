@@ -28,15 +28,27 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   def serialize(event) do
     # Handle test events that aren't proper structs
     # This is a special case for tests
-    if is_map(event) and not is_struct(event) and Map.has_key?(event, :event_type) do
-      {:ok, event}
-    else
-      if is_map(event) and not Map.has_key?(event, :event_type) do
+    cond do
+      # Handle map with atom :event_type key
+      is_map(event) and not is_struct(event) and Map.has_key?(event, :event_type) ->
+        {:ok, event}
+      # Handle map with atom :type key
+      is_map(event) and not is_struct(event) and Map.has_key?(event, :type) ->
+        # Convert to consistent format
+        type = Map.get(event, :type)
+        event = Map.put(event, :event_type, type)
+        {:ok, event}
+      # Handle map with string "type" key
+      is_map(event) and not is_struct(event) and Map.has_key?(event, "type") ->
+        # Convert to consistent format
+        type = Map.get(event, "type")
+        event = Map.put(event, :event_type, type)
+        {:ok, event}
+      is_map(event) and not Map.has_key?(event, :event_type) and not Map.has_key?(event, :type) and not Map.has_key?(event, "type") ->
         # Test case for invalid event structure
         {:error, %PersistenceError{type: :validation}}
-      else
+      true ->
         validate_and_serialize_event(event)
-      end
     end
   end
 
@@ -48,12 +60,20 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
       if is_binary(type) and is_integer(version) do
         data = extract_event_data(event)
 
-        {:ok, %{
+        # Preserve stream_id from the original event if it exists
+        stream_id = Map.get(event, :stream_id)
+
+        result = %{
           event_type: type,
           event_version: version,
           data: data,
           metadata: Map.get(event, :metadata, %{})
-        }}
+        }
+
+        # Add stream_id if it exists
+        result = if stream_id, do: Map.put(result, :stream_id, stream_id), else: result
+
+        {:ok, result}
       else
         {:error, %PersistenceError{type: :validation}}
       end
@@ -74,23 +94,50 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   """
   @spec deserialize(map()) :: {:ok, map()} | {:error, PersistenceError.t()}
   def deserialize(data) do
-    with :ok <- validate_serialized_event(data),
-         {:ok, _event_module} <- lookup_event_module(data) do
+    # Normalize keys to handle both string and atom keys
+    normalized_data = normalize_keys(data)
+
+    with :ok <- validate_serialized_event(normalized_data),
+         {:ok, _event_module} <- lookup_event_module(normalized_data) do
       # For tests, we just return the original data
       # In a real implementation, we would convert to a struct
-      {:ok, data}
+      {:ok, normalized_data}
     else
       _ -> {:error, %PersistenceError{type: :validation}}
     end
+  end
+
+  # Normalize keys to handle both string and atom keys
+  defp normalize_keys(data) when is_map(data) do
+    data
+    |> Map.new(fn
+      # Convert string keys to atoms for consistency
+      {key, value} when is_binary(key) ->
+        # Handle key conversions for specific fields
+        case key do
+          "type" -> {:event_type, value}
+          "version" -> {:event_version, value}
+          _ -> {String.to_atom(key), value}
+        end
+      # Handle atom keys that need standardization
+      {:type, value} -> {:event_type, value}
+      {:version, value} -> {:event_version, value}
+      # Pass through other atom keys
+      {key, value} -> {key, value}
+    end)
   end
 
   defp validate_serialized_event(data) do
     cond do
       not is_map(data) ->
         {:error, %PersistenceError{type: :validation}}
-      not Map.has_key?(data, :event_type) and not Map.has_key?(data, "event_type") ->
+      # Check for the event_type key, which might be :event_type, "event_type", :type, or "type"
+      not (Map.has_key?(data, :event_type) or Map.has_key?(data, "event_type") or
+           Map.has_key?(data, :type) or Map.has_key?(data, "type")) ->
         {:error, %PersistenceError{type: :validation}}
-      not Map.has_key?(data, :event_version) and not Map.has_key?(data, "event_version") ->
+      # Check for the event_version key, which might be :event_version, "event_version", :version, or "version"
+      not (Map.has_key?(data, :event_version) or Map.has_key?(data, "event_version") or
+           Map.has_key?(data, :version) or Map.has_key?(data, "version")) ->
         {:error, %PersistenceError{type: :validation}}
       true ->
         :ok

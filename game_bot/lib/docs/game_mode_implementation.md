@@ -209,10 +209,10 @@ Games can be reconstructed from event stream by:
 defmodule GameBot.Domain.GameModes.TwoPlayerMode do
   defstruct [
     rounds_required: 5,           # Configurable
-    success_threshold: 4,         # Average guesses threshold
+    success_threshold: 4,         # Average guesses threshold (default: 4)
     current_round: 1,
-    perfect_rounds: 0,           # Rounds completed in 1 guess
     total_guesses: 0,
+    team_guesses: %{},            # Tracks guesses by team
     completion_time: nil
   ]
 end
@@ -222,12 +222,26 @@ end
 ```elixir
 defmodule GameBot.Domain.GameModes.KnockoutMode do
   defstruct [
-    time_limit_per_round: 180,    # 3 minutes in seconds
-    max_guesses: 12,              # Guesses before auto-elimination
-    elimination_delay: 5,         # Seconds between rounds
-    eliminated_teams: [],
-    round_start_time: nil
+    round_number: 1,
+    round_start_time: nil,
+    eliminated_teams: [],         # List of elimination records with reasons
+    team_guesses: %{},            # Map of team_id to guess count
+    round_duration: 300,          # 5 minutes in seconds
+    elimination_limit: 12         # Max guesses before auto-elimination
   ]
+  
+  # Configuration Constants
+  @round_time_limit 300           # 5 minutes in seconds
+  @max_guesses 12                 # Maximum guesses before elimination
+  @forced_elimination_threshold 8 # Teams above this count trigger forced eliminations
+  @teams_to_eliminate 3           # Number of teams to eliminate when above threshold
+  @min_teams 2                    # Minimum teams to start
+  
+  # Elimination reasons
+  @type elimination_reason ::
+    :time_expired |               # Failed to match within time limit
+    :guess_limit |                # Exceeded maximum guesses
+    :forced_elimination           # Eliminated due to high guess count
 end
 ```
 
@@ -236,9 +250,22 @@ end
 defmodule GameBot.Domain.GameModes.RaceMode do
   defstruct [
     time_limit: 180,              # 3 minutes in seconds
+    guild_id: nil,                # Required for word validation
+    team_positions: %{},          # Map of team_id to current position (not used in win condition)
+    finish_line: 10,              # Position to reach for victory (not currently implemented)
     matches_by_team: %{},         # Map of team_id to match count
-    start_time: nil
+    total_guesses_by_team: %{},   # Map of team_id to total guesses
+    start_time: nil,
+    last_team_update: nil,
+    completed_teams: %{}          # Teams that have reached the finish line (not used in win condition)
   ]
+  
+  # Special commands
+  @give_up_command "give up"      # Command to skip difficult word pairs
+  
+  # NOTE: While team positions and finish line are initialized in the state,
+  # the actual win condition is currently based solely on matches completed 
+  # when time expires, with average guesses as a tiebreaker.
 end
 ```
 

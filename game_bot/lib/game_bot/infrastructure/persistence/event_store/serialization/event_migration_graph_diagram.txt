@@ -1,0 +1,72 @@
+# Event Migration Graph Visualization
+
+This diagram represents how event migrations are modeled as a directed graph.
+
+## Simple Event Type Migration
+
+For a single event type with sequential migrations:
+
+```
+  {"player_joined", 1} ----> {"player_joined", 2} ----> {"player_joined", 3}
+        |                           |                          |
+   [event data v1]             [event data v2]            [event data v3]
+        |                           |                          |
+ migration function 1 ----> migration function 2 ----> migration function 3
+```
+
+## Multiple Event Types with Version Migrations
+
+```
+  {"player_joined", 1} ----> {"player_joined", 2} ----> {"player_joined", 3}
+        
+  {"game_started", 1} ----> {"game_started", 2}
+        
+  {"round_ended", 1} -------------------------------> {"round_ended", 2}
+                            (direct migration)
+```
+
+## Finding a Migration Path
+
+When migrating from version 1 to 3, the system finds the shortest path:
+
+```
+  {"player_joined", 1} ----> {"player_joined", 2} ----> {"player_joined", 3}
+   [Source Vertex]                                       [Target Vertex]
+                     \                               /
+                      -----------------------------
+                         [Migration Path Found]
+```
+
+## Graph Data Structure
+
+The graph is represented internally as:
+
+```
+Vertices: 
+- {"player_joined", 1}
+- {"player_joined", 2}
+- {"player_joined", 3}
+- {"game_started", 1}
+- {"game_started", 2}
+- {"round_ended", 1}
+- {"round_ended", 2}
+
+Edges:
+- {"player_joined", 1} -> {"player_joined", 2}
+- {"player_joined", 2} -> {"player_joined", 3}
+- {"game_started", 1} -> {"game_started", 2}
+- {"round_ended", 1} -> {"round_ended", 2}
+```
+
+## Migration Function Mapping
+
+The system maps each edge to a migration function:
+
+```
+Edge                                   Migration Function
+---------------------------------------------------
+{"player_joined", 1} -> {"player_joined", 2}  |  PlayerMigrations.v1_to_v2/1
+{"player_joined", 2} -> {"player_joined", 3}  |  PlayerMigrations.v2_to_v3/1
+{"game_started", 1} -> {"game_started", 2}    |  GameMigrations.v1_to_v2/1
+{"round_ended", 1} -> {"round_ended", 2}      |  RoundMigrations.v1_to_v2/1
+``` 

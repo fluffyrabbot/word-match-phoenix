@@ -1,5 +1,5 @@
 defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias GameBot.Infrastructure.Error
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.{Base, Behaviour}
@@ -8,6 +8,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
   # Define the TestEvent struct for tests
   defmodule TestEvent do
     defstruct [:id, :stream_id, :event_type, :data, :metadata]
+
+    # Add implementation of required functions for event serialization
+    def event_type, do: "test_event"
+    def event_version, do: 1
   end
 
   defmodule TestAdapter do
@@ -25,14 +29,39 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
       {:error, Error.validation_error(__MODULE__, "Invalid stream")}
     end
 
-    def do_read_stream_forward("success", _start, count, _opts), do: {:ok, List.duplicate(%{}, count)}
+    def do_read_stream_forward("success", _start, count, _opts) do
+      # Return properly structured events for deserialization
+      events = Enum.map(1..count, fn i ->
+        %{
+          "id" => "event_#{i}",
+          "type" => "test_event",
+          "version" => 1,
+          "data" => %{"test" => "value_#{i}"},
+          "metadata" => %{"meta" => "data_#{i}"},
+          "stream_id" => "success"
+        }
+      end)
+      {:ok, events}
+    end
+
     def do_read_stream_forward("retry", _start, _count, _opts) do
       if :ets.update_counter(:retry_counter, :count, {2, 1}) < 3 do
         {:error, Error.connection_error(__MODULE__, "Connection failed")}
       else
-        {:ok, [%{}]}
+        # Return a properly structured event
+        {:ok, [
+          %{
+            "id" => "retry_event",
+            "type" => "test_event",
+            "version" => 1,
+            "data" => %{"test" => "retry_value"},
+            "metadata" => %{"meta" => "retry_data"},
+            "stream_id" => "retry"
+          }
+        ]}
       end
     end
+
     def do_read_stream_forward("error", _start, _count, _opts) do
       {:error, Error.not_found_error(__MODULE__, "Stream not found")}
     end
@@ -50,9 +79,36 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
     end
   end
 
+  # Global setup for all tests
   setup do
+    # Set up the retry counter
     :ets.new(:retry_counter, [:set, :public, :named_table])
     :ets.insert(:retry_counter, {:count, 0})
+
+    # Set up telemetry for all tests that need it
+    test_pid = self()
+
+    # Clean up any previous handlers
+    :telemetry.list_handlers([])
+    |> Enum.each(fn %{id: id} ->
+      :telemetry.detach(id)
+    end)
+
+    # Attach new handler
+    :telemetry.attach(
+      "test-handler-#{inspect(self())}",
+      [:game_bot, :event_store, :append],
+      fn name, measurements, metadata, _ ->
+        send(test_pid, {:telemetry, name, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn ->
+      # Clean up telemetry handlers on test completion
+      :telemetry.detach("test-handler-#{inspect(self())}")
+    end)
+
     :ok
   end
 
@@ -108,26 +164,15 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
   end
 
   describe "telemetry" do
-    setup do
-      test_pid = self()
-
-      :telemetry.attach(
-        "test-handler",
-        [:game_bot, :event_store, :append],
-        fn name, measurements, metadata, _ ->
-          send(test_pid, {:telemetry, name, measurements, metadata})
-        end,
-        nil
-      )
-
-      :ok
-    end
-
     test "emits telemetry events for successful operations" do
       event = %TestEvent{id: "test"}
       TestAdapter.append_to_stream("success", 0, [event])
 
-      assert_receive {:telemetry, [:game_bot, :event_store, :append], %{duration: _},
+      # Wait for telemetry event to be received
+      Process.sleep(500)
+
+      # Verify event was received
+      assert_received {:telemetry, [:game_bot, :event_store, :append], %{duration: _},
         %{
           operation: :append,
           stream_id: "success",
@@ -141,7 +186,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
       event = %TestEvent{id: "test"}
       TestAdapter.append_to_stream("error", 0, [event])
 
-      assert_receive {:telemetry, [:game_bot, :event_store, :append], %{duration: _},
+      # Wait for telemetry event to be received
+      Process.sleep(500)
+
+      # Verify event was received
+      assert_received {:telemetry, [:game_bot, :event_store, :append], %{duration: _},
         %{
           operation: :append,
           stream_id: "error",

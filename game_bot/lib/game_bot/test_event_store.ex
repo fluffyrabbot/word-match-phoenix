@@ -114,6 +114,13 @@ defmodule GameBot.TestEventStore do
     GenServer.call(__MODULE__, {:version, stream_id})
   end
 
+  @doc """
+  Gets the current version of a stream with options.
+  """
+  def stream_version(stream_id, _opts) do
+    GenServer.call(__MODULE__, {:version, stream_id})
+  end
+
   # Implementation of EventStore and GenServer callbacks
 
   @impl GenServer
@@ -212,8 +219,8 @@ defmodule GameBot.TestEventStore do
   end
 
   @impl EventStore
-  def delete_stream(_stream_id, _expected_version \\ 0, _hard_delete \\ false, _opts \\ []) do
-    :ok
+  def delete_stream(stream_id, _expected_version \\ 0, _hard_delete \\ false, _opts \\ []) do
+    GenServer.call(__MODULE__, {:delete_stream, stream_id})
   end
 
   @impl EventStore
@@ -281,18 +288,57 @@ defmodule GameBot.TestEventStore do
   end
 
   @impl GenServer
+  def handle_call({:delete_stream, stream_id}, _from, state) do
+    # Remove the stream
+    streams = Map.delete(state.streams, stream_id)
+    {:reply, :ok, %{state | streams: streams}}
+  end
+
+  @impl GenServer
   def handle_call({:append, stream_id, events}, _from, state) do
-    # Get current events for this stream
-    current_events = Map.get(state.streams, stream_id, [])
+    # Check for failure simulation
+    if state.failure_count > 0 do
+      # Simulate a failure for testing retry mechanisms
+      new_state = %{state | failure_count: state.failure_count - 1}
 
-    # Append the new events
-    updated_events = current_events ++ events
+      # Track retry attempt time if enabled
+      new_state = if state.track_retries do
+        now = :os.system_time(:millisecond)
 
-    # Update the streams map
-    streams = Map.put(state.streams, stream_id, updated_events)
+        delay = case state.last_attempt_time do
+          nil -> 0
+          time -> now - time
+        end
 
-    # Return the new version number (number of events)
-    {:reply, {:ok, length(updated_events)}, %{state | streams: streams}}
+        retry_delays = [delay | state.retry_delays]
+        %{new_state | retry_delays: retry_delays, last_attempt_time: now}
+      else
+        new_state
+      end
+
+      {:reply, {:error, :temporary_failure}, new_state}
+    else
+      # Get current events for this stream
+      current_events = Map.get(state.streams, stream_id, [])
+
+      # Ensure all events have stream_id set
+      prepared_events = Enum.map(events, fn event ->
+        case event do
+          %{stream_id: _} -> event
+          _ when is_map(event) -> Map.put(event, :stream_id, stream_id)
+          _ -> event
+        end
+      end)
+
+      # Append the new events
+      updated_events = current_events ++ prepared_events
+
+      # Update the streams map
+      streams = Map.put(state.streams, stream_id, updated_events)
+
+      # Return the new version number (number of events)
+      {:reply, {:ok, length(updated_events)}, %{state | streams: streams}}
+    end
   end
 
   @impl GenServer
