@@ -188,7 +188,8 @@ defmodule GameBot.GameSessions.Session do
           state.guild_id,
           state.mode,
           winners,
-          final_scores
+          final_scores,
+          game_duration
         )
 
         # Persist events
@@ -337,7 +338,7 @@ defmodule GameBot.GameSessions.Session do
 
         # Return result based on match status
         result = if Enum.any?(events, fn
-          %GameBot.Domain.Events.GuessProcessed{guess_successful: true} -> true
+          %GameBot.Domain.Events.GuessEvents.GuessProcessed{guess_successful: true} -> true
           _ -> false
         end), do: :match, else: :no_match
         {:reply, {:ok, result}, %{state | mode_state: new_mode_state}}

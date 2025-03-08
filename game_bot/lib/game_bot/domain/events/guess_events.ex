@@ -1,9 +1,11 @@
-defmodule GameBot.Domain.Events do
+defmodule GameBot.Domain.Events.GuessEvents do
   @moduledoc """
-  Contains event structs for the game domain.
+  Contains event structs for guess-related events in the game domain.
   """
 
-  alias GameBot.Domain.Events.{Metadata, EventStructure}
+  alias GameBot.Domain.Events.Metadata
+
+  @type metadata :: Metadata.t()
 
   defmodule GuessProcessed do
     @moduledoc """
@@ -13,133 +15,302 @@ defmodule GameBot.Domain.Events do
     2. The guess has been validated
     3. The match has been checked
     4. The result has been recorded
+
+    Base fields:
+    - game_id: Unique identifier for the game
+    - guild_id: Discord guild ID where the game is being played
+    - timestamp: When the guess was processed
+    - metadata: Additional context about the event
+
+    Event-specific fields:
+    - team_id: ID of the team that made the guess
+    - player1_info: Information about the first player
+    - player2_info: Information about the second player
+    - player1_word: Word submitted by the first player
+    - player2_word: Word submitted by the second player
+    - guess_successful: Whether the guess resulted in a match
+    - match_score: Score for the match (if successful)
+    - guess_count: Number of guesses made by this team in the game
+    - round_guess_count: Number of guesses made by this team in the current round
+    - total_guesses: Number of guesses made by all teams in the game
+    - guess_duration: Duration of the guess in milliseconds
     """
+    use GameBot.Domain.Events.EventBuilderAdapter
 
-    use GameBot.Domain.Events.BaseEvent,
-      event_type: "guess_processed",
-      version: 1,
-      fields: [
-        field(:team_id, :string),
-        field(:player1_info, :map),
-        field(:player2_info, :map),
-        field(:player1_word, :string),
-        field(:player2_word, :string),
-        field(:guess_successful, :boolean),
-        field(:match_score, :integer),
-        field(:guess_count, :integer),
-        field(:round_guess_count, :integer),
-        field(:total_guesses, :integer),
-        field(:guess_duration, :integer)
-      ]
+    @type t :: %__MODULE__{
+      # Base fields
+      game_id: String.t(),
+      guild_id: String.t(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+      # Event-specific fields
+      team_id: String.t(),
+      player1_info: map(),
+      player2_info: map(),
+      player1_word: String.t(),
+      player2_word: String.t(),
+      guess_successful: boolean(),
+      match_score: integer() | nil,
+      guess_count: non_neg_integer(),
+      round_guess_count: non_neg_integer(),
+      total_guesses: non_neg_integer(),
+      guess_duration: non_neg_integer()
+    }
+
+    defstruct [
+      :game_id,
+      :guild_id,
+      :team_id,
+      :player1_info,
+      :player2_info,
+      :player1_word,
+      :player2_word,
+      :guess_successful,
+      :match_score,
+      :guess_count,
+      :round_guess_count,
+      :total_guesses,
+      :guess_duration,
+      :timestamp,
+      :metadata
+    ]
+
+    @doc """
+    Returns the string type identifier for this event.
+    """
+    def event_type(), do: "guess_processed"
 
     @impl true
-    def required_fields do
-      GameBot.Domain.Events.BaseEvent.base_required_fields() ++ [
-        :team_id,
-        :player1_info,
-        :player2_info,
-        :player1_word,
-        :player2_word,
-        :guess_successful,
-        :guess_count,
-        :round_guess_count,
-        :total_guesses,
-        :guess_duration
-      ]
+    def validate_attrs(attrs) do
+      with {:ok, base_attrs} <- super(attrs),
+           :ok <- validate_required_field(attrs, :team_id),
+           :ok <- validate_required_field(attrs, :player1_info),
+           :ok <- validate_required_field(attrs, :player2_info),
+           :ok <- validate_required_field(attrs, :player1_word),
+           :ok <- validate_required_field(attrs, :player2_word),
+           :ok <- validate_required_field(attrs, :guess_successful),
+           :ok <- validate_required_field(attrs, :guess_count),
+           :ok <- validate_required_field(attrs, :round_guess_count),
+           :ok <- validate_required_field(attrs, :total_guesses),
+           :ok <- validate_required_field(attrs, :guess_duration),
+           :ok <- validate_string_field(attrs, :team_id),
+           :ok <- validate_string_field(attrs, :player1_word),
+           :ok <- validate_string_field(attrs, :player2_word),
+           :ok <- validate_map_field(attrs, :player1_info),
+           :ok <- validate_map_field(attrs, :player2_info),
+           :ok <- validate_boolean_field(attrs, :guess_successful),
+           :ok <- validate_non_negative_integer_field(attrs, :guess_count),
+           :ok <- validate_non_negative_integer_field(attrs, :round_guess_count),
+           :ok <- validate_non_negative_integer_field(attrs, :total_guesses),
+           :ok <- validate_non_negative_integer_field(attrs, :guess_duration),
+           :ok <- validate_match_score(attrs) do
+        {:ok, base_attrs}
+      end
     end
+
+    defp validate_match_score(%{guess_successful: true, match_score: nil}) do
+      {:error, {:validation, "match_score is required when guess is successful"}}
+    end
+
+    defp validate_match_score(%{guess_successful: false, match_score: score}) when not is_nil(score) do
+      {:error, {:validation, "match_score must be nil when guess is not successful"}}
+    end
+
+    defp validate_match_score(_), do: :ok
+
+    @doc """
+    Creates a new GuessProcessed event with the specified attributes.
+
+    ## Parameters
+    - attrs: Map of event attributes
+    - metadata: Event metadata map or struct
+
+    ## Returns
+    - `{:ok, event}` if validation succeeds
+    - `{:error, reason}` if validation fails
+    """
+    @spec create(map(), map()) :: {:ok, t()} | {:error, term()}
+    def create(attrs, metadata \\ %{}) do
+      new(attrs, metadata)
+    end
+  end
+
+  defmodule GuessStarted do
+    @moduledoc """
+    Emitted when a player initiates a guess.
+    This event represents the start of a guess attempt.
+
+    Base fields:
+    - game_id: Unique identifier for the game
+    - guild_id: Discord guild ID where the game is being played
+    - timestamp: When the guess was initiated
+    - metadata: Additional context about the event
+
+    Event-specific fields:
+    - team_id: ID of the team making the guess
+    - player_id: ID of the player initiating the guess
+    - channel_id: Channel where the guess was initiated
+    """
+    use GameBot.Domain.Events.EventBuilderAdapter
+
+    @type t :: %__MODULE__{
+      # Base fields
+      game_id: String.t(),
+      guild_id: String.t(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+      # Event-specific fields
+      team_id: String.t(),
+      player_id: String.t(),
+      channel_id: String.t()
+    }
+
+    defstruct [
+      :game_id,
+      :guild_id,
+      :team_id,
+      :player_id,
+      :channel_id,
+      :timestamp,
+      :metadata
+    ]
+
+    @doc """
+    Returns the string type identifier for this event.
+    """
+    def event_type(), do: "guess_started"
 
     @impl true
-    def validate_custom_fields(changeset) do
-      super(changeset)
-      |> validate_number(:guess_count, greater_than: 0)
-      |> validate_number(:round_guess_count, greater_than: 0)
-      |> validate_number(:total_guesses, greater_than: 0)
-      |> validate_number(:guess_duration, greater_than_or_equal_to: 0)
-      |> validate_match_score()
-    end
-
-    defp validate_match_score(changeset) do
-      case {get_field(changeset, :guess_successful), get_field(changeset, :match_score)} do
-        {true, nil} -> add_error(changeset, :match_score, "required when guess is successful")
-        {false, score} when not is_nil(score) -> add_error(changeset, :match_score, "must be nil when guess is not successful")
-        _ -> changeset
+    def validate_attrs(attrs) do
+      with {:ok, base_attrs} <- super(attrs),
+           :ok <- validate_required_field(attrs, :team_id),
+           :ok <- validate_required_field(attrs, :player_id),
+           :ok <- validate_required_field(attrs, :channel_id),
+           :ok <- validate_string_field(attrs, :team_id),
+           :ok <- validate_string_field(attrs, :player_id),
+           :ok <- validate_string_field(attrs, :channel_id) do
+        {:ok, base_attrs}
       end
     end
 
-    # EventSerializer implementation
+    @doc """
+    Creates a new GuessStarted event with the specified attributes.
 
-    defimpl GameBot.Domain.Events.EventSerializer do
-      def to_map(event) do
-        Map.from_struct(event)
-        |> Map.update!(:timestamp, &DateTime.to_iso8601/1)
-      end
+    ## Parameters
+    - game_id: Unique identifier for the game
+    - guild_id: Discord guild ID where the game is being played
+    - team_id: ID of the team making the guess
+    - player_id: ID of the player initiating the guess
+    - channel_id: Channel where the guess was initiated
+    - metadata: Optional event metadata
 
-      def from_map(data) do
-        data
-        |> Map.update!(:timestamp, &DateTime.from_iso8601!/1)
-        |> struct(__MODULE__)
+    ## Returns
+    - `{:ok, event}` if validation succeeds
+    - `{:error, reason}` if validation fails
+    """
+    @spec create(String.t(), String.t(), String.t(), String.t(), String.t(), map()) :: {:ok, t()} | {:error, term()}
+    def create(game_id, guild_id, team_id, player_id, channel_id, metadata \\ %{}) do
+      attrs = %{
+        game_id: game_id,
+        guild_id: guild_id,
+        team_id: team_id,
+        player_id: player_id,
+        channel_id: channel_id
+      }
+
+      new(attrs, metadata)
+    end
+  end
+
+  defmodule GuessAbandoned do
+    @moduledoc """
+    Emitted when a guess attempt is abandoned.
+    This can occur due to timeout, user cancellation, or system intervention.
+
+    Base fields:
+    - game_id: Unique identifier for the game
+    - guild_id: Discord guild ID where the game is being played
+    - timestamp: When the guess was abandoned
+    - metadata: Additional context about the event
+
+    Event-specific fields:
+    - team_id: ID of the team that was making the guess
+    - player_id: ID of the player who initiated the guess (if known)
+    - reason: Why the guess was abandoned (:timeout, :user_cancelled, :system_cancelled)
+    """
+    use GameBot.Domain.Events.EventBuilderAdapter
+
+    @type reason :: :timeout | :user_cancelled | :system_cancelled
+
+    @type t :: %__MODULE__{
+      # Base fields
+      game_id: String.t(),
+      guild_id: String.t(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+      # Event-specific fields
+      team_id: String.t(),
+      player_id: String.t() | nil,
+      reason: reason()
+    }
+
+    defstruct [
+      :game_id,
+      :guild_id,
+      :team_id,
+      :player_id,
+      :reason,
+      :timestamp,
+      :metadata
+    ]
+
+    @doc """
+    Returns the string type identifier for this event.
+    """
+    def event_type(), do: "guess_abandoned"
+
+    @impl true
+    def validate_attrs(attrs) do
+      with {:ok, base_attrs} <- super(attrs),
+           :ok <- validate_required_field(attrs, :team_id),
+           :ok <- validate_required_field(attrs, :reason),
+           :ok <- validate_string_field(attrs, :team_id),
+           :ok <- validate_string_field(attrs, :player_id),
+           :ok <- validate_reason(attrs.reason) do
+        {:ok, base_attrs}
       end
     end
 
-    # EventValidator implementation
+    defp validate_reason(nil), do: {:error, {:validation, "reason is required"}}
+    defp validate_reason(reason) when reason in [:timeout, :user_cancelled, :system_cancelled], do: :ok
+    defp validate_reason(_), do: {:error, {:validation, "invalid reason"}}
 
-    defimpl GameBot.Domain.Events.EventValidator, for: GuessProcessed do
-      def validate(event) do
-        with :ok <- validate_base_fields(event),
-             :ok <- validate_metadata(event),
-             :ok <- validate_guess_fields(event) do
-          :ok
-        end
-      end
+    @doc """
+    Creates a new GuessAbandoned event with the specified attributes.
 
-      defp validate_base_fields(event) do
-        required = [:game_id, :guild_id, :mode, :round_number, :timestamp]
-        validate_fields(event, required)
-      end
+    ## Parameters
+    - game_id: Unique identifier for the game
+    - guild_id: Discord guild ID where the game is being played
+    - team_id: ID of the team that was making the guess
+    - player_id: ID of the player who initiated the guess (if known)
+    - reason: Why the guess was abandoned
+    - metadata: Optional event metadata
 
-      defp validate_metadata(event) do
-        with %{metadata: metadata} <- event,
-             true <- is_map(metadata) do
-          if Map.has_key?(metadata, "guild_id") or Map.has_key?(metadata, :guild_id) or
-             Map.has_key?(metadata, "source_id") or Map.has_key?(metadata, :source_id) do
-            :ok
-          else
-            {:error, "guild_id or source_id is required in metadata"}
-          end
-        else
-          _ -> {:error, "invalid metadata format"}
-        end
-      end
+    ## Returns
+    - `{:ok, event}` if validation succeeds
+    - `{:error, reason}` if validation fails
+    """
+    @spec create(String.t(), String.t(), String.t(), String.t() | nil, reason(), map()) :: {:ok, t()} | {:error, term()}
+    def create(game_id, guild_id, team_id, player_id \\ nil, reason, metadata \\ %{}) do
+      attrs = %{
+        game_id: game_id,
+        guild_id: guild_id,
+        team_id: team_id,
+        player_id: player_id,
+        reason: reason
+      }
 
-      defp validate_guess_fields(event) do
-        cond do
-          is_nil(event.team_id) -> {:error, "team_id is required"}
-          is_nil(event.player1_info) -> {:error, "player1_info is required"}
-          is_nil(event.player2_info) -> {:error, "player2_info is required"}
-          is_nil(event.player1_word) -> {:error, "player1_word is required"}
-          is_nil(event.player2_word) -> {:error, "player2_word is required"}
-          is_nil(event.guess_successful) -> {:error, "guess_successful is required"}
-          is_nil(event.guess_count) -> {:error, "guess_count is required"}
-          is_nil(event.round_guess_count) -> {:error, "round_guess_count is required"}
-          is_nil(event.total_guesses) -> {:error, "total_guesses is required"}
-          is_nil(event.guess_duration) -> {:error, "guess_duration is required"}
-          event.guess_count < 0 -> {:error, "guess_count must be non-negative"}
-          event.round_guess_count < 0 -> {:error, "round_guess_count must be non-negative"}
-          event.total_guesses < 0 -> {:error, "total_guesses must be non-negative"}
-          event.guess_duration < 0 -> {:error, "guess_duration must be non-negative"}
-          true -> :ok
-        end
-      end
-
-      defp validate_fields(event, required_fields) do
-        Enum.find_value(required_fields, :ok, fn field ->
-          if Map.get(event, field) == nil do
-            {:error, "#{field} is required"}
-          else
-            false
-          end
-        end)
-      end
+      new(attrs, metadata)
     end
   end
 end
