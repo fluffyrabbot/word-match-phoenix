@@ -23,14 +23,20 @@ defmodule GameBot.Domain.Events.Metadata do
   Creates a new metadata map with base fields.
 
   ## Parameters
-  - attrs: Map containing required and optional metadata attributes
+  - attrs: Map containing required and optional metadata attributes,
+           or a string representing the source_id
   - opts: Additional options (may override attrs)
 
   ## Returns
   - `{:ok, metadata}` on success
   - `{:error, reason}` on validation failure
   """
-  @spec new(map(), keyword()) :: {:ok, t()} | validation_error()
+  @spec new(map() | String.t(), keyword() | map()) :: {:ok, t()} | validation_error()
+  def new(source_id, opts) when is_binary(source_id) do
+    # If first arg is a string, treat it as source_id
+    new(%{source_id: source_id}, opts)
+  end
+
   def new(attrs, opts \\ []) when is_map(attrs) do
     # Convert string keys to atoms for consistent access
     normalized_attrs = normalize_keys(attrs)
@@ -56,12 +62,23 @@ defmodule GameBot.Domain.Events.Metadata do
   Creates metadata from a Discord message interaction.
   Extracts guild_id and adds correlation tracking.
   """
-  @spec from_discord_message(Nostrum.Struct.Message.t(), keyword()) :: {:ok, t()} | validation_error()
+  @spec from_discord_message(Nostrum.Struct.Message.t() | map(), keyword()) :: {:ok, t()} | validation_error()
   def from_discord_message(%Nostrum.Struct.Message{} = msg, opts \\ []) do
     attrs = %{
       source_id: "#{msg.id}",
       guild_id: msg.guild_id && "#{msg.guild_id}",
       actor_id: msg.author && "#{msg.author.id}"
+    }
+
+    new(attrs, opts)
+  end
+
+  # Support for test map structures
+  def from_discord_message(%{id: id, author: author} = msg, opts) do
+    attrs = %{
+      source_id: "#{id}",
+      guild_id: Map.get(msg, :guild_id) && "#{Map.get(msg, :guild_id)}",
+      actor_id: Map.get(author, :id) && "#{Map.get(author, :id)}"
     }
 
     new(attrs, opts)

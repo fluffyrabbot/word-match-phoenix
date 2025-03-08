@@ -35,7 +35,7 @@
 
 ### 1. Immediate (Current Sprint)
 1. **Testing Infrastructure**
-   - [x] Create test helpers for repository testing (e.g., `GameBot.Test.RepositoryCase`)
+   - [x] Create test helpers for repository testing (e.g., `GameBot.RepositoryCase`)
    - [x] Add unit tests for error handling and serialization (including property-based tests)
    - [x] Add integration tests for the PostgreSQL repository and combined flows
    - [x] Add macro integration tests

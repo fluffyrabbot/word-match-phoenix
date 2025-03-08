@@ -3,15 +3,21 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTrans
 
   alias GameBot.Infrastructure.Error
 
+  # Define migration functions in a separate module
+  defmodule TestMigrations do
+    def migrate_test_event_v1_to_v2(data) do
+      {:ok, Map.put(data, "new_field", "default")}
+    end
+  end
+
   defmodule TestTranslator do
     use GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslator
 
     register_event("test_event", TestEvent, 2)
     register_event("other_event", OtherEvent, 1)
 
-    register_migration("test_event", 1, 2, fn data ->
-      {:ok, Map.put(data, "new_field", "default")}
-    end)
+    # Use function reference instead of anonymous function
+    register_migration("test_event", 1, 2, &TestMigrations.migrate_test_event_v1_to_v2/1)
   end
 
   defmodule TestEvent do
@@ -92,18 +98,23 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTrans
   end
 
   describe "complex migrations" do
+    defmodule ComplexMigrations do
+      def v1_to_v2(data) do
+        {:ok, Map.put(data, "v2_field", "v2")}
+      end
+
+      def v2_to_v3(data) do
+        {:ok, Map.put(data, "v3_field", "v3")}
+      end
+    end
+
     defmodule ComplexTranslator do
       use GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslator
 
       register_event("complex", ComplexEvent, 3)
 
-      register_migration("complex", 1, 2, fn data ->
-        {:ok, Map.put(data, "v2_field", "v2")}
-      end)
-
-      register_migration("complex", 2, 3, fn data ->
-        {:ok, Map.put(data, "v3_field", "v3")}
-      end)
+      register_migration("complex", 1, 2, &ComplexMigrations.v1_to_v2/1)
+      register_migration("complex", 2, 3, &ComplexMigrations.v2_to_v3/1)
     end
 
     defmodule ComplexEvent do
@@ -128,14 +139,18 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTrans
   end
 
   describe "error handling in migrations" do
+    defmodule ErrorMigrations do
+      def v1_to_v2(_data) do
+        {:error, "Migration failed"}
+      end
+    end
+
     defmodule ErrorTranslator do
       use GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslator
 
       register_event("error_event", ErrorEvent, 2)
 
-      register_migration("error_event", 1, 2, fn _data ->
-        {:error, "Migration failed"}
-      end)
+      register_migration("error_event", 1, 2, &ErrorMigrations.v1_to_v2/1)
     end
 
     defmodule ErrorEvent do

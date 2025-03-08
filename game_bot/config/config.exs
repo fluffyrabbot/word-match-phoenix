@@ -7,46 +7,80 @@
 # General application configuration
 import Config
 
-config :game_bot,
-  ecto_repos: [GameBot.Infrastructure.Repo],
-  generators: [timestamp_type: :utc_datetime],
-  event_stores: [GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres]
+# Configure the repositories
+config :game_bot, ecto_repos: [
+  GameBot.Infrastructure.Persistence.Repo,
+  GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+]
 
-# Configure Commanded for event sourcing
+# Configure EventStore explicitly
+config :game_bot, event_stores: [
+  GameBot.Infrastructure.Persistence.EventStore
+]
+
+# Configure EventStore for all environments
+config :eventstore, column_data_type: "jsonb"
+
+# Explicitly set the event store adapter
+config :game_bot, eventstore_adapter: GameBot.Infrastructure.Persistence.EventStore
+
+# Set up command bus
 config :game_bot, GameBot.Infrastructure.CommandedApp,
   event_store: [
     adapter: Commanded.EventStore.Adapters.EventStore,
-    event_store: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+    event_store: GameBot.Infrastructure.Persistence.EventStore
   ],
   pubsub: :local,
   registry: :local
 
-# Configure EventStore
-config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
-  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer,
-  username: "postgres",
-  password: "csstarahid",
-  database: "game_bot_eventstore_dev",
-  hostname: "localhost",
-  pool_size: 10,
-  schema: "game_events",
-  schema_prefix: "game_events",
-  column_data_type: "jsonb",
-  types: EventStore.PostgresTypes,
-  max_append_retries: 3,
-  max_stream_size: 10_000,
-  subscription_timeout: 30_000
+# Configure the main repository
+config :game_bot, GameBot.Infrastructure.Persistence.Repo, types: EventStore.PostgresTypes
+
+# Configure Nostrum
+config :nostrum,
+  token: System.get_env("DISCORD_BOT_TOKEN"),
+  gateway_intents: :all
 
 # Configures the endpoint
 config :game_bot, GameBotWeb.Endpoint,
   url: [host: "localhost"],
-  adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: GameBotWeb.ErrorHTML, json: GameBotWeb.ErrorJSON],
     layout: false
   ],
   pubsub_server: GameBot.PubSub,
-  live_view: [signing_salt: "juvFeCTM"]
+  live_view: [signing_salt: "jFiEJECy"]
+
+# Configures the mailer
+#
+# By default it uses the "Local" adapter which stores the emails
+# locally. You can see the emails in your browser, at "/dev/mailbox".
+#
+# For production it's recommended to configure a different adapter
+# at the `config/runtime.exs`.
+config :game_bot, GameBot.Mailer, adapter: Swoosh.Adapters.Local
+
+# Configure esbuild (the version is required)
+config :esbuild,
+  version: "0.17.11",
+  default: [
+    args:
+      ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
+
+# Configure tailwind (the version is required)
+config :tailwind,
+  version: "3.2.7",
+  default: [
+    args: ~w(
+      --config=tailwind.config.js
+      --input=css/app.css
+      --output=../priv/static/assets/app.css
+    ),
+    cd: Path.expand("../assets", __DIR__)
+  ]
 
 # Configures Elixir's Logger
 config :logger, :console,

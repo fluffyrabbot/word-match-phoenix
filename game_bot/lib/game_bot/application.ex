@@ -24,11 +24,21 @@ defmodule GameBot.Application do
   end
 
   defp base_children do
-    [
-      # Start the Ecto repositories
+    # Start the Ecto repositories
+    repos = [
       GameBot.Infrastructure.Repo,
-      GameBot.Infrastructure.Persistence.Repo.Postgres,
+      GameBot.Infrastructure.Persistence.Repo.Postgres
+    ]
 
+    # Add EventStore if not in test environment
+    repos = if Mix.env() != :test do
+      repos ++ [GameBot.Infrastructure.Persistence.EventStore]
+    else
+      # Add the test EventStore for test environment
+      repos ++ [GameBot.TestEventStore]
+    end
+
+    repos ++ [
       # Start Commanded application (which manages its own EventStore)
       GameBot.Infrastructure.CommandedApp,
 

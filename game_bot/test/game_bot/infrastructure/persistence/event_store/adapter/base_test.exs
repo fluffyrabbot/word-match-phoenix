@@ -5,6 +5,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.{Base, Behaviour}
   alias GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
 
+  # Define the TestEvent struct for tests
+  defmodule TestEvent do
+    defstruct [:id, :stream_id, :event_type, :data, :metadata]
+  end
+
   defmodule TestAdapter do
     use Base, serializer: JsonSerializer
 

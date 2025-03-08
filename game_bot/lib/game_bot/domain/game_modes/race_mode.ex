@@ -96,7 +96,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @since "1.0.0"
   """
   @impl true
-  @spec init(String.t(), %{String.t() => [String.t()]}, config()) :: {:ok, state(), [GameBot.Domain.Events.BaseEvent.t()]} | {:error, term()}
+  @spec init(String.t(), %{String.t() => [String.t()]}, map()) :: {:ok, state()} | {:error, term()}
   def init(game_id, teams, config) do
     with :ok <- GameBot.Domain.GameModes.BaseMode.validate_teams(teams, :minimum, 2, "Race"),
          :ok <- validate_config(config) do
@@ -108,7 +108,8 @@ defmodule GameBot.Domain.GameModes.RaceMode do
       else
         {:ok, state, events} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
 
-        state = %{state |
+        # Initialize all required fields to prevent KeyError
+        state = Map.merge(state, %{
           guild_id: guild_id,
           time_limit: config.time_limit,
           start_time: DateTime.utc_now(),
@@ -116,7 +117,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
           finish_line: Map.get(config, :finish_line, 10),
           last_team_update: DateTime.utc_now(),
           completed_teams: %{}
-        }
+        })
 
         {:ok, state, events}
       end

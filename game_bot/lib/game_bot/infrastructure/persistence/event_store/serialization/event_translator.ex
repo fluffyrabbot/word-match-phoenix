@@ -11,6 +11,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTrans
 
   alias GameBot.Infrastructure.Error
   alias GameBot.Infrastructure.ErrorHelpers
+  alias Graph
 
   @type event_type :: String.t()
   @type version :: pos_integer()
@@ -128,9 +129,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTrans
       end
 
       defp find_path(graph, type, from, to) do
-        case Graph.get_path(graph, {type, from}, {type, to}) do
-          nil -> nil
-          path ->
+        case Graph.get_paths(graph, {type, from}, {type, to}) do
+          [] -> nil
+          [path | _rest] ->
             path
             |> Enum.chunk_every(2, 1, :discard)
             |> Enum.map(fn [{^type, v1}, {^type, v2}] ->

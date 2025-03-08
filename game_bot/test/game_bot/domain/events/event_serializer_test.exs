@@ -1,83 +1,8 @@
 defmodule GameBot.Domain.Events.EventSerializerTest do
   use ExUnit.Case, async: true
 
-  alias GameBot.Domain.Events.{EventSerializer, EventStructure, Metadata}
-
-  # Test event struct for serialization
-  defmodule TestEvent do
-    @moduledoc "Test event struct for serialization tests"
-    defstruct [
-      :game_id,
-      :guild_id,
-      :mode,
-      :timestamp,
-      :metadata,
-      :count,
-      :score,
-      :tags,
-      :nested_data,
-      :optional_field
-    ]
-
-    defimpl EventSerializer do
-      def to_map(event) do
-        %{
-          "game_id" => event.game_id,
-          "guild_id" => event.guild_id,
-          "mode" => Atom.to_string(event.mode),
-          "timestamp" => DateTime.to_iso8601(event.timestamp),
-          "metadata" => event.metadata,
-          "count" => event.count,
-          "score" => event.score,
-          "tags" => MapSet.to_list(event.tags),
-          "nested_data" => serialize_nested(event.nested_data),
-          "optional_field" => event.optional_field
-        }
-      end
-
-      def from_map(data) do
-        %TestEvent{
-          game_id: data["game_id"],
-          guild_id: data["guild_id"],
-          mode: String.to_existing_atom(data["mode"]),
-          timestamp: EventStructure.parse_timestamp(data["timestamp"]),
-          metadata: data["metadata"],
-          count: data["count"],
-          score: data["score"],
-          tags: MapSet.new(data["tags"] || []),
-          nested_data: deserialize_nested(data["nested_data"]),
-          optional_field: data["optional_field"]
-        }
-      end
-
-      defp serialize_nested(nil), do: nil
-      defp serialize_nested(data) when is_map(data) do
-        Enum.map(data, fn {k, v} -> {to_string(k), serialize_nested(v)} end)
-        |> Map.new()
-      end
-      defp serialize_nested(data) when is_list(data) do
-        Enum.map(data, &serialize_nested/1)
-      end
-      defp serialize_nested(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
-      defp serialize_nested(other), do: other
-
-      defp deserialize_nested(nil), do: nil
-      defp deserialize_nested(data) when is_map(data) do
-        Enum.map(data, fn {k, v} -> {k, deserialize_nested(v)} end)
-        |> Map.new()
-      end
-      defp deserialize_nested(data) when is_list(data) do
-        Enum.map(data, &deserialize_nested/1)
-      end
-      defp deserialize_nested(data) when is_binary(data) and String.contains?(data, "T") do
-        case DateTime.from_iso8601(data) do
-          {:ok, dt, _} -> dt
-          _ -> data
-        end
-      end
-      defp deserialize_nested(other), do: other
-    end
-  end
+  alias GameBot.Domain.Events.{EventSerializer, EventStructure, Metadata, TestEvents}
+  alias TestEvents.TestEvent
 
   # Helper to create a test message
   defp create_test_message do
@@ -95,23 +20,9 @@ defmodule GameBot.Domain.Events.EventSerializerTest do
     metadata = Metadata.from_discord_message(message)
     timestamp = Keyword.get(opts, :timestamp, DateTime.utc_now())
 
-    %TestEvent{
-      game_id: Keyword.get(opts, :game_id, "game-123"),
-      guild_id: Keyword.get(opts, :guild_id, "guild-123"),
-      mode: Keyword.get(opts, :mode, :knockout),
-      timestamp: timestamp,
-      metadata: metadata,
-      count: Keyword.get(opts, :count, 1),
-      score: Keyword.get(opts, :score, 100),
-      tags: Keyword.get(opts, :tags, MapSet.new(["tag1", "tag2"])),
-      nested_data: Keyword.get(opts, :nested_data, %{
-        "key" => "value",
-        "time" => DateTime.utc_now(),
-        "list" => [1, 2, 3],
-        "nested" => %{"inner" => "value"}
-      }),
-      optional_field: Keyword.get(opts, :optional_field)
-    }
+    TestEvents.create_test_event(
+      [timestamp: timestamp, metadata: metadata] ++ opts
+    )
   end
 
   describe "to_map/1" do

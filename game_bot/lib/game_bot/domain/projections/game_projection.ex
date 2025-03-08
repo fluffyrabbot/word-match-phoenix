@@ -96,7 +96,7 @@ defmodule GameBot.Domain.Projections.GameProjection do
       game_id: event.game_id,
       round_number: event.round_number,
       guild_id: event.guild_id,
-      started_at: event.started_at,
+      started_at: DateTime.utc_now(),
       finished_at: nil,
       winner_team_id: nil,
       round_score: nil,
@@ -108,8 +108,12 @@ defmodule GameBot.Domain.Projections.GameProjection do
 
   def handle_event(%GuessProcessed{} = event, %{round: round}) do
     updated_round = %RoundView{round |
-      round_score: event.round_score,
-      round_stats: event.round_stats
+      round_score: event.match_score,
+      round_stats: %{
+        guess_count: event.guess_count,
+        team_id: event.team_id,
+        success: event.guess_successful
+      }
     }
 
     {:ok, {:guess_processed, updated_round}}

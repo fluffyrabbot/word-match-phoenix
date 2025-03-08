@@ -1,6 +1,6 @@
 defmodule GameBot.Domain.Events.GuessEventsTest do
   use ExUnit.Case, async: true
-  alias GameBot.Domain.Events.GuessProcessed
+  alias GameBot.Domain.Events.GameEvents.GuessProcessed
 
   describe "GuessProcessed" do
     test "creates a valid event with successful guess" do

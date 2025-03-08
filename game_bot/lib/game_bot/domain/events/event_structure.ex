@@ -216,12 +216,36 @@ defmodule GameBot.Domain.Events.EventStructure do
   Raises an error if the timestamp is invalid.
   """
   @spec parse_timestamp(String.t()) :: DateTime.t()
-  def parse_timestamp(timestamp) do
+  def parse_timestamp(nil), do: nil
+  def parse_timestamp(timestamp) when is_binary(timestamp) do
     case DateTime.from_iso8601(timestamp) do
-      {:ok, datetime, _offset} -> datetime
-      {:error, reason} -> raise "Invalid timestamp format: #{reason}"
+      {:ok, datetime, _} -> datetime
+      {:error, reason} -> raise "Invalid timestamp format: #{timestamp}, error: #{inspect(reason)}"
     end
   end
+  def parse_timestamp(%DateTime{} = timestamp), do: timestamp
+
+  @doc """
+  Serializes a DateTime struct to an ISO8601 string.
+
+  ## Parameters
+    * `datetime` - DateTime struct to serialize
+
+  ## Returns
+    * `String.t()` - ISO8601 formatted timestamp string
+    * nil - If input is nil
+
+  ## Examples
+
+      iex> EventStructure.to_iso8601(~U[2023-01-01 12:00:00Z])
+      "2023-01-01T12:00:00Z"
+
+      iex> EventStructure.to_iso8601(nil)
+      nil
+  """
+  @spec to_iso8601(DateTime.t() | nil) :: String.t() | nil
+  def to_iso8601(nil), do: nil
+  def to_iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
 
   # Private Functions
 

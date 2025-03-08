@@ -94,13 +94,15 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
 
       {:ok, state, events} = GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config)
 
-      state = %{state |
+      # Initialize all required fields to prevent KeyError
+      state = Map.merge(state, %{
         rounds_required: config.rounds_required,
         success_threshold: config.success_threshold,
         current_round: 1,
         total_guesses: 0,
+        team_guesses: %{},
         completion_time: nil
-      }
+      })
 
       {:ok, state, events}
     end

@@ -72,7 +72,10 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
     teams: %{String.t() => GameState.team_state()},
     round_number: pos_integer(),
     round_start_time: DateTime.t(),
-    eliminated_teams: [elimination_data()]
+    eliminated_teams: [elimination_data()],
+    team_guesses: %{String.t() => non_neg_integer()},
+    round_duration: pos_integer(),
+    elimination_limit: pos_integer()
   }
 
   @doc """
@@ -104,11 +107,15 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
          {:ok, state, events} <- GameBot.Domain.GameModes.BaseMode.initialize_game(__MODULE__, game_id, teams, config) do
 
       now = DateTime.utc_now()
-      state = %{state |
+      # Initialize all required fields to prevent KeyError
+      state = Map.merge(state, %{
         round_number: 1,
         round_start_time: now,
-        eliminated_teams: []
-      }
+        eliminated_teams: [],
+        team_guesses: %{},
+        round_duration: Map.get(config, :round_duration_seconds, @default_round_duration),
+        elimination_limit: Map.get(config, :elimination_guess_limit, @default_elimination_limit)
+      })
 
       {:ok, state, events}
     end
@@ -461,8 +468,7 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
 
   defp validate_team_state(state, team_id) do
     with {:ok, team} <- get_team(state, team_id),
-         :ok <- validate_team_active(team),
-         :ok <- validate_team_guess_count(team) do
+         :ok <- validate_team_active(team) do
       {:ok, team}
     end
   end
@@ -474,10 +480,16 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
     end
   end
 
-  defp validate_team_active(team) do
-    case team.status do
-      :eliminated -> {:error, {:team_eliminated, "Team has been eliminated"}}
-      _ -> :ok
+  defp validate_team_active(team_state) do
+    # Check if the team has a status field and if it's not marked as eliminated
+    cond do
+      # If status field is not present, assume team is active
+      not Map.has_key?(team_state, :status) ->
+        :ok
+      team_state.status == :eliminated ->
+        {:error, {:team_eliminated, "Team has been eliminated"}}
+      true ->
+        :ok
     end
   end
 

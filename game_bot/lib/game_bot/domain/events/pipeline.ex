@@ -57,10 +57,13 @@ defmodule GameBot.Domain.Events.Pipeline do
   @spec persist({:ok, struct()} | {:error, term()}) :: {:ok, struct()} | {:error, term()}
   def persist({:ok, event} = result) do
     Task.start(fn ->
-      GameBot.EventStore.append_to_stream(
+      # Use the configured EventStore
+      event_store = Application.get_env(:game_bot, :event_store_adapter, GameBot.Infrastructure.Persistence.EventStore)
+
+      event_store.append_to_stream(
         event.game_id,
-        event.__struct__,
-        event
+        :any,  # expected version
+        [event]
       )
     end)
     result
@@ -110,6 +113,6 @@ defmodule GameBot.Domain.Events.Pipeline do
   defp add_processing_metadata(metadata) do
     metadata
     |> Map.put_new(:processed_at, DateTime.utc_now())
-    |> Map.put_new(:processor_id, System.get_pid())
+    |> Map.put_new(:processor_id, System.pid())
   end
 end

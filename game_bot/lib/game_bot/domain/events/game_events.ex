@@ -499,6 +499,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       end
     end
 
+    @impl true
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
@@ -521,6 +522,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       }
     end
 
+    @impl true
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],
@@ -672,6 +674,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       when is_binary(pid) and is_binary(w), do: :ok
     defp validate_last_guess(_), do: {:error, "last_guess must be nil or contain valid player_id, word, and timestamp"}
 
+    @impl true
     def to_map(%__MODULE__{} = event) do
       %{
         "game_id" => event.game_id,
@@ -693,6 +696,7 @@ defmodule GameBot.Domain.Events.GameEvents do
       }
     end
 
+    @impl true
     def from_map(data) do
       %__MODULE__{
         game_id: data["game_id"],

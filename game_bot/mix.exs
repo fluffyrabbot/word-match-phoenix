@@ -34,31 +34,33 @@ defmodule GameBot.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.7.10"},
-      {:phoenix_ecto, "~> 4.4"},
-      {:ecto_sql, "~> 3.10"},
-      {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 3.3"},
+      {:phoenix_ecto, "~> 4.4.3"},
+      {:ecto_sql, "~> 3.10.2"},
+      {:postgrex, "~> 0.17.4"},
+      {:phoenix_html, "~> 3.3.3"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 0.20.1"},
+      {:phoenix_live_view, "~> 0.20.2"},
       {:floki, ">= 0.30.0", only: :test},
-      {:phoenix_live_dashboard, "~> 0.8.2"},
+      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:esbuild, "~> 0.8.0", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
+      {:swoosh, "~> 1.3"},
+      {:hackney, "~> 1.9"},
+      {:finch, "~> 0.13"},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.20"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
-      {:plug_cowboy, "~> 2.5"},
-      {:nostrum, "~> 0.10"},
-      {:commanded, "~> 1.4"},
-      {:commanded_eventstore_adapter, "~> 1.4"},
-      {:eventstore, "~> 1.4"},
+      {:bandit, "~> 1.0-pre"},
+      {:nostrum, "~> 0.10.0"},
+      {:commanded, "~> 1.4.1"},
+      {:commanded_eventstore_adapter, "~> 1.4.0"},
+      {:eventstore, "~> 1.4.0"},
+      {:telemetry, "~> 1.2.0"},
+      {:telemetry_registry, "~> 0.3.0"},
+      {:libgraph, "~> 0.16.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:finch, "~> 0.13"},
-      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
-      {:swoosh, "~> 1.3"},
-      {:hackney, "~> 1.9"},
-      {:bandit, ">= 0.0.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:mock, "~> 0.3.0", only: :test},
       {:benchee, "~> 1.1", only: [:dev, :test]},
@@ -79,18 +81,27 @@ defmodule GameBot.MixProject do
       setup: ["deps.get", "ecto.setup", "event_store.setup", "assets.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
+
+      # Test aliases
       test: [
-        "ecto.create --quiet",
-        "ecto.migrate --quiet",
-        "event_store.setup",
+        "test.reset_db",
         "test"
       ],
+      "test.reset_db": [
+        "ecto.drop --quiet",
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "game_bot.event_store_setup"
+      ],
+
+      # Event store operations
       "event_store.setup": [
         "event_store.create",
-        "event_store.init",
-        "game_bot.migrate"
+        "event_store.init"
       ],
       "event_store.reset": ["event_store.drop", "event_store.setup"],
+
+      # Asset operations
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind default", "esbuild default"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]

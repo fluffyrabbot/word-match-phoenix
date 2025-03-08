@@ -114,7 +114,7 @@ Tests interactions with:
 ### RepositoryCase
 
 ```elixir
-use GameBot.Test.RepositoryCase, async: true
+use GameBot.RepositoryCase, async: true
 
 # Provides:
 build_test_event()      # Create test events

@@ -1,10 +1,11 @@
 defmodule GameBot.Domain.Events.PipelineTest do
   use ExUnit.Case, async: true
   alias GameBot.Domain.Events.Pipeline
+  alias GameBot.Domain.Events.GameEvents.GuessProcessed
 
   describe "process_event/1" do
     test "processes a valid event successfully" do
-      event = %GameBot.Domain.Events.GuessEvents.GuessProcessed{
+      event = %GuessProcessed{
         game_id: "game-123",
         guild_id: "guild-456",
         mode: :two_player,
@@ -34,7 +35,7 @@ defmodule GameBot.Domain.Events.PipelineTest do
     end
 
     test "fails validation for invalid event" do
-      event = %GameBot.Domain.Events.GuessEvents.GuessProcessed{
+      event = %GuessProcessed{
         game_id: "game-123",
         guild_id: "guild-456",
         mode: :two_player,
@@ -61,7 +62,7 @@ defmodule GameBot.Domain.Events.PipelineTest do
     end
 
     test "fails validation for missing metadata" do
-      event = %GameBot.Domain.Events.GuessEvents.GuessProcessed{
+      event = %GuessProcessed{
         game_id: "game-123",
         guild_id: "guild-456",
         mode: :two_player,
@@ -87,7 +88,7 @@ defmodule GameBot.Domain.Events.PipelineTest do
 
   describe "validate/1" do
     test "validates a valid event" do
-      event = %GameBot.Domain.Events.GuessEvents.GuessProcessed{
+      event = %GuessProcessed{
         game_id: "game-123",
         guild_id: "guild-456",
         mode: :two_player,
@@ -114,7 +115,7 @@ defmodule GameBot.Domain.Events.PipelineTest do
     end
 
     test "fails validation for invalid event" do
-      event = %GameBot.Domain.Events.GuessEvents.GuessProcessed{
+      event = %GuessProcessed{
         game_id: "game-123",
         guild_id: "guild-456",
         mode: :two_player,
@@ -143,7 +144,7 @@ defmodule GameBot.Domain.Events.PipelineTest do
 
   describe "enrich/1" do
     test "enriches event metadata" do
-      event = %GameBot.Domain.Events.GuessEvents.GuessProcessed{
+      event = %GuessProcessed{
         game_id: "game-123",
         guild_id: "guild-456",
         mode: :two_player,

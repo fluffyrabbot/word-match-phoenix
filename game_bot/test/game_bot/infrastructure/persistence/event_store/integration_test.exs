@@ -20,9 +20,62 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
   use GameBot.Test.EventStoreCase
   use ExUnit.Case, async: false
 
+  alias GameBot.Infrastructure.Persistence.EventStore
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   alias GameBot.TestEventStore
   alias GameBot.Test.Mocks.EventStore, as: MockEventStore
+
+  # Helper functions for testing
+  def create_test_event_local(id \\ :test_event, data \\ %{}) do
+    %{
+      stream_id: "test-#{id}",
+      event_type: "test_event",
+      data: data,
+      metadata: %{guild_id: "test-guild-1"}
+    }
+  end
+
+  def unique_stream_id_local(prefix \\ "test") do
+    "#{prefix}-#{:erlang.unique_integer([:positive])}"
+  end
+
+  def test_concurrent_operations_local(impl, operation_fn, count \\ 5) do
+    # Run the operation in multiple processes
+    tasks = for i <- 1..count do
+      Task.async(fn -> operation_fn.(i) end)
+    end
+
+    # Wait for all operations to complete
+    Task.await_many(tasks, 5000)
+  end
+
+  def with_subscription_local(impl, stream_id, subscriber, fun) do
+    # Create subscription - returns {:ok, subscription}
+    {:ok, subscription} = impl.subscribe_to_stream(stream_id, subscriber)
+
+    try do
+      # Run the test function with the subscription
+      fun.(subscription)
+    after
+      # Ensure subscription is cleaned up
+      impl.unsubscribe_from_stream(stream_id, subscription)
+    end
+  end
+
+  def with_transaction_local(impl, fun) do
+    cond do
+      function_exported?(impl, :transaction, 1) -> impl.transaction(fun)
+      true -> fun.()
+    end
+  end
+
+  def verify_error_handling_local(impl) do
+    # Verify non-existent stream handling
+    {:error, _} = impl.read_stream_forward("nonexistent-#{:erlang.unique_integer([:positive])}")
+
+    # Add more error verifications as needed
+    :ok
+  end
 
   @implementations [
     {Postgres, "PostgreSQL implementation"},
@@ -33,12 +86,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
   describe "stream operations" do
     test "append and read events" do
       events = [
-        create_test_event(:event_1, %{value: "test1"}),
-        create_test_event(:event_2, %{value: "test2"})
+        create_test_event_local(:event_1, %{value: "test1"}),
+        create_test_event_local(:event_2, %{value: "test2"})
       ]
 
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id(name)
+        stream_id = unique_stream_id_local(name)
 
         # Test basic append and read
         assert {:ok, _} = impl.append_to_stream(stream_id, 0, events)
@@ -53,11 +106,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
     end
 
     test "stream versioning" do
-      event1 = create_test_event(:event_1)
-      event2 = create_test_event(:event_2)
+      event1 = create_test_event_local(:event_1)
+      event2 = create_test_event_local(:event_2)
 
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id(name)
+        stream_id = unique_stream_id_local(name)
 
         # Test version handling
         assert {:ok, _} = impl.append_to_stream(stream_id, 0, [event1])
@@ -73,10 +126,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
 
     test "concurrent operations" do
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id("#{name}-concurrent")
-        event = create_test_event()
+        stream_id = unique_stream_id_local("#{name}-concurrent")
+        event = create_test_event_local()
 
-        results = test_concurrent_operations(impl, fn i ->
+        results = test_concurrent_operations_local(impl, fn i ->
           impl.append_to_stream(stream_id, i - 1, [event])
         end)
 
@@ -93,13 +146,13 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
 
   describe "subscription handling" do
     test "subscribe to stream" do
-      event = create_test_event()
+      event = create_test_event_local()
 
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id("#{name}-subscription")
+        stream_id = unique_stream_id_local("#{name}-subscription")
         test_pid = self()
 
-        with_subscription impl, stream_id, test_pid, fn _subscription ->
+        with_subscription_local impl, stream_id, test_pid, fn _subscription ->
           # Append event after subscription
           assert {:ok, _} = impl.append_to_stream(stream_id, 0, [event])
 
@@ -112,15 +165,15 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
     end
 
     test "multiple subscribers" do
-      event = create_test_event()
+      event = create_test_event_local()
 
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id("#{name}-multi-sub")
+        stream_id = unique_stream_id_local("#{name}-multi-sub")
         test_pid = self()
 
         # Create multiple subscriptions
-        with_subscription impl, stream_id, test_pid, fn _sub1 ->
-          with_subscription impl, stream_id, test_pid, fn _sub2 ->
+        with_subscription_local impl, stream_id, test_pid, fn _sub1 ->
+          with_subscription_local impl, stream_id, test_pid, fn _sub2 ->
             # Append event
             assert {:ok, _} = impl.append_to_stream(stream_id, 0, [event])
 
@@ -137,10 +190,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
   describe "error handling" do
     test "invalid stream operations" do
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id("#{name}-error")
+        stream_id = unique_stream_id_local("#{name}-error")
 
         # Test various error conditions
-        verify_error_handling(impl)
+        verify_error_handling_local(impl)
 
         # Test specific error cases
         assert {:error, _} = impl.read_stream_forward(stream_id, -1)
@@ -151,11 +204,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
 
     test "transaction boundaries" do
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id("#{name}-transaction")
-        event = create_test_event()
+        stream_id = unique_stream_id_local("#{name}-transaction")
+        event = create_test_event_local()
 
         # Test successful transaction
-        result = with_transaction impl, fn ->
+        result = with_transaction_local impl, fn ->
           impl.append_to_stream(stream_id, 0, [event])
         end
 
@@ -166,7 +219,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
         assert read_event.data == event.data
 
         # Test failed transaction
-        failed_result = with_transaction impl, fn ->
+        failed_result = with_transaction_local impl, fn ->
           case impl.append_to_stream(stream_id, 0, [event]) do
             {:error, _} = err -> err
             _ -> {:error, :expected_failure}
@@ -180,10 +233,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
 
   describe "performance characteristics" do
     test "batch operations" do
-      events = for i <- 1..10, do: create_test_event(:"event_#{i}", %{value: "test#{i}"})
+      events = for i <- 1..10, do: create_test_event_local(:"event_#{i}", %{value: "test#{i}"})
 
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id("#{name}-batch")
+        stream_id = unique_stream_id_local("#{name}-batch")
 
         # Measure append time
         {append_time, {:ok, _}} = :timer.tc(fn ->
@@ -211,17 +264,17 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
     end
 
     test "concurrent read performance" do
-      events = for i <- 1..5, do: create_test_event(:"event_#{i}")
+      events = for i <- 1..5, do: create_test_event_local(:"event_#{i}")
 
       for {impl, name} <- @implementations do
-        stream_id = unique_stream_id("#{name}-concurrent-read")
+        stream_id = unique_stream_id_local("#{name}-concurrent-read")
 
         # Setup test data
         assert {:ok, _} = impl.append_to_stream(stream_id, 0, events)
 
         # Test concurrent reads
         {total_time, results} = :timer.tc(fn ->
-          test_concurrent_operations(impl, fn _i ->
+          test_concurrent_operations_local(impl, fn _i ->
             impl.read_stream_forward(stream_id)
           end)
         end)

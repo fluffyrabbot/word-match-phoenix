@@ -1,26 +1,31 @@
 import Config
 
-# Configure your database
-#
-# The MIX_TEST_PARTITION environment variable can be used
-# to provide built-in test partitioning in CI environment.
-# Run `mix help test` for more information.
+# Configure your database with more conservative timeout and pool settings
 config :game_bot, GameBot.Infrastructure.Repo,
   username: "postgres",
   password: "csstarahid",
   hostname: "localhost",
   database: "game_bot_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 2
+  pool_size: 2,
+  ownership_timeout: 15_000,
+  queue_target: 200,
+  queue_interval: 1000,
+  timeout: 5000,
+  connect_timeout: 5000
 
 # Configure the main repositories
 config :game_bot, ecto_repos: [
   GameBot.Infrastructure.Persistence.Repo,
-  GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
-  GameBot.Infrastructure.Persistence.Repo.Postgres
+  GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
 ]
 
-# Configure the main repository
+# Set explicit event stores to avoid warnings
+config :game_bot, event_stores: [
+  GameBot.Infrastructure.Persistence.EventStore
+]
+
+# Configure the main repository with appropriate timeouts
 config :game_bot, GameBot.Infrastructure.Persistence.Repo,
   username: "postgres",
   password: "csstarahid",
@@ -28,26 +33,58 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo,
   database: "game_bot_test",
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
+  pool_size: 5,
+  ownership_timeout: 15_000,
+  queue_target: 200,
+  queue_interval: 1000,
+  timeout: 5000,
+  connect_timeout: 5000,
+  types: EventStore.PostgresTypes
 
-# Configure the event store adapter
+# Configure the Postgres adapter for the EventStore
 config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
   username: "postgres",
   password: "csstarahid",
   hostname: "localhost",
-  database: "game_bot_test",
+  database: "game_bot_eventstore_test",
   port: 5432,
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10,
+  types: EventStore.PostgresTypes,
+  pool_size: 5,
+  ownership_timeout: 15_000,
+  queue_target: 200,
+  queue_interval: 1000,
+  timeout: 5000,
+  connect_timeout: 5000
+
+# Configure the event store for testing
+config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
+  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer,
+  username: "postgres",
+  password: "csstarahid",
+  hostname: "localhost",
+  database: "game_bot_eventstore_test",
+  port: 5432,
+  schema: "event_store",
   schema_prefix: "event_store",
   column_data_type: "jsonb",
-  max_append_retries: 3
+  types: EventStore.PostgresTypes,
+  pool_size: 5,
+  timeout: 5000
+
+# Configure event store directly
+config :eventstore,
+  column_data_type: "jsonb",
+  registry: :local,
+  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer
+
+# For testing, explicitly configure EventStore modules
+config :game_bot, :event_store_adapter, GameBot.TestEventStore
 
 # Configure Commanded for testing
 config :game_bot, GameBot.Infrastructure.CommandedApp,
   event_store: [
-    adapter: Commanded.EventStore.Adapters.EventStore,
-    event_store: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+    adapter: Commanded.EventStore.Adapters.InMemory,
+    event_store: GameBot.TestEventStore
   ],
   pubsub: :local,
   registry: :local
@@ -66,8 +103,8 @@ config :game_bot, GameBotWeb.Endpoint,
   secret_key_base: "T3vbojxPj5xC0BUswQBDiQ0+6v2QLkvCw/PQQgzxmxqTmH+vCb0uibzPYpZsysVz",
   server: false
 
-# Print only warnings and errors during test
-config :logger, level: :warning
+# Print more information during tests
+config :logger, level: :info
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
@@ -100,4 +137,9 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
   database: "game_bot_test",
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
+  pool_size: 5,
+  ownership_timeout: 15_000,
+  queue_target: 200,
+  queue_interval: 1000,
+  timeout: 5000,
+  connect_timeout: 5000
