@@ -26,7 +26,6 @@ defmodule GameBot.TestEventStore do
   @doc """
   Starts the test event store.
   """
-  @impl EventStore
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

@@ -29,24 +29,24 @@ This document provides a prioritized plan for addressing compiler warnings ident
 
 #### 1.1 Fix Conflicting Behaviors
 
-- [ ] **TestEventStore Module**
+- [x] **TestEventStore Module**
   - Issue: Conflicting behaviors found for callback function `init/1` (defined by both GenServer and EventStore)
   - Location: `lib/game_bot/test_event_store.ex:1`
-  - Fix: Explicitly mark which behavior the function implements using `@impl GenServer` or `@impl EventStore`
+  - Fix: Removed the conflicting `@impl EventStore` annotation from the `start_link/1` function which was incorrectly marked as implementing the EventStore behavior
 
 #### 1.2 Fix Module Redefinitions
 
-- [ ] **GameStarted EventValidator**
+- [x] **GameStarted EventValidator**
   - Issue: Redefining module `GameBot.Domain.Events.EventValidator.GameBot.Domain.Events.GameEvents.GameStarted`
   - Location: `lib/game_bot/domain/events/game_events.ex:1845`
-  - Fix: Review implementation and ensure module is only defined once
+  - Fix: Removed the duplicate EventValidator implementation at the end of the game_events.ex file
 
 #### 1.3 Fix Undefined Module Attributes
 
-- [ ] **KnockoutMode Module**
+- [x] **KnockoutMode Module**
   - Issue: Undefined module attributes `@default_round_duration` and `@default_elimination_limit`
   - Location: `lib/game_bot/domain/game_modes/knockout_mode.ex:116-117`
-  - Fix: Define these attributes before they are used
+  - Fix: Added the module attributes with values from existing `@round_time_limit` and `@max_guesses` attributes
 
 ### Phase 2: Important Warnings (Medium Priority)
 
@@ -336,10 +336,10 @@ After implementing each batch of fixes:
 
 ## Progress Tracking
 
-- [ ] Phase 1: Critical Warnings - 0/3 completed
+- [x] Phase 1: Critical Warnings - 3/3 completed
 - [ ] Phase 2: Important Warnings - 0/11 completed
 - [ ] Phase 3: Maintainability Warnings - 0/43 completed
-- [ ] Total warnings fixed: 0/57
+- [ ] Total warnings fixed: 3/57
 
 ## Completion Criteria
 

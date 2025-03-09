@@ -1841,11 +1841,4 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     def event_type, do: "round_restarted"
   end
-
-  defimpl GameBot.Domain.Events.EventValidator, for: GameBot.Domain.Events.GameEvents.GameStarted do
-    def validate(event) do
-      # Call the event's module validate function directly
-      GameBot.Domain.Events.GameEvents.GameStarted.validate(event)
-    end
-  end
 end

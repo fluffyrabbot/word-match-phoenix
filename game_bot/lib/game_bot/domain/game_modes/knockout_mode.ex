@@ -53,6 +53,8 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
   @forced_elimination_threshold 8  # Teams above this count trigger forced eliminations
   @teams_to_eliminate 3  # Number of teams to eliminate when above threshold
   @min_teams 2         # Minimum teams to start
+  @default_round_duration @round_time_limit  # Alias for @round_time_limit
+  @default_elimination_limit @max_guesses    # Alias for @max_guesses
 
   @type elimination_reason ::
     :time_expired |     # Failed to match within time limit
