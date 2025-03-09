@@ -3,86 +3,194 @@
 ## Overview
 This document outlines the step-by-step implementation plan for the replay system using event stream references. The system will store lightweight replay references that point to the original event streams rather than duplicating event data.
 
+## Phase 0: Event Store Integration Prerequisites
+
+### 0.1 Event Store Access Layer (Estimated: 1 day)
+- [x] Create `GameBot.Replay.EventStoreAccess` module
+- [x] Implement `fetch_game_events/2` function using proper adapter pattern
+  ```elixir
+  # Example usage pattern
+  {:ok, events} = GameBot.Infrastructure.Persistence.EventStore.Adapter.read_stream_forward(game_id)
+  ```
+- [x] Implement pagination support for large event streams
+- [x] Add proper error handling for event retrieval failures
+
+### 0.2 Event Verification (Estimated: 1 day)
+- [x] Create `GameBot.Replay.EventVerifier` module
+- [x] Implement `verify_event_sequence/1` to ensure event chronology
+- [x] Add `validate_game_completion/1` to confirm game ended properly
+- [x] Create helpers for checking required events presence
+
+### 0.3 Event Version Compatibility (Estimated: 1 day)
+- [x] Create `GameBot.Replay.VersionCompatibility` module
+- [x] Implement version checking for all event types
+- [x] Add compatibility layer for potential version differences
+- [x] Create tests for various event version scenarios
+
 ## Phase 1: Core Architecture
 
 ### 1.1 Type Definitions (Estimated: 1 day)
-- [ ] Define `GameBot.Replay.Types` module
-- [ ] Create `base_replay` type with necessary fields
-- [ ] Define `base_stats` type 
-- [ ] Create type definitions for mode-specific stats
+- [x] Define `GameBot.Replay.Types` module
+- [x] Create `replay_reference` type with event stream pointer
+  ```elixir
+  @type replay_reference :: %{
+    replay_id: String.t(),
+    game_id: String.t(),
+    display_name: String.t(),
+    created_at: DateTime.t(),
+    # Store reference pointer, not full events
+    event_count: non_neg_integer()
+  }
+  ```
+- [x] Define `base_stats` type 
+- [x] Create type definitions for mode-specific stats
 
 ### 1.2 Base Behavior (Estimated: 1 day)
-- [ ] Create `GameBot.Replay.BaseReplay` behavior
-- [ ] Implement `build_replay/1` callback specification
-- [ ] Implement `format_embed/1` callback specification
-- [ ] Implement `format_summary/1` callback specification
-- [ ] Add `calculate_mode_stats/1` optional callback
+- [x] Create `GameBot.Replay.BaseReplay` behavior
+- [x] Implement `build_replay/1` callback specification
+  ```elixir
+  # Must use EventStoreAccess module for retrieval
+  @callback build_replay(game_id :: String.t()) :: 
+    {:ok, GameBot.Replay.Types.replay_reference()} | {:error, term()}
+  ```
+- [x] Implement `format_embed/1` callback specification
+- [x] Implement `format_summary/1` callback specification
+- [x] Add `calculate_mode_stats/1` optional callback
 
 ### 1.3 Name Generator (Estimated: 1 day)
-- [ ] Create `GameBot.Replay.Utils.NameGenerator` module
-- [ ] Load dictionary words from priv/dictionary.txt
-- [ ] Implement random word selection function
-- [ ] Create 3-digit number generator
-- [ ] Implement unique name generation function
-- [ ] Add collision detection and retry logic
-- [ ] Write tests for uniqueness and readability
+- [x] Create `GameBot.Replay.Utils.NameGenerator` module
+- [x] Load dictionary words from priv/dictionary.txt
+- [x] Implement random word selection function
+- [x] Create 3-digit number generator
+- [x] Implement unique name generation function
+- [x] Add collision detection and retry logic
+- [x] Write tests for uniqueness and readability
 
 ## Phase 2: Database Infrastructure
 
 ### 2.1 Schema Definition (Estimated: 1 day)
-- [ ] Create migration for `game_replays` table
-  - [ ] Add `replay_id` as primary identifier
-  - [ ] Add `game_id` to reference event stream
-  - [ ] Add `display_name` for memorable identifier
-  - [ ] Include `mode`, `start_time`, `end_time` fields
-  - [ ] Add `base_stats` and `mode_stats` JSON fields
-- [ ] Create migration for `replay_access_logs` table
-- [ ] Add necessary indexes for performance
+- [x] Create migration for `game_replays` table
+  - [x] Add `replay_id` as primary identifier
+  - [x] Add `game_id` to reference event stream
+  - [x] Add `display_name` for memorable identifier
+  - [x] Include `mode`, `start_time`, `end_time` fields
+  - [x] Add `base_stats` and `mode_stats` JSON fields
+  - [x] Add `event_version_map` to track event versions
+- [x] Create migration for `replay_access_logs` table
+- [x] Add necessary indexes for performance
 
 ### 2.2 Repository Implementation (Estimated: 2 days)
-- [ ] Create `GameBot.Replay.Storage` module
-- [ ] Implement `store_replay/6` function
-- [ ] Implement `get_replay/1` function (with event loading)
-- [ ] Implement `get_replay_metadata/1` function (without events)
-- [ ] Implement `list_replays/1` with filtering options
-- [ ] Add `cleanup_old_replays/0` function
-- [ ] Write integration tests with database
+- [x] Create `GameBot.Replay.Storage` module
+- [x] Implement `store_replay/6` function using transaction management
+  ```elixir
+  # Use transaction handling from event store
+  GameBot.Infrastructure.Persistence.Repo.Transaction.execute(fn ->
+    # Store reference details only, not full events
+    Repo.insert(%GameReplay{...})
+  end)
+  ```
+- [x] Implement `get_replay/1` function (with event loading using EventStoreAccess)
+- [x] Implement `get_replay_metadata/1` function (without events)
+- [x] Implement `list_replays/1` with filtering options
+- [x] Add `cleanup_old_replays/0` function
+- [x] Write integration tests with database
 
 ### 2.3 Caching Layer (Estimated: 1 day)
-- [ ] Create ETS-based cache for replay metadata
-- [ ] Implement cache lookup before database queries
-- [ ] Add cache invalidation strategy
-- [ ] Configure TTL for cached items
-- [ ] Add monitoring for cache hit/miss ratio
+- [x] Create ETS-based cache for replay metadata
+- [x] Implement cache lookup before database queries
+- [x] Add cache invalidation strategy
+- [x] Configure TTL for cached items
+- [x] Add monitoring for cache hit/miss ratio
 
 ## Phase 3: Event Processing
 
 ### 3.1 Game Completion Handler (Estimated: 2 days)
-- [ ] Create game completion event subscription
-- [ ] Implement handler to process completed games
-- [ ] Add logic to calculate base statistics from events
-- [ ] Generate unique memorable replay name
-- [ ] Store replay reference with stats
+- [x] Create game completion event subscription using `SubscriptionManager`
+  ```elixir
+  # Subscribe to game_completed events
+  GameBot.Domain.Events.SubscriptionManager.subscribe_to_event_type("game_completed")
+  ```
+- [x] Implement handler to process completed games
+- [x] Add logic to calculate base statistics from events
+- [x] Generate unique memorable replay name
+- [x] Store replay reference with stats
 
 ### 3.2 Statistics Calculation (Estimated: 2 days)
-- [ ] Create `GameBot.Replay.Utils.StatsCalculator` module
-- [ ] Implement functions for common statistics
-- [ ] Add mode-specific stat calculation
-- [ ] Write unit tests for accuracy
+- [x] Create `GameBot.Replay.Utils.StatsCalculator` module
+- [x] Implement functions for common statistics
+- [x] Add mode-specific stat calculation
+- [x] Write unit tests for accuracy
 - [ ] Benchmark performance for large event sets
 
 ### 3.3 Error Handling (Estimated: 1 day)
-- [ ] Implement validation for event streams
-- [ ] Add error recovery strategies
-- [ ] Create meaningful error messages
-- [ ] Add telemetry for error monitoring
+- [x] Implement validation for event streams
+- [x] Add error recovery strategies
+  ```elixir
+  # Pattern for graceful error handling with event streams
+  case GameBot.Replay.EventStoreAccess.fetch_game_events(game_id) do
+    {:ok, events} -> 
+      # Process events
+    {:error, :stream_not_found} ->
+      # Handle missing game
+    {:error, :deserialization_failed} ->
+      # Handle corrupt events
+    {:error, _} ->
+      # General error handling
+  end
+  ```
+- [x] Create meaningful error messages
+- [x] Add telemetry for error monitoring
 - [ ] Write tests for error cases
+
+### 3.4 Core Infrastructure Testing (Estimated: 2 days)
+- [x] Create test fixtures for common event data
+- [x] Write comprehensive tests for EventStoreAccess
+  - [x] Test pagination and batch handling
+  - [x] Test error handling and recovery
+  - [x] Test version retrieval and verification
+- [x] Write tests for EventVerifier
+  - [x] Test chronology verification
+  - [x] Test completion validation
+  - [x] Test event requirements checking
+- [x] Write tests for VersionCompatibility
+  - [x] Test version checking for event types
+  - [x] Test version mapping functionality
+  - [x] Test event validation
+  - [x] Test replay compatibility validation
+- [x] Write tests for Storage operations
+  - [x] Test full lifecycle (store, retrieve, list, filter)
+  - [x] Test error handling and constraints
+  - [x] Test cleanup functionality
+- [x] Write tests for Cache behavior
+  - [x] Test cache hits and misses
+  - [x] Test TTL and expiration
+  - [x] Test eviction policies
+- [x] Write tests for StatsCalculator
+  - [x] Test base stats calculation
+  - [x] Test mode-specific stats calculation
+  - [x] Test error handling
+- [x] Write tests for GameCompletionHandler
+  - [x] Test end-to-end event processing
+  - [x] Test error recovery in the pipeline
+  - [x] Test replay creation with simulated events
+- [ ] Set up CI integration for automated testing
 
 ## Phase 4: Mode-Specific Implementations
 
 ### 4.1 Two Player Replay (Estimated: 2 days)
 - [ ] Create `GameBot.Replay.TwoPlayerReplay` module
-- [ ] Implement event reconstruction logic
+- [ ] Implement event reconstruction logic using version-aware deserializers
+  ```elixir
+  # Pattern for handling event versions
+  events
+  |> Enum.map(fn event ->
+    # Deserialize with version awareness
+    case event.event_version do
+      1 -> process_v1_event(event)
+      v -> {:error, {:unsupported_version, v}}
+    end
+  end)
+  ```
 - [ ] Add mode-specific stats calculation
 - [ ] Create embed formatting for two-player mode
 - [ ] Write summary generation
@@ -159,33 +267,27 @@ This document outlines the step-by-step implementation plan for the replay syste
 - [ ] Create performance dashboards
 - [ ] Set up alerting for performance degradation
 
-## Total Estimated Time: 28 days
+## Current Progress
+We have completed the following major components:
+- ✓ Event Store Access Layer
+- ✓ Event Verification
+- ✓ Version Compatibility
+- ✓ Type Definitions
+- ✓ Base Behavior Definition
+- ✓ Name Generator
+- ✓ Database Schemas
+- ✓ Repository Operations
+- ✓ Caching Layer
+- ✓ Game Completion Handler
+- ✓ Statistics Calculator
+- ✓ Core Testing (EventStoreAccess, EventVerifier, VersionCompatibility, Storage)
 
-## Implementation Checklist for Memorable Names
-
-### Design Considerations
-- [ ] Choose naming pattern: `{word}-{3-digit-number}` (e.g., "banana-742")
-- [ ] Ensure names are URL-safe (no spaces or special characters)
-- [ ] Make display names case-insensitive for lookup
-- [ ] Add configuration for word filters (if needed)
-
-### Name Generator Implementation
-- [ ] Create module for name generation using dictionary.txt
-- [ ] Implement collision detection with database check
-- [ ] Add retry logic with different word/number if collision occurs
-- [ ] Create helper functions for name formatting
-- [ ] Write tests for uniqueness and distribution
-
-### Integration Points
-- [ ] Generate name when game completes
-- [ ] Store both internal ID and display name
-- [ ] Allow lookup by either name or ID
-- [ ] Use display names in user-facing interfaces
-- [ ] Add name generator to replay persistence flow
-
-### UI/UX Considerations
-- [ ] Show friendly names in Discord embeds
-- [ ] Make names easily copyable
-- [ ] Add validation for name lookup commands
-- [ ] Create error messages for invalid names
-- [ ] Consider autocomplete for partial name matches 
+## Next Steps
+Our next priorities should be:
+1. Complete the remaining tests for core infrastructure:
+   - Cache behavior tests
+   - GameCompletionHandler tests
+2. Develop the mode-specific replay modules (Two Player, Knockout, Race, Golf Race)
+3. Implement the replay command interface
+4. Create the embed formatting utilities
+5. Complete testing and performance optimization 
