@@ -114,4 +114,89 @@ defmodule GameBot.Bot.CommandHandler do
   defp handle_command_message(command, message) do
     GameCommands.handle_command(command, message)
   end
+
+  @doc """
+  Handle game start command from an interaction.
+  """
+  def handle_start_game(interaction, mode, options) do
+    # Create metadata from interaction
+    metadata = %{
+      guild_id: interaction.guild_id,
+      correlation_id: UUID.uuid4(),
+      timestamp: DateTime.utc_now(),
+      source: :interaction,
+      interaction_id: interaction.id,
+      user_id: interaction.user.id
+    }
+
+    # Create game started event
+    {:ok, event} = GameBot.Domain.Events.GameEvents.GameStarted.new(
+      UUID.uuid4(),  # game_id
+      mode,
+      options.teams.team_ids,
+      options.teams.player_ids,
+      options.teams.team_map,
+      metadata
+    )
+
+    {:ok, event}
+  end
+
+  @doc """
+  Handle team creation command from an interaction.
+  """
+  def handle_team_create(interaction, params) do
+    # Create metadata from interaction
+    metadata = %{
+      guild_id: interaction.guild_id,
+      correlation_id: UUID.uuid4(),
+      timestamp: DateTime.utc_now(),
+      source: :interaction,
+      interaction_id: interaction.id,
+      user_id: interaction.user.id
+    }
+
+    # Create team created event
+    {:ok, event} = GameBot.Domain.Events.TeamEvents.TeamCreated.new(
+      UUID.uuid4(),  # team_id
+      params.name,
+      params.players,
+      interaction.guild_id,
+      metadata
+    )
+
+    {:ok, event}
+  end
+
+  @doc """
+  Handle guess command from an interaction.
+  """
+  def handle_guess(interaction, game_id, word, parent_metadata) do
+    # Create metadata from interaction and parent
+    # Ensure we preserve the correlation_id from parent metadata
+    parent_correlation_id = Map.get(parent_metadata, :correlation_id) ||
+                           Map.get(parent_metadata, "correlation_id")
+
+    metadata = Map.merge(parent_metadata, %{
+      timestamp: DateTime.utc_now(),
+      source: :interaction,
+      interaction_id: interaction.id,
+      user_id: interaction.user.id
+    })
+
+    # Preserve correlation chain - keep same correlation_id and set causation_id
+    metadata = metadata
+      |> Map.put(:correlation_id, parent_correlation_id)
+      |> Map.put(:causation_id, parent_correlation_id)
+
+    # Create guess processed event
+    {:ok, event} = GameBot.Domain.Events.GameEvents.GuessProcessed.new(
+      game_id,
+      interaction.user.id,
+      word,
+      metadata
+    )
+
+    {:ok, event}
+  end
 end

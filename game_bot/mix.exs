@@ -66,7 +66,8 @@ defmodule GameBot.MixProject do
       {:benchee, "~> 1.1", only: [:dev, :test]},
       {:benchee_html, "~> 1.0", only: [:dev, :test]},
       {:stream_data, "~> 0.5", only: [:dev, :test]},
-      {:mox, "~> 1.1", only: :test}
+      {:mox, "~> 1.1", only: :test},
+      {:uuid, "~> 1.1"}
     ]
   end
 

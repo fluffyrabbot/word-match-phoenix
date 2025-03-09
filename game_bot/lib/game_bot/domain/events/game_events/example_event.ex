@@ -14,7 +14,6 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
     ]
 
   alias GameBot.Domain.Events.{Metadata, EventStructure, GameEvents}
-  import EventStructure, only: [validate_base_fields: 1]
 
   @type t :: %__MODULE__{
     id: Ecto.UUID.t(),
@@ -33,13 +32,13 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
     updated_at: DateTime.t()
   }
 
-  @valid_actions ~w(create update delete)
+  @valid_actions ~w(create update delete do_something)
 
   @doc """
   Creates a new ExampleEvent.
   """
-  def new(game_id, guild_id, player_id, action, data, metadata) do
-    new(%{
+  def new(game_id, guild_id, player_id, action, data, metadata) when is_map(metadata) do
+    attrs = %{
       game_id: game_id,
       guild_id: guild_id,
       mode: :two_player,  # Default mode for example
@@ -49,46 +48,71 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
       data: data,
       timestamp: DateTime.utc_now(),
       metadata: metadata
-    })
+    }
+    new(attrs)
+  end
+
+  def new(game_id, guild_id, player_id, action, data, {:ok, metadata}) do
+    new(game_id, guild_id, player_id, action, data, metadata)
   end
 
   @doc """
   Creates a new ExampleEvent with the given attributes.
   """
   def new(attrs) do
-    %__MODULE__{}
-    |> changeset(attrs)
-    |> Ecto.Changeset.apply_changes()
+    struct!(__MODULE__, Map.merge(default_attrs(), attrs))
   end
 
   @doc """
   Creates a new ExampleEvent from a parent event.
   """
   def from_parent(parent_event, player_id, action, data) do
-    metadata = Metadata.from_parent_event(parent_event.metadata, %{actor_id: player_id})
+    case Metadata.from_parent_event(parent_event.metadata, %{actor_id: player_id}) do
+      {:ok, metadata} ->
+        attrs = %{
+          game_id: parent_event.game_id,
+          guild_id: parent_event.guild_id,
+          mode: parent_event.mode,
+          round_number: parent_event.round_number,
+          player_id: player_id,
+          action: action,
+          data: data,
+          timestamp: DateTime.utc_now(),
+          metadata: metadata
+        }
+        new(attrs)
+      {:error, reason} ->
+        raise "Failed to create metadata from parent: #{reason}"
+    end
+  end
 
-    new(%{
-      game_id: parent_event.game_id,
-      guild_id: parent_event.guild_id,
-      mode: parent_event.mode,
-      round_number: parent_event.round_number,
-      player_id: player_id,
-      action: action,
-      data: data,
-      timestamp: DateTime.utc_now(),
-      metadata: metadata
-    })
+  @doc """
+  Returns the list of required fields for this event.
+  """
+  @impl true
+  def required_fields do
+    super() ++ [:player_id, :action, :data]
+  end
+
+  @doc """
+  Validates custom fields specific to this event.
+  """
+  @impl true
+  def validate_custom_fields(changeset) do
+    changeset
+    |> validate_inclusion(:action, @valid_actions, message: "must be one of: #{Enum.join(@valid_actions, ", ")}")
+    |> validate_required([:player_id, :action, :data])
   end
 
   @doc """
   Validates the event.
   """
+  @impl GameEvents
   def validate(%__MODULE__{} = event) do
-    with :ok <- validate_base_fields(event),
-         :ok <- validate_player_id(event.player_id),
+    with :ok <- EventStructure.validate(event),
+         :ok <- validate_required_fields(event),
          :ok <- validate_action(event.action),
-         :ok <- validate_data(event.data),
-         :ok <- validate_metadata(event.metadata) do
+         :ok <- validate_data(event.data) do
       :ok
     end
   end
@@ -97,7 +121,17 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   Serializes the event for storage.
   """
   def serialize(%__MODULE__{} = event) do
-    GameEvents.serialize(event)
+    case validate(event) do
+      :ok -> to_map(event)
+      {:error, reason} -> raise "Invalid event: #{reason}"
+    end
+  end
+
+  @doc """
+  Deserializes the event from storage format.
+  """
+  def deserialize(data) when is_map(data) do
+    from_map(data)
   end
 
   @doc """
@@ -115,11 +149,53 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
     end
   end
 
+  @doc """
+  Converts the event to a map for serialization.
+  """
+  @impl GameEvents
+  def to_map(%__MODULE__{} = event) do
+    %{
+      "game_id" => event.game_id,
+      "guild_id" => event.guild_id,
+      "mode" => Atom.to_string(event.mode),
+      "round_number" => event.round_number,
+      "player_id" => event.player_id,
+      "action" => event.action,
+      "data" => event.data,
+      "timestamp" => DateTime.to_iso8601(event.timestamp),
+      "metadata" => event.metadata || %{}
+    }
+  end
+
+  @doc """
+  Creates an event from a serialized map.
+  """
+  @impl GameEvents
+  def from_map(data) do
+    %__MODULE__{
+      game_id: data["game_id"],
+      guild_id: data["guild_id"],
+      mode: String.to_existing_atom(data["mode"]),
+      round_number: data["round_number"],
+      player_id: data["player_id"],
+      action: data["action"],
+      data: data["data"],
+      timestamp: GameEvents.parse_timestamp(data["timestamp"]),
+      metadata: data["metadata"] || %{}
+    }
+  end
+
   # Private validation functions
 
-  defp validate_player_id(nil), do: {:error, "player_id is required"}
-  defp validate_player_id(player_id) when is_binary(player_id), do: :ok
-  defp validate_player_id(_), do: {:error, "player_id must be a string"}
+  defp validate_required_fields(event) do
+    required = required_fields()
+    missing = Enum.filter(required, &(is_nil(Map.get(event, &1))))
+
+    case missing do
+      [] -> :ok
+      [field | _] -> {:error, "#{field} is required"}
+    end
+  end
 
   defp validate_action(nil), do: {:error, "action is required"}
   defp validate_action(action) when action in @valid_actions, do: :ok
@@ -129,12 +205,14 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   defp validate_data(data) when is_map(data), do: :ok
   defp validate_data(_), do: {:error, "data must be a map"}
 
-  defp validate_metadata(nil), do: {:error, "metadata is required"}
-  defp validate_metadata(metadata) when is_map(metadata) do
-    case Metadata.validate(metadata) do
-      :ok -> :ok
-      {:error, reason} -> {:error, "invalid metadata: #{reason}"}
-    end
+  defp default_attrs do
+    %{
+      id: Ecto.UUID.generate(),
+      type: "example_event",
+      version: 1,
+      timestamp: DateTime.utc_now(),
+      data: %{},
+      metadata: %{}
+    }
   end
-  defp validate_metadata(_), do: {:error, "metadata must be a map"}
 end

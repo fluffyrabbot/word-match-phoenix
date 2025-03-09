@@ -6,7 +6,11 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
 
   describe "ExampleEvent" do
     test "creates a valid event" do
-      metadata = Metadata.new("source_123", %{actor_id: "player_123"})
+      {:ok, metadata} = Metadata.new("source_123", %{
+        correlation_id: "corr_123",
+        actor_id: "player_123"
+      })
+
       event = ExampleEvent.new("game_123", "guild_123", "player_123", "do_something", %{extra: "data"}, metadata)
 
       assert :ok = ExampleEvent.validate(event)
@@ -19,14 +23,18 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
     end
 
     test "validation fails with missing fields" do
+      {:ok, metadata} = Metadata.new("source_123", %{correlation_id: "corr_123"})
+
       # Missing player_id
       event = %ExampleEvent{
         game_id: "game_123",
         guild_id: "guild_123",
+        mode: :two_player,
+        round_number: 1,
         action: "do_something",
         data: %{},
         timestamp: DateTime.utc_now(),
-        metadata: Metadata.new("source_123", %{})
+        metadata: metadata
       }
 
       assert {:error, "player_id is required"} = ExampleEvent.validate(event)
@@ -35,10 +43,12 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
       event = %ExampleEvent{
         game_id: "game_123",
         guild_id: "guild_123",
+        mode: :two_player,
+        round_number: 1,
         player_id: "player_123",
         data: %{},
         timestamp: DateTime.utc_now(),
-        metadata: Metadata.new("source_123", %{})
+        metadata: metadata
       }
 
       assert {:error, "action is required"} = ExampleEvent.validate(event)
@@ -47,23 +57,29 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
       event = %ExampleEvent{
         game_id: "game_123",
         guild_id: "guild_123",
+        mode: :two_player,
+        round_number: 1,
         player_id: "player_123",
         action: "do_something",
         timestamp: DateTime.utc_now(),
-        metadata: Metadata.new("source_123", %{})
+        metadata: metadata
       }
 
       assert {:error, "data is required"} = ExampleEvent.validate(event)
     end
 
     test "serializes and deserializes" do
-      metadata = Metadata.new("source_123", %{actor_id: "player_123"})
+      {:ok, metadata} = Metadata.new("source_123", %{
+        correlation_id: "corr_123",
+        actor_id: "player_123"
+      })
+
       event = ExampleEvent.new("game_123", "guild_123", "player_123", "do_something", %{extra: "data"}, metadata)
 
       serialized = ExampleEvent.serialize(event)
-      assert is_binary(serialized.timestamp)
-      assert serialized.game_id == "game_123"
-      assert serialized.player_id == "player_123"
+      assert is_binary(serialized["timestamp"])
+      assert serialized["game_id"] == "game_123"
+      assert serialized["player_id"] == "player_123"
 
       deserialized = ExampleEvent.deserialize(serialized)
       assert deserialized.game_id == event.game_id
@@ -75,7 +91,7 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
     end
 
     test "creates event from parent" do
-      parent_metadata = Metadata.new("source_123", %{
+      {:ok, parent_metadata} = Metadata.new("source_123", %{
         correlation_id: "corr_123",
         actor_id: "parent_actor"
       })
@@ -109,7 +125,11 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
     end
 
     test "applies event to state" do
-      metadata = Metadata.new("source_123", %{actor_id: "player_123"})
+      {:ok, metadata} = Metadata.new("source_123", %{
+        correlation_id: "corr_123",
+        actor_id: "player_123"
+      })
+
       event = ExampleEvent.new("game_123", "guild_123", "player_123", "do_something", %{extra: "data"}, metadata)
 
       initial_state = %{}

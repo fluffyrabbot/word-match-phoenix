@@ -31,18 +31,17 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerial
       fn ->
         with :ok <- validate_event(event),
              {:ok, data} <- encode_event(event) do
-          # Create result map with atom keys for better compatibility
+          # Create result map with string keys for better compatibility
           result = %{
-            # Use either existing atom keys or create them from the event
-            event_type: get_event_type(event),
-            event_version: get_event_version(event),
-            data: data,
-            metadata: Map.get(event, :metadata, %{})
+            "type" => get_event_type(event),
+            "version" => get_event_version(event),
+            "data" => data,
+            "metadata" => Map.get(event, :metadata, %{})
           }
 
           # Preserve stream_id if it exists (primarily for testing)
           result = if Map.has_key?(event, :stream_id) do
-            Map.put(result, :stream_id, Map.get(event, :stream_id))
+            Map.put(result, "stream_id", Map.get(event, :stream_id))
           else
             result
           end

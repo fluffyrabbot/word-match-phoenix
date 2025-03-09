@@ -193,16 +193,49 @@ defmodule GameBot.Domain.Events.GameEvents do
     defp validate_round_number(round_number) when is_integer(round_number) and round_number == 1, do: :ok
     defp validate_round_number(_), do: {:error, "round_number must be 1 for game start"}
 
+    # Handle case when teams is missing
+    defp validate_teams(%__MODULE__{teams: nil}) do
+      {:error, "teams is required"}
+    end
+
+    # Handle case when team_ids or player_ids is missing
+    defp validate_teams(%__MODULE__{team_ids: nil}) do
+      {:error, "team_ids is required"}
+    end
+
+    defp validate_teams(%__MODULE__{player_ids: nil}) do
+      {:error, "player_ids is required"}
+    end
+
+    # Main validation function
     defp validate_teams(%__MODULE__{teams: teams, team_ids: team_ids, player_ids: player_ids}) do
       cond do
-        is_nil(teams) -> {:error, "teams is required"}
-        is_nil(team_ids) -> {:error, "team_ids is required"}
-        is_nil(player_ids) -> {:error, "player_ids is required"}
-        Enum.empty?(team_ids) -> {:error, "team_ids cannot be empty"}
-        Enum.empty?(player_ids) -> {:error, "player_ids cannot be empty"}
-        !Enum.all?(Map.keys(teams), &(&1 in team_ids)) -> {:error, "invalid team_id in teams map"}
-        !Enum.all?(List.flatten(Map.values(teams)), &(&1 in player_ids)) -> {:error, "invalid player_id in teams"}
+        not is_map(teams) -> {:error, "teams must be a map"}
+        not is_list(team_ids) -> {:error, "team_ids must be a list"}
+        not is_list(player_ids) -> {:error, "player_ids must be a list"}
+        is_list(team_ids) and Enum.empty?(team_ids) -> {:error, "team_ids cannot be empty"}
+        is_list(player_ids) and Enum.empty?(player_ids) -> {:error, "player_ids cannot be empty"}
+        # Only check team players if teams is a map with values that are lists
+        is_map(teams) and Enum.any?(teams, fn {_, players} ->
+          is_list(players) and Enum.empty?(players)
+        end) ->
+          {:error, "Each team must have at least one player"}
+        is_map(teams) and !Enum.all?(Map.keys(teams), &(&1 in team_ids)) ->
+          {:error, "invalid team_id in teams map"}
+        is_map(teams) and !Enum.all?(List.flatten(Map.values(teams)), &(&1 in player_ids)) ->
+          {:error, "invalid player_id in teams"}
         true -> :ok
+      end
+    end
+
+    # Catch-all clause for any other case
+    defp validate_teams(%__MODULE__{} = event) do
+      # Check if fields exist in the struct, even if they're not matching earlier patterns
+      cond do
+        not Map.has_key?(event, :teams) -> {:error, "teams is required"}
+        not Map.has_key?(event, :team_ids) -> {:error, "team_ids is required"}
+        not Map.has_key?(event, :player_ids) -> {:error, "player_ids is required"}
+        true -> {:error, "teams, team_ids and player_ids must be properly structured"}
       end
     end
 
@@ -222,6 +255,110 @@ defmodule GameBot.Domain.Events.GameEvents do
       end
     end
     defp validate_started_at(_), do: {:error, "started_at must be a DateTime"}
+
+    @doc """
+    Creates a new GameStarted event with the specified parameters.
+
+    ## Parameters
+      * `game_id` - Unique identifier for the game
+      * `mode` - Game mode (e.g., :two_player, :knockout)
+      * `team_ids` - List of team IDs in the game
+      * `player_ids` - List of all player IDs in the game
+      * `teams` - Map of team_id to player_ids
+      * `metadata` - Additional metadata for the event (optional)
+
+    ## Returns
+      * `{:ok, %GameStarted{}}` - A new GameStarted event struct
+
+    ## Examples
+        iex> GameStarted.new(
+        ...>   "game_123",
+        ...>   :two_player,
+        ...>   ["team_1"],
+        ...>   ["player_1", "player_2"],
+        ...>   %{"team_1" => ["player_1", "player_2"]},
+        ...>   %{"source" => "discord_command"}
+        ...> )
+    """
+    @spec new(String.t(), atom(), [String.t()], [String.t()], map(), map()) :: {:ok, t()}
+    def new(game_id, mode, team_ids, player_ids, teams, metadata \\ %{}) do
+      now = DateTime.utc_now()
+
+      # Extract guild_id from metadata - support both atom and string keys
+      guild_id = Map.get(metadata, :guild_id) || Map.get(metadata, "guild_id")
+
+      # Ensure necessary metadata fields are present
+      # Normalize interaction_id or user_id to source_id if not present
+      enhanced_metadata = metadata
+      |> Map.put_new(:source_id, Map.get(metadata, :interaction_id) ||
+                            Map.get(metadata, "interaction_id") ||
+                            Map.get(metadata, :user_id) ||
+                            Map.get(metadata, "user_id") ||
+                            UUID.uuid4())
+      |> Map.put_new(:correlation_id, Map.get(metadata, :correlation_id) ||
+                                 Map.get(metadata, "correlation_id") ||
+                                 UUID.uuid4())
+
+      # For a root event, we don't set causation_id unless explicitly provided
+      # This will result in causation_id being nil for the first event in a chain
+      enhanced_metadata = if Map.has_key?(metadata, :causation_id) || Map.has_key?(metadata, "causation_id") do
+        enhanced_metadata # Keep existing causation_id
+      else
+        Map.put_new(enhanced_metadata, :causation_id, nil) # Explicitly set to nil
+      end
+
+      event = %__MODULE__{
+        game_id: game_id,
+        guild_id: guild_id,
+        mode: mode,
+        round_number: 1,  # Always 1 for game start
+        teams: teams,
+        team_ids: team_ids,
+        player_ids: player_ids,
+        roles: %{},  # Default empty roles map
+        config: %{},  # Default empty config
+        started_at: now,
+        timestamp: now,
+        metadata: enhanced_metadata
+      }
+
+      # Validate the event before returning
+      case validate(event) do
+        :ok -> {:ok, event}
+        {:error, reason} -> raise "Invalid GameStarted event: #{reason}"
+      end
+    end
+
+    # Keep the existing implementation as new/10
+    @doc """
+    Creates a new GameStarted event with all parameters specified.
+
+    This is a more detailed version of new/6 that allows specifying additional parameters.
+    """
+    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()], map(), map(), DateTime.t(), map()) :: t()
+    def new(game_id, guild_id, mode, teams, team_ids, player_ids, roles, config \\ %{}, started_at \\ nil, metadata \\ %{}) do
+      now = DateTime.utc_now()
+      event = %__MODULE__{
+        game_id: game_id,
+        guild_id: guild_id,
+        mode: mode,
+        round_number: 1,  # Always 1 for game start
+        teams: teams,
+        team_ids: team_ids,
+        player_ids: player_ids,
+        roles: roles,
+        config: config,
+        started_at: started_at || now,
+        timestamp: now,
+        metadata: metadata
+      }
+
+      # Validate the event before returning
+      case validate(event) do
+        :ok -> event
+        {:error, reason} -> raise "Invalid GameStarted event: #{reason}"
+      end
+    end
   end
 
   defmodule RoundStarted do
@@ -543,6 +680,115 @@ defmodule GameBot.Domain.Events.GameEvents do
         timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
         metadata: data["metadata"] || %{}
       }
+    end
+
+    @doc """
+    Creates a new GuessProcessed event with a simplified signature.
+
+    This matches the signature expected by CommandHandler.handle_guess/4.
+
+    ## Parameters
+      * `game_id` - Unique identifier for the game
+      * `user_id` - User ID making the guess (will be set as guild_id too)
+      * `word` - The guessed word
+      * `metadata` - Additional metadata for the event
+
+    ## Returns
+      * `{:ok, %GuessProcessed{}}` - A new GuessProcessed event struct with status
+    """
+    @spec new(String.t(), String.t(), String.t(), map()) :: {:ok, t()}
+    def new(game_id, user_id, word, metadata) do
+      # Use exact correlation_id from parent metadata
+      # and set the parent correlation_id as causation_id
+      parent_correlation_id = Map.get(metadata, :correlation_id) ||
+                             Map.get(metadata, "correlation_id")
+
+      enhanced_metadata = metadata
+        # Keep the same correlation_id from parent
+        |> Map.put(:correlation_id, parent_correlation_id)
+        # Set causation_id to parent's correlation_id
+        |> Map.put(:causation_id, parent_correlation_id)
+        |> Map.put_new(:source_id, Map.get(metadata, :interaction_id) ||
+                              Map.get(metadata, "interaction_id") ||
+                              Map.get(metadata, :user_id) ||
+                              Map.get(metadata, "user_id") ||
+                              UUID.uuid4())
+
+      # Create default guess data
+      guess_data = %{
+        round_number: 1,
+        player1_word: word,
+        player2_word: "",
+        metadata: enhanced_metadata
+      }
+
+      # Create the event using the detailed constructor
+      guild_id = Map.get(metadata, :guild_id) || Map.get(metadata, "guild_id") || ""
+      event = new_detailed(game_id, guild_id, "team_temp_id", guess_data)
+
+      {:ok, event}
+    end
+
+    @doc """
+    Creates a new GuessProcessed event with the specified parameters.
+
+    ## Parameters
+      * `game_id` - Unique identifier for the game
+      * `guild_id` - Discord guild ID where the game is being played
+      * `team_id` - ID of the team making the guess
+      * `guess_data` - Map containing detailed guess information:
+        * `round_number` - Current round number
+        * `mode` - Game mode (e.g., :two_player, :knockout)
+        * `player1_info` - Information about the first player
+        * `player2_info` - Information about the second player
+        * `player1_word` - Word provided by first player
+        * `player2_word` - Word provided by second player
+        * `guess_successful` - Whether the guess was successful
+        * `match_score` - Score for this match (if successful)
+        * `guess_count` - Current guess count
+        * `round_guess_count` - Guess count for this round
+        * `total_guesses` - Total guesses in the game
+        * `guess_duration` - Duration of the guess in seconds
+
+    ## Returns
+      * `%GuessProcessed{}` - A new GuessProcessed event struct
+    """
+    @spec new_detailed(String.t(), String.t(), String.t(), map()) :: t()
+    def new_detailed(game_id, guild_id, team_id, guess_data) do
+      now = DateTime.utc_now()
+
+      # Ensure player info is properly set with default values if missing
+      player1_info = Map.get(guess_data, :player1_info) || Map.get(guess_data, "player1_info") ||
+                    %{"player_id" => "unknown", "name" => "Unknown Player"}
+
+      player2_info = Map.get(guess_data, :player2_info) || Map.get(guess_data, "player2_info") ||
+                    %{"player_id" => "unknown", "name" => "Unknown Player"}
+
+      event = %__MODULE__{
+        game_id: game_id,
+        guild_id: guild_id,
+        mode: Map.get(guess_data, :mode) || Map.get(guess_data, "mode", :two_player),
+        round_number: Map.get(guess_data, :round_number) || Map.get(guess_data, "round_number", 1),
+        team_id: team_id,
+        player1_info: player1_info,
+        player2_info: player2_info,
+        player1_word: Map.get(guess_data, :player1_word) || Map.get(guess_data, "player1_word", ""),
+        player2_word: Map.get(guess_data, :player2_word) || Map.get(guess_data, "player2_word", ""),
+        guess_successful: Map.get(guess_data, :guess_successful) || Map.get(guess_data, "guess_successful", false),
+        match_score: Map.get(guess_data, :match_score) || Map.get(guess_data, "match_score"),
+        guess_count: Map.get(guess_data, :guess_count) || Map.get(guess_data, "guess_count", 1),
+        round_guess_count: Map.get(guess_data, :round_guess_count) || Map.get(guess_data, "round_guess_count", 1),
+        total_guesses: Map.get(guess_data, :total_guesses) || Map.get(guess_data, "total_guesses", 1),
+        guess_duration: Map.get(guess_data, :guess_duration) || Map.get(guess_data, "guess_duration", 0),
+        timestamp: now,
+        metadata: Map.get(guess_data, :metadata) || Map.get(guess_data, "metadata", %{})
+      }
+
+      # Validate the event before returning
+      case validate(event) do
+        :ok -> event
+        {:error, reason} -> raise "Invalid GuessProcessed event: #{reason}"
+      end
     end
   end
 
@@ -909,6 +1155,9 @@ defmodule GameBot.Domain.Events.GameEvents do
     """
     use GameBot.Domain.Events.EventStructure
 
+    # Import validation functions
+    import GameBot.Domain.Events.GameEvents.GameCompletedValidator
+
     @type game_player_stats :: %{
       total_guesses: pos_integer(),
       successful_matches: non_neg_integer(),
@@ -1056,8 +1305,7 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     @impl true
     def validate(%__MODULE__{} = event) do
-      with :ok <- EventStructure.validate(event),
-           :ok <- validate_winners(event.winners),
+      with :ok <- validate_winners(event.winners),
            :ok <- validate_final_scores(event.final_scores),
            :ok <- validate_positive_counts(event),
            :ok <- validate_non_negative_duration(event.game_duration),
@@ -1186,7 +1434,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     end
 
     defp validate_non_negative_duration(duration) when is_integer(duration) and duration >= 0, do: :ok
-    defp validate_non_negative_duration(_), do: {:error, "game_duration must be a non-negative integer"}
+    defp validate_non_negative_duration(_), do: {:error, "game_duration must be non-negative integer"}
 
     defp validate_finished_at(%DateTime{} = finished_at, %DateTime{} = timestamp) do
       case DateTime.compare(finished_at, timestamp) do
@@ -1195,18 +1443,6 @@ defmodule GameBot.Domain.Events.GameEvents do
       end
     end
     defp validate_finished_at(_, _), do: {:error, "finished_at must be a DateTime"}
-
-    defp validate_integer(field, value) when is_integer(value), do: :ok
-    defp validate_integer(field, _), do: {:error, "#{field} must be an integer"}
-
-    defp validate_positive_integer(field, value) when is_integer(value) and value > 0, do: :ok
-    defp validate_positive_integer(field, _), do: {:error, "#{field} must be a positive integer"}
-
-    defp validate_non_negative_integer(field, value) when is_integer(value) and value >= 0, do: :ok
-    defp validate_non_negative_integer(field, _), do: {:error, "#{field} must be a non-negative integer"}
-
-    defp validate_float(field, value) when is_float(value), do: :ok
-    defp validate_float(field, _), do: {:error, "#{field} must be a float"}
   end
 
   # Mode-specific Events
@@ -1604,5 +1840,12 @@ defmodule GameBot.Domain.Events.GameEvents do
     defstruct [:game_id, :guild_id, :team_id, :giving_up_player, :teammate_word, :guess_count, :timestamp]
 
     def event_type, do: "round_restarted"
+  end
+
+  defimpl GameBot.Domain.Events.EventValidator, for: GameBot.Domain.Events.GameEvents.GameStarted do
+    def validate(event) do
+      # Call the event's module validate function directly
+      GameBot.Domain.Events.GameEvents.GameStarted.validate(event)
+    end
   end
 end

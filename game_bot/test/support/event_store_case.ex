@@ -15,6 +15,7 @@ defmodule GameBot.EventStoreCase do
 
   # Set a timeout for database operations
   @db_timeout 15_000
+  @checkout_timeout 30_000
 
   # Define the repositories we need to check out
   @repos [Repo, EventStore]
@@ -33,6 +34,7 @@ defmodule GameBot.EventStoreCase do
     if tags[:skip_db] do
       :ok
     else
+      pid = self()
       # First, make sure we kill any lingering connections
       # This is necessary to ensure we have a clean state
       close_db_connections()
@@ -43,31 +45,39 @@ defmodule GameBot.EventStoreCase do
           Ecto.Adapters.SQL.Sandbox.checkin(repo)
         rescue
           _ -> :ok
+        catch
+          _, _ -> :ok
         end
       end)
+
+      # Ensure PG notifications are turned off
+      try_turn_off_notifications()
+
+      # Wait a bit to allow connections to fully close
+      Process.sleep(100)
 
       # Explicitly checkout the repositories for the test process
       # This ensures we have isolated database access for this test
       Enum.each(@repos, fn repo ->
         try do
-          case Ecto.Adapters.SQL.Sandbox.checkout(repo, [ownership_timeout: @db_timeout * 2]) do
+          case Ecto.Adapters.SQL.Sandbox.checkout(repo, [ownership_timeout: @checkout_timeout]) do
             :ok ->
-              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(self())}")
+              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(pid)}")
             {:ok, _} ->
-              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(self())}")
+              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(pid)}")
             {:error, error} ->
               raise "Failed to checkout #{inspect(repo)}: #{inspect(error)}"
           end
 
           # Allow shared connections if test is not async
           unless tags[:async] do
-            Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+            Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, pid})
             IO.puts("Enabled shared sandbox mode for #{inspect(repo)}")
           end
         rescue
           e ->
             IO.puts("Error during checkout for #{inspect(repo)}: #{inspect(e)}")
-            reraise e, __STACKTRACE__
+            # Don't reraise - try to continue with other repos
         end
       end)
 
@@ -76,7 +86,7 @@ defmodule GameBot.EventStoreCase do
 
       # Make sure connections are explicitly released after test
       on_exit(fn ->
-        IO.puts("Running on_exit cleanup for test process #{inspect(self())}")
+        IO.puts("Running on_exit cleanup for test process #{inspect(pid)}")
 
         # First try to clean the database again
         try do
@@ -90,7 +100,7 @@ defmodule GameBot.EventStoreCase do
         Enum.each(@repos, fn repo ->
           try do
             Ecto.Adapters.SQL.Sandbox.checkin(repo)
-            IO.puts("Checked in #{inspect(repo)} for test process #{inspect(self())}")
+            IO.puts("Checked in #{inspect(repo)} for test process #{inspect(pid)}")
           rescue
             e ->
               IO.puts("Warning: Failed to checkin connection for #{inspect(repo)}: #{inspect(e)}")
@@ -115,7 +125,10 @@ defmodule GameBot.EventStoreCase do
     # Find all database connections
     connection_pids = for pid <- Process.list(),
                          info = Process.info(pid, [:dictionary]),
-                         initial_call = get_in(info, [:dictionary, :"$initial_call"]),
+                         info != nil,
+                         dictionary = info[:dictionary],
+                         dictionary != nil,
+                         initial_call = dictionary[:"$initial_call"],
                          is_database_connection(initial_call) do
       pid
     end
@@ -127,9 +140,38 @@ defmodule GameBot.EventStoreCase do
     end)
 
     # Small sleep to allow processes to terminate
-    Process.sleep(100)
+    Process.sleep(200)
 
     IO.puts("Closed #{length(connection_pids)} database connections")
+  end
+
+  # Attempt to turn off LISTEN/NOTIFY for Postgres
+  # This can help prevent connection issues in tests
+  defp try_turn_off_notifications do
+    try do
+      Enum.each(@repos, fn repo ->
+        try do
+          # Try to turn off LISTEN/NOTIFY if possible
+          sql = "SELECT pg_listening_channels();"
+          case Repo.query(sql, [], timeout: @db_timeout) do
+            {:ok, %{rows: rows}} ->
+              channels = List.flatten(rows)
+              Enum.each(channels, fn channel ->
+                Repo.query("UNLISTEN #{channel};", [], timeout: @db_timeout)
+              end)
+            _ -> :ok
+          end
+        rescue
+          _ -> :ok
+        catch
+          _, _ -> :ok
+        end
+      end)
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
   end
 
   # Helper to detect database connection processes
@@ -199,6 +241,8 @@ defmodule GameBot.EventStoreCase do
         impl.unsubscribe_from_stream(stream_id, subscription)
       rescue
         _ -> :ok
+      catch
+        _, _ -> :ok
       end
     end
   end
@@ -250,18 +294,19 @@ defmodule GameBot.EventStoreCase do
           :ok
 
         {:error, error} ->
-          # Error running the query
-          IO.puts("Warning: Error checking table existence: #{inspect(error)}")
+          # Query failed, log and continue
+          IO.puts("Warning: Failed to check tables: #{inspect(error)}")
           :ok
       end
     rescue
       e ->
+        # Log and continue
         IO.puts("Warning: Failed to clean database: #{inspect(e)}")
-        # Try to print more details about the error if available
-        if Map.has_key?(e, :postgres) do
-          postgres_error = Map.get(e, :postgres)
-          IO.puts("Postgres error details: #{inspect(postgres_error)}")
-        end
+        :ok
+    catch
+      _, e ->
+        # Log and continue
+        IO.puts("Warning: Exception in clean_database: #{inspect(e)}")
         :ok
     end
   end

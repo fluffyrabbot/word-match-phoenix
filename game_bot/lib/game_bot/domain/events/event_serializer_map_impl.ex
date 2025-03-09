@@ -57,6 +57,7 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
       case Code.ensure_loaded(GameBot.Domain.Events.TestEvents.TestEvent) do
         {:module, _} ->
           %GameBot.Domain.Events.TestEvents.TestEvent{
+            # Base fields
             game_id: data["game_id"],
             guild_id: data["guild_id"],
             mode: case data["mode"] do
@@ -64,26 +65,52 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
               mode when is_atom(mode) -> mode
               _ -> nil
             end,
-            timestamp: case data["timestamp"] do
-              ts when is_binary(ts) ->
-                case DateTime.from_iso8601(ts) do
-                  {:ok, dt, _} -> dt
-                  _ -> ts
-                end
-              ts -> ts
-            end,
+            timestamp: parse_timestamp(data["timestamp"]),
             metadata: data["metadata"],
+
+            # Common test fields
             count: data["count"],
             score: data["score"],
             tags: (data["tags"] && MapSet.new(data["tags"])) || MapSet.new(),
             nested_data: process_nested_data(data["nested_data"]),
-            optional_field: data["optional_field"]
+            optional_field: data["optional_field"],
+
+            # GameStarted fields
+            round_number: data["round_number"],
+            teams: data["teams"],
+            team_ids: data["team_ids"],
+            player_ids: data["player_ids"],
+            roles: data["roles"],
+            config: data["config"],
+            started_at: parse_timestamp(data["started_at"]),
+
+            # GuessProcessed fields
+            team_id: data["team_id"],
+            player1_info: data["player1_info"],
+            player2_info: data["player2_info"],
+            player1_word: data["player1_word"],
+            player2_word: data["player2_word"],
+            guess_successful: data["guess_successful"],
+            match_score: data["match_score"],
+            guess_count: data["guess_count"],
+            round_guess_count: data["round_guess_count"],
+            total_guesses: data["total_guesses"],
+            guess_duration: data["guess_duration"]
           }
         _ ->
           # If TestEvent module not available, just return the data map
           data
       end
     end
+
+    defp parse_timestamp(nil), do: nil
+    defp parse_timestamp(ts) when is_binary(ts) do
+      case DateTime.from_iso8601(ts) do
+        {:ok, dt, _} -> dt
+        _ -> ts
+      end
+    end
+    defp parse_timestamp(ts), do: ts
 
     defp process_nested_data(nil), do: nil
     defp process_nested_data(data) when is_map(data) do

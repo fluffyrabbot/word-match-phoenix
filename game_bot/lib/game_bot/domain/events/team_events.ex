@@ -18,7 +18,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
         is_nil(event.player_ids) -> {:error, "player_ids is required"}
         is_nil(event.guild_id) -> {:error, "guild_id is required"}
         is_nil(event.metadata) -> {:error, "metadata is required"}
-        is_nil(event.metadata["guild_id"]) -> {:error, "guild_id is required in metadata"}
+        is_nil(Map.get(event.metadata, :guild_id)) && is_nil(Map.get(event.metadata, "guild_id")) -> {:error, "guild_id is required in metadata"}
         length(event.player_ids) != 2 -> {:error, "team must have exactly 2 players"}
         true -> :ok
       end
@@ -44,6 +44,81 @@ defmodule GameBot.Domain.Events.TeamEvents do
         metadata: data["metadata"] || %{},
         guild_id: data["guild_id"]
       }
+    end
+
+    @doc """
+    Creates a new TeamCreated event with the specified parameters.
+
+    ## Parameters
+      * `team_id` - Unique identifier for the team
+      * `name` - Name of the team
+      * `player_ids` - List of player IDs in the team
+      * `guild_id` - Discord guild ID where the team is being created
+      * `metadata` - Additional metadata for the event (optional)
+
+    ## Returns
+      * `{:ok, %TeamCreated{}}` - A new TeamCreated event struct with status
+
+    ## Examples
+        iex> TeamCreated.new(
+        ...>   "team_123",
+        ...>   "Awesome Team",
+        ...>   ["player_1", "player_2"],
+        ...>   "guild_456",
+        ...>   %{"source" => "discord_command"}
+        ...> )
+    """
+    @spec new(String.t(), String.t(), [String.t()], String.t(), map()) :: {:ok, %__MODULE__{}}
+    def new(team_id, name, player_ids, guild_id, metadata \\ %{}) do
+      now = DateTime.utc_now()
+
+      # Ensure metadata is a map with atoms as keys
+      metadata_map = if is_map(metadata) do
+        metadata
+      else
+        %{}
+      end
+
+      # Ensure critical fields are present in metadata
+      enhanced_metadata = metadata_map
+        |> ensure_string_keys()
+        |> Map.put(:guild_id, guild_id)
+        |> Map.put("guild_id", guild_id) # Add both atom and string versions to be safe
+        |> Map.put_new(:source_id, Map.get(metadata_map, :interaction_id) ||
+                                  Map.get(metadata_map, "interaction_id") ||
+                                  Map.get(metadata_map, :user_id) ||
+                                  Map.get(metadata_map, "user_id") ||
+                                  UUID.uuid4())
+        |> Map.put_new(:correlation_id, Map.get(metadata_map, :correlation_id) ||
+                                       Map.get(metadata_map, "correlation_id") ||
+                                       UUID.uuid4())
+
+      event = %__MODULE__{
+        team_id: team_id,
+        name: name,
+        player_ids: player_ids,
+        guild_id: guild_id,
+        created_at: now,
+        metadata: enhanced_metadata
+      }
+
+      # Validate the event before returning
+      case validate(event) do
+        :ok -> {:ok, event}
+        {:error, reason} -> raise "Invalid TeamCreated event: #{reason}"
+      end
+    end
+
+    # Helper to ensure string keys in metadata maps
+    defp ensure_string_keys(metadata) do
+      Enum.reduce(metadata, %{}, fn
+        {key, value}, acc when is_binary(key) -> Map.put(acc, String.to_atom(key), value)
+        {key, value}, acc when is_atom(key) -> Map.put(acc, key, value)
+        _, acc -> acc
+      end)
+    rescue
+      # If conversion fails, return original metadata
+      _ -> metadata
     end
   end
 

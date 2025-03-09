@@ -24,10 +24,11 @@ defmodule GameBot.Domain.Events.BaseEvent do
     :guild_id,
     :mode,
     :round_number,
-    :timestamp
+    :timestamp,
+    :metadata
   ]
 
-  @base_optional_fields [:metadata]
+  @base_optional_fields []
 
   @primary_key {:id, :binary_id, autogenerate: true}
   embedded_schema do
@@ -127,6 +128,29 @@ defmodule GameBot.Domain.Events.BaseEvent do
       """
       def validate_custom_fields(changeset), do: changeset
 
+      defoverridable [required_fields: 0, optional_fields: 0, validate_custom_fields: 1]
+    end
+  end
+
+  defmacro __before_compile__(_env) do
+    quote do
+      @doc """
+      Validates the metadata field.
+      """
+      def validate_metadata(changeset) do
+        case get_field(changeset, :metadata) do
+          nil ->
+            add_error(changeset, :metadata, "is required")
+          metadata when is_map(metadata) ->
+            case GameBot.Domain.Events.Metadata.validate(metadata) do
+              :ok -> changeset
+              {:error, reason} -> add_error(changeset, :metadata, reason)
+            end
+          _ ->
+            add_error(changeset, :metadata, "must be a map")
+        end
+      end
+
       # Implement EventSerializer protocol
       defimpl GameBot.Domain.Events.EventSerializer do
         def to_map(event) do
@@ -148,34 +172,6 @@ defmodule GameBot.Domain.Events.BaseEvent do
           end))
         end
       end
-
-      defoverridable [required_fields: 0, optional_fields: 0, validate_custom_fields: 1]
-    end
-  end
-
-  defmacro __before_compile__(_env) do
-    quote do
-      @doc """
-      Validates the metadata structure of an event.
-      """
-      def validate_metadata(changeset) do
-        validate_change(changeset, :metadata, fn :metadata, metadata ->
-          case validate_metadata_structure(metadata) do
-            :ok -> []
-            {:error, reason} -> [metadata: reason]
-          end
-        end)
-      end
-
-      defp validate_metadata_structure(metadata) when is_map(metadata) do
-        if Map.has_key?(metadata, "guild_id") or Map.has_key?(metadata, :guild_id) or
-           Map.has_key?(metadata, "source_id") or Map.has_key?(metadata, :source_id) do
-          :ok
-        else
-          {:error, "guild_id or source_id is required in metadata"}
-        end
-      end
-      defp validate_metadata_structure(_), do: {:error, "metadata must be a map"}
     end
   end
 

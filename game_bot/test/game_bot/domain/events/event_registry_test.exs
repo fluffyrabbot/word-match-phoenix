@@ -1,17 +1,46 @@
 defmodule GameBot.Domain.Events.EventRegistryTest do
-  use ExUnit.Case, async: true
+  # Set async: false to prevent conflicts with ETS tables
+  use ExUnit.Case, async: false
 
   alias GameBot.Domain.Events.EventRegistry
   alias GameBot.Domain.Events.GameEvents.ExampleEvent
 
   setup do
-    # Ensure the registry is started
-    EventRegistry.start_link()
-    :ok
+    # Cleanup any existing registry - do this first
+    EventRegistry.stop()
+
+    # Start a fresh registry for this test
+    {:ok, _pid} = EventRegistry.start_link()
+
+    # Get the current table name to use in tests
+    table = EventRegistry.table_name()
+
+    # Double check the table exists before continuing
+    unless :ets.info(table) != :undefined do
+      # If table doesn't exist, try once more
+      EventRegistry.stop()
+      EventRegistry.start_link()
+      table = EventRegistry.table_name()
+
+      # If still undefined, raise error
+      unless :ets.info(table) != :undefined do
+        raise "Failed to create ETS table for event registry"
+      end
+    end
+
+    # Clean up after the test
+    on_exit(fn ->
+      # Ensure the table is cleaned up and process dictionary is cleared
+      EventRegistry.stop()
+    end)
+
+    # Return the current table for test use
+    {:ok, %{table: table}}
   end
 
   describe "EventRegistry" do
     test "starts and registers initial events" do
+      # Verify initial events are registered
       assert is_list(EventRegistry.all_event_types())
       assert length(EventRegistry.all_event_types()) > 0
       assert "game_created" in EventRegistry.all_event_types()
@@ -123,6 +152,52 @@ defmodule GameBot.Domain.Events.EventRegistryTest do
 
       # Should include our example event
       assert Enum.any?(all_events, fn {type, _, _} -> type == "example_event" end)
+    end
+
+    test "cleanup works correctly", %{table: table} do
+      # Verify table exists before stopping
+      assert :ets.info(table) != :undefined
+
+      # Stop the registry
+      EventRegistry.stop()
+
+      # Verify table is gone
+      assert :ets.info(table) == :undefined
+
+      # Restart registry
+      EventRegistry.start_link()
+
+      # Get new table name - it should be a new one
+      new_table = EventRegistry.table_name()
+
+      # Verify the new table exists
+      assert :ets.info(new_table) != :undefined
+    end
+
+    test "handles binary data properly" do
+      # Create JSON string representing an event
+      json_data = """
+      {
+        "event_type": "example_event",
+        "event_version": 1,
+        "data": {
+          "game_id": "game_123",
+          "guild_id": "guild_123",
+          "player_id": "player_123",
+          "action": "test_action",
+          "timestamp": "2023-01-01T12:00:00Z",
+          "metadata": {"source_id": "source_123"}
+        }
+      }
+      """
+
+      # Deserialize from binary
+      assert {:ok, event} = EventRegistry.deserialize(json_data)
+
+      # Verify the event
+      assert %ExampleEvent{} = event
+      assert event.game_id == "game_123"
+      assert event.player_id == "player_123"
     end
   end
 end

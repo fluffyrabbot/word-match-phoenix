@@ -99,6 +99,26 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     {:ok, {:team_created, team, history_entry}}
   end
 
+  # Add support for TeamMemberAdded event without requiring a team parameter
+  def handle_event(%TeamMemberAdded{} = event) do
+    # When we don't have the team available, we just return the event info
+    # The caller will need to handle this by loading and updating the team
+    {:ok, {:member_added, %{
+      team_id: event.team_id,
+      player_id: event.player_id,
+      added_at: event.added_at,
+      guild_id: event.guild_id
+    }}}
+  end
+
+  def handle_event(%TeamMemberAdded{} = event, %{team: team}) do
+    updated_team = %TeamView{team |
+      player_ids: [event.player_id | team.player_ids],
+      updated_at: event.added_at
+    }
+    {:ok, {:team_updated, updated_team}}
+  end
+
   def handle_event(%TeamUpdated{} = event, %{team: team, history: history}) do
     # Only create history entry if name actually changed
     if event.name != team.name do
