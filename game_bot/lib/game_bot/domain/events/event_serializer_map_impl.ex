@@ -106,7 +106,7 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
     defp parse_timestamp(nil), do: nil
     defp parse_timestamp(ts) when is_binary(ts) do
       case DateTime.from_iso8601(ts) do
-        {:ok, dt, _} -> dt
+        {:ok, dt, _offset} -> dt
         _ -> ts
       end
     end
@@ -122,7 +122,7 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
     end
     defp process_nested_data(data) when is_binary(data) do
       case DateTime.from_iso8601(data) do
-        {:ok, dt, _} -> dt
+        {:ok, dt, _offset} -> dt
         _ -> data
       end
     end

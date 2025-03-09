@@ -85,12 +85,20 @@ defmodule GameBot.Domain.Events.Pipeline do
   """
   @spec broadcast({:ok, struct()} | {:error, term()}) :: {:ok, struct()} | {:error, term()}
   def broadcast({:ok, event} = result) do
-    Phoenix.PubSub.broadcast(
-      GameBot.PubSub,
-      "game:#{event.game_id}",
-      {:event, event}
-    )
-    result
+    if Application.get_env(:game_bot, :event_system, [])
+       |> Keyword.get(:use_enhanced_pubsub, false) do
+      # Use the new enhanced broadcaster
+      GameBot.Domain.Events.Broadcaster.broadcast_event(event)
+      result
+    else
+      # Legacy broadcasting (unchanged)
+      Phoenix.PubSub.broadcast(
+        GameBot.PubSub,
+        "game:#{event.game_id}",
+        {:event, event}
+      )
+      result
+    end
   end
   def broadcast(error), do: error
 

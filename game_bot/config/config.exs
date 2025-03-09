@@ -41,6 +41,10 @@ config :nostrum,
   token: System.get_env("DISCORD_BOT_TOKEN"),
   gateway_intents: :all
 
+# Event system configuration
+config :game_bot, :event_system,
+  use_enhanced_pubsub: false  # Start with this disabled, enable after testing
+
 # Configures the endpoint
 config :game_bot, GameBotWeb.Endpoint,
   url: [host: "localhost"],

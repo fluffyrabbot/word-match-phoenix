@@ -54,6 +54,25 @@ defmodule GameBot.Domain.Events.Telemetry do
   end
 
   @doc """
+  Records an event broadcast operation.
+  """
+  @spec record_event_broadcast(String.t(), [String.t()], integer()) :: :ok
+  def record_event_broadcast(event_type, topics, duration) do
+    :telemetry.execute(
+      @event_prefix ++ [:broadcast],
+      %{
+        duration: duration,
+        topic_count: length(topics)
+      },
+      %{
+        event_type: event_type,
+        topics: topics,
+        timestamp: DateTime.utc_now()
+      }
+    )
+  end
+
+  @doc """
   Records an event processing error.
   """
   @spec record_error(module(), term()) :: :ok
@@ -80,6 +99,7 @@ defmodule GameBot.Domain.Events.Telemetry do
         @event_prefix ++ [:processed],
         @event_prefix ++ [:validated],
         @event_prefix ++ [:serialized],
+        @event_prefix ++ [:broadcast],
         @event_prefix ++ [:error]
       ],
       &handle_event/4,
