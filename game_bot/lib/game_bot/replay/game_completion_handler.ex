@@ -7,34 +7,64 @@ defmodule GameBot.Replay.GameCompletionHandler do
   memorable name that points to the original event stream.
   """
 
+  use GameBot.Domain.Events.Handler,
+    interests: ["event_type:game_completed"]
+
   require Logger
-  alias GameBot.Replay.Utils.NameGenerator
-  alias GameBot.Replay.Utils.StatsCalculator
-  alias GameBot.Repo
+
+  alias GameBot.Replay.{
+    EventStoreAccess,
+    EventVerifier,
+    VersionCompatibility,
+    Types,
+    Storage,
+    Utils.NameGenerator,
+    Utils.StatsCalculator
+  }
+  alias GameBot.Domain.Events.SubscriptionManager
+
+  @impl true
+  def handle_event(event) do
+    case process_game_completed(event) do
+      {:ok, replay_id} ->
+        Logger.info("Created replay for game #{event.game_id}, replay_id: #{replay_id}")
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to create replay for game #{event.game_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
 
   @doc """
   Processes a game completion event and creates a replay reference.
 
   ## Parameters
-  - `event` - The GameCompleted event
+    - event: The GameCompleted event
 
   ## Returns
-  - `{:ok, replay_id}` - If replay was successfully created
-  - `{:error, reason}` - If replay creation failed
+    - {:ok, replay_id} - Successfully created replay
+    - {:error, reason} - Failed to create replay
   """
-  @spec process_game_completed(map()) :: {:ok, String.t()} | {:error, term()}
+  @spec process_game_completed(map()) :: {:ok, Types.replay_id()} | {:error, term()}
   def process_game_completed(event) do
     game_id = event.game_id
+    opts = %{
+      check_completion: true,
+      required_events: ["game_started", "game_completed"],
+      max_events: 2000
+    }
 
-    # Get the full event stream for the game
-    with {:ok, events} <- get_event_stream(game_id),
+    with {:ok, events} <- fetch_and_verify_events(game_id, opts),
+         {:ok, version_map} <- VersionCompatibility.validate_replay_compatibility(events),
          {:ok, base_stats} <- StatsCalculator.calculate_base_stats(events),
-         {:ok, mode_stats} <- calculate_mode_specific_stats(events, event.mode),
-         {:ok, replay_name} <- NameGenerator.generate(),
-         {:ok, replay_id} <- store_replay(game_id, event, base_stats, mode_stats, replay_name) do
+         {:ok, mode_stats} <- StatsCalculator.calculate_mode_stats(events, event.mode),
+         {:ok, display_name} <- generate_unique_name(),
+         replay <- build_replay_reference(game_id, event, events, base_stats, mode_stats, version_map, display_name),
+         {:ok, stored_replay} <- Storage.store_replay(replay) do
 
-      Logger.info("Created replay '#{replay_name}' (ID: #{replay_id}) for game #{game_id}")
-      {:ok, replay_id}
+      Logger.info("Created replay '#{display_name}' for game #{game_id}")
+      {:ok, stored_replay.replay_id}
     else
       {:error, reason} ->
         Logger.error("Failed to create replay for game #{game_id}: #{inspect(reason)}")
@@ -42,95 +72,102 @@ defmodule GameBot.Replay.GameCompletionHandler do
     end
   end
 
-  @doc """
-  Retrieves the complete event stream for a game from the EventStore.
-  """
-  @spec get_event_stream(String.t()) :: {:ok, [map()]} | {:error, term()}
-  defp get_event_stream(game_id) do
-    # This would be replaced with actual EventStore.read_stream_forward call
-    # For now, just stubbing the function
-    {:ok, []}
-  end
-
-  @doc """
-  Calculates mode-specific statistics based on the event stream and game mode.
-  """
-  @spec calculate_mode_specific_stats([map()], atom()) :: {:ok, map()} | {:error, term()}
-  defp calculate_mode_specific_stats(events, mode) do
-    # Get the appropriate replay module for this mode
-    replay_module = get_replay_module(mode)
-
-    # Build a temporary replay to calculate stats
-    with {:ok, replay} <- replay_module.build_replay(events) do
-      stats = replay_module.calculate_mode_stats(replay)
-      {:ok, stats}
-    else
-      error -> error
+  # Fetches and verifies the event stream for a game.
+  #
+  # Parameters:
+  #   - game_id: The ID of the game
+  #   - opts: Options for event retrieval and verification
+  #
+  # Returns:
+  #   - {:ok, events} - Successfully fetched and verified events
+  #   - {:error, reason} - Failed to fetch or verify events
+  @spec fetch_and_verify_events(Types.game_id(), map()) ::
+    {:ok, list(map())} | {:error, term()}
+  defp fetch_and_verify_events(game_id, opts) do
+    with {:ok, events} <- EventStoreAccess.fetch_game_events(game_id, [
+           max_events: Map.get(opts, :max_events, 1000)
+         ]),
+         :ok <- EventVerifier.verify_game_stream(events, [
+           required_events: Map.get(opts, :required_events, ["game_started"]),
+           check_completion: Map.get(opts, :check_completion, true)
+         ]) do
+      {:ok, events}
     end
   end
 
-  @doc """
-  Gets the replay implementation module for a given game mode.
-  """
-  @spec get_replay_module(atom()) :: module()
-  defp get_replay_module(mode) do
-    case mode do
-      :two_player -> GameBot.Replay.TwoPlayerReplay
-      :knockout -> GameBot.Replay.KnockoutReplay
-      :race -> GameBot.Replay.RaceReplay
-      :golf_race -> GameBot.Replay.GolfRaceReplay
-      _ -> GameBot.Replay.DefaultReplay
+  # Generates a unique display name for the replay.
+  #
+  # Returns:
+  #   - {:ok, name} - Successfully generated name
+  #   - {:error, reason} - Failed to generate name
+  @spec generate_unique_name() :: {:ok, Types.display_name()} | {:error, term()}
+  defp generate_unique_name do
+    case Storage.list_replays() do
+      {:ok, existing_replays} ->
+        existing_names = Enum.map(existing_replays, & &1.display_name)
+        NameGenerator.generate_name(existing_names)
+
+      {:error, _} = error ->
+        # If we can't get existing names, try without collision detection
+        Logger.warning("Could not fetch existing replay names: #{inspect(error)}")
+        NameGenerator.generate_name()
     end
   end
 
-  @doc """
-  Stores a replay reference in the database.
+  # Builds a replay reference from the completed game data.
+  #
+  # Parameters:
+  #   - game_id: The ID of the game
+  #   - event: The GameCompleted event
+  #   - events: The full event stream
+  #   - base_stats: The calculated base statistics
+  #   - mode_stats: The calculated mode-specific statistics
+  #   - version_map: Map of event types to their versions
+  #   - display_name: The generated display name
+  #
+  # Returns a replay reference map
+  @spec build_replay_reference(
+    Types.game_id(),
+    map(),
+    list(map()),
+    Types.base_stats(),
+    map(),
+    map(),
+    Types.display_name()
+  ) :: Types.replay_reference()
+  defp build_replay_reference(game_id, event, events, base_stats, mode_stats, version_map, display_name) do
+    # Find start time from the first event
+    start_event = Enum.find(events, fn e -> e.event_type == "game_started" end)
 
-  Creates a new record in the game_replays table with:
-  - A unique replay_id (UUID)
-  - Reference to the original game_id
-  - Memorable display_name
-  - Pre-calculated statistics
-  - Game metadata
+    # Use completion event timestamp as end time
+    end_time = event.timestamp
 
-  ## Returns
-  - `{:ok, replay_id}` - The UUID of the created replay
-  - `{:error, reason}` - If storage failed
-  """
-  @spec store_replay(String.t(), map(), map(), map(), String.t()) :: {:ok, String.t()} | {:error, term()}
-  defp store_replay(game_id, event, base_stats, mode_stats, display_name) do
-    # Generate a UUID for the replay
-    replay_id = UUID.uuid4()
-
-    # Insert the replay reference into the database
-    params = %{
-      replay_id: replay_id,
+    # Create the replay reference
+    %{
+      replay_id: nil, # Will be generated on insert
       game_id: game_id,
-      mode: Atom.to_string(event.mode),
-      start_time: event.start_time,
-      end_time: event.timestamp,
-      base_stats: Jason.encode!(base_stats),
-      mode_stats: Jason.encode!(mode_stats),
       display_name: display_name,
+      mode: event.mode,
+      start_time: start_event.timestamp,
+      end_time: end_time,
+      event_count: length(events),
+      base_stats: base_stats,
+      mode_stats: mode_stats,
+      version_map: version_map,
       created_at: DateTime.utc_now()
     }
-
-    case Repo.insert_all("game_replays", [params], returning: [:replay_id]) do
-      {1, [%{replay_id: inserted_id}]} -> {:ok, inserted_id}
-      {0, _} -> {:error, :insert_failed}
-      error -> {:error, error}
-    end
   end
 
   @doc """
-  Subscribes this handler to GameCompleted events.
+  Manually subscribes to game completion events.
+  This can be called to re-establish subscriptions if needed.
 
-  Called when the application starts to set up the event subscription.
+  ## Returns
+    - :ok - Successfully subscribed
+    - {:error, reason} - Failed to subscribe
   """
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    # This would be replaced with actual event subscription
-    # For example, using Phoenix PubSub or a custom event system
-    :ok
+    SubscriptionManager.subscribe_to_event_type("game_completed")
   end
 end

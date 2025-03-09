@@ -43,7 +43,8 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.PostgresTest do
   end
 
   def unsubscribe_from_stream(stream_id, subscription, opts \\ []) do
-    Postgres.unsubscribe_from_stream(stream_id, subscription, opts)
+    alias GameBot.Infrastructure.Persistence.EventStore.Adapter
+    Adapter.unsubscribe_from_stream(stream_id, subscription, opts)
   end
 
   def delete_stream(stream_id, expected_version, opts \\ []) do

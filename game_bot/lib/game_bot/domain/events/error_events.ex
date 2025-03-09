@@ -94,6 +94,37 @@ defmodule GameBot.Domain.Events.ErrorEvents do
 
       new(attrs, metadata)
     end
+
+    @doc """
+    Creates a new GuessError event with minimal parameters.
+
+    This is a convenience function used primarily in error handling code.
+    Guild ID will be empty and metadata will be empty.
+
+    ## Parameters
+    - game_id: Unique identifier for the game
+    - team_id: ID of the team that made the guess
+    - player_id: ID of the player that made the guess
+    - word: The word that was guessed
+    - reason: Why the guess failed
+
+    ## Returns
+    - A new GuessError struct
+    """
+    @spec new(String.t(), String.t(), String.t(), String.t(), reason()) :: t()
+    def new(game_id, team_id, player_id, word, reason) do
+      now = DateTime.utc_now()
+      %__MODULE__{
+        game_id: game_id,
+        guild_id: "",
+        team_id: team_id,
+        player_id: player_id,
+        word: word,
+        reason: reason,
+        timestamp: now,
+        metadata: %{}
+      }
+    end
   end
 
   defmodule GuessPairError do
@@ -187,6 +218,37 @@ defmodule GameBot.Domain.Events.ErrorEvents do
 
       new(attrs, metadata)
     end
+
+    @doc """
+    Creates a new GuessPairError event with minimal parameters.
+
+    This is a convenience function used primarily in error handling code.
+    Guild ID will be empty and metadata will be empty.
+
+    ## Parameters
+    - game_id: Unique identifier for the game
+    - team_id: ID of the team that made the guess pair
+    - word1: First word in the pair
+    - word2: Second word in the pair
+    - reason: Why the guess pair failed
+
+    ## Returns
+    - A new GuessPairError struct
+    """
+    @spec new(String.t(), String.t(), String.t(), String.t(), reason()) :: t()
+    def new(game_id, team_id, word1, word2, reason) do
+      now = DateTime.utc_now()
+      %__MODULE__{
+        game_id: game_id,
+        guild_id: "",
+        team_id: team_id,
+        word1: word1,
+        word2: word2,
+        reason: reason,
+        timestamp: now,
+        metadata: %{}
+      }
+    end
   end
 
   defmodule GameError do
@@ -262,6 +324,72 @@ defmodule GameBot.Domain.Events.ErrorEvents do
       }
 
       new(attrs, metadata)
+    end
+  end
+
+  defmodule RoundCheckError do
+    @moduledoc """
+    Emitted when there is an error during round end check.
+
+    Base fields:
+    - game_id: Unique identifier for the game
+    - guild_id: Discord guild ID where the game is being played
+    - timestamp: When the error occurred
+    - metadata: Additional context about the error
+
+    Event-specific fields:
+    - reason: Why the round check failed
+    """
+    use GameBot.Domain.Events.EventBuilderAdapter
+
+    @type reason :: :invalid_round_state | :round_already_ended | :round_not_started | atom()
+
+    @type t :: %__MODULE__{
+      # Base fields
+      game_id: String.t(),
+      guild_id: String.t(),
+      timestamp: DateTime.t(),
+      metadata: metadata(),
+      # Event-specific fields
+      reason: reason()
+    }
+    defstruct [:game_id, :guild_id, :reason, :timestamp, :metadata]
+
+    @doc """
+    Returns the string type identifier for this event.
+    """
+    def event_type(), do: "round_check_error"
+
+    @impl true
+    def validate_attrs(attrs) do
+      with {:ok, base_attrs} <- super(attrs),
+           :ok <- validate_required_field(attrs, :reason) do
+        {:ok, base_attrs}
+      end
+    end
+
+    @doc """
+    Creates a new RoundCheckError event with the specified attributes.
+
+    ## Parameters
+    - game_id: Unique identifier for the game
+    - reason: Why the round check failed
+    - metadata: Optional event metadata
+
+    ## Returns
+    - `{:ok, event}` if validation succeeds
+    - `{:error, reason}` if validation fails
+    """
+    @spec new(String.t(), atom(), map()) :: t()
+    def new(game_id, reason, metadata \\ %{}) do
+      now = DateTime.utc_now()
+      %__MODULE__{
+        game_id: game_id,
+        guild_id: Map.get(metadata, :guild_id, ""),
+        reason: reason,
+        timestamp: now,
+        metadata: metadata
+      }
     end
   end
 end

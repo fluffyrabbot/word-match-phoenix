@@ -3,12 +3,14 @@ defmodule GameBot.Domain.WordServiceTest do
 
   alias GameBot.Domain.WordService
 
-  @test_dict_path "priv/dictionaries/dictionary.txt"
-  @test_variations_path "priv/dictionaries/word_variations.json"
+  @test_dict_path Path.join(File.cwd!(), "priv/dictionaries/dictionary.txt")
+  @test_variations_path Path.join(File.cwd!(), "priv/dictionaries/word_variations.json")
 
   setup_all do
-    # Create test dictionary files
+    # Create test dictionary directory if it doesn't exist
     File.mkdir_p!(Path.dirname(@test_dict_path))
+
+    # Create test dictionary files
     File.write!(@test_dict_path, """
     cat
     cats
@@ -57,9 +59,11 @@ defmodule GameBot.Domain.WordServiceTest do
       end
     end
 
-    # Start WordService once for all tests
-    {:ok, pid} = WordService.start_link()
-    {:ok, _} = WordService.load_dictionary()
+    # Start WordService with explicit dictionary paths
+    {:ok, pid} = WordService.start_link(
+      dictionary_file: @test_dict_path,
+      variations_file: @test_variations_path
+    )
 
     on_exit(fn ->
       # Clean up test files
@@ -71,7 +75,8 @@ defmodule GameBot.Domain.WordServiceTest do
   end
 
   test "loads dictionary successfully" do
-    assert {:ok, _count} = WordService.load_dictionary()
+    # Load using the same full paths to make sure we get the test dictionaries
+    assert {:ok, _count} = WordService.load_dictionary(@test_dict_path)
   end
 
   test "validates words correctly" do

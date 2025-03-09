@@ -31,7 +31,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo,
   queue_interval: 1000,
   timeout: 30_000,
   connect_timeout: 30_000,
-  types: EventStore.PostgresTypes
+  types: Ecto.Adapters.Postgres
 
 # Configure the Postgres adapter for the EventStore
 # Increased timeouts for better reliability
@@ -41,14 +41,16 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   hostname: "localhost",
   database: event_db_name,
   port: 5432,
-  types: EventStore.PostgresTypes,
+  types: GameBot.Infrastructure.Persistence.PostgresTypes,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 5,
   ownership_timeout: 60_000,
   queue_target: 200,
   queue_interval: 1000,
   timeout: 30_000,
-  connect_timeout: 30_000
+  connect_timeout: 30_000,
+  types: GameBot.Infrastructure.Persistence.PostgresTypes,
+  pool: Ecto.Adapters.SQL.Sandbox
 
 # Configure the event store for testing
 # Increased timeouts for better reliability
@@ -62,14 +64,15 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
   schema: "event_store",
   schema_prefix: "event_store",
   column_data_type: "jsonb",
-  types: EventStore.PostgresTypes,
+  types: Ecto.Adapters.Postgres,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 5,
   timeout: 30_000,
-  connect_timeout: 30_000
+  connect_timeout: 30_000,
+  types: GameBot.Infrastructure.Persistence.PostgresTypes
 
 # Configure the Postgres repository
-config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
+config :game_bot, GameBot.Infrastructure.Persistence.Postgres,
   username: "postgres",
   password: "csstarahid",
   hostname: "localhost",
@@ -81,13 +84,15 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
   queue_target: 200,
   queue_interval: 1000,
   timeout: 30_000,
-  connect_timeout: 30_000
+  connect_timeout: 30_000,
+  types: GameBot.Infrastructure.Persistence.PostgresTypes
 
 # Configure event store directly
 config :eventstore,
   column_data_type: "jsonb",
   registry: :local,
-  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer
+  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer,
+  types: GameBot.Infrastructure.Persistence.PostgresTypes
 
 # For testing, explicitly configure EventStore modules
 config :game_bot, :event_store_adapter, GameBot.TestEventStore

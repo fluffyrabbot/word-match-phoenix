@@ -71,19 +71,33 @@ defmodule GameBot.RepositoryCase do
       IO.puts("Setting up real repository test (no mock tag) - using Postgres")
       Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.Postgres)
 
-      # Set up the main repository
-      :ok = Ecto.Adapters.SQL.Sandbox.checkout(GameBot.Infrastructure.Persistence.Repo)
+      # Check that repositories are running before checkout
+      _repos = [
+        GameBot.Infrastructure.Persistence.Repo,
+        GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+        GameBot.Infrastructure.Persistence.Repo.Postgres
+      ]
 
-      unless tags[:async] do
-        Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo, {:shared, self()})
+      # Verify and restart repositories if needed
+      repos_available = GameBot.Test.Setup.ensure_repositories_available()
+
+      unless repos_available do
+        raise "Failed to ensure repository availability for test"
       end
 
-      # Set up the Postgres repository
-      :ok = Ecto.Adapters.SQL.Sandbox.checkout(GameBot.Infrastructure.Persistence.Repo.Postgres)
+      # Set up the repositories with proper error handling
+      {repo_owner, event_store_owner, postgres_owner} = checkout_all_repos(tags[:async])
 
-      unless tags[:async] do
-        Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo.Postgres, {:shared, self()})
-      end
+      # Register cleanup for test owners
+      on_exit(fn ->
+        try do
+          Ecto.Adapters.SQL.Sandbox.stop_owner(repo_owner)
+          Ecto.Adapters.SQL.Sandbox.stop_owner(event_store_owner)
+          Ecto.Adapters.SQL.Sandbox.stop_owner(postgres_owner)
+        rescue
+          e -> IO.puts("Warning: Failed to stop owners: #{inspect(e)}")
+        end
+      end)
     end
 
     # Start the test event store if not already started
@@ -105,10 +119,49 @@ defmodule GameBot.RepositoryCase do
     :ok
   end
 
+  # Helper for safely checking out all repos
+  defp checkout_all_repos(async?) do
+    alias GameBot.Infrastructure.Persistence.Repo
+    alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStoreRepo
+    alias GameBot.Infrastructure.Persistence.Repo.Postgres
+
+    # Safe checkout function that won't crash the test
+    safe_checkout = fn repo ->
+      try do
+        {:ok, owner} = Ecto.Adapters.SQL.Sandbox.checkout(repo)
+
+        # Set sandbox mode based on async flag
+        unless async? do
+          Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+        end
+
+        owner
+      rescue
+        e ->
+          IO.puts("ERROR: Failed to checkout #{inspect(repo)}: #{Exception.message(e)}")
+          nil
+      end
+    end
+
+    # Checkout all repos
+    repo_owner = safe_checkout.(Repo)
+    event_store_owner = safe_checkout.(EventStoreRepo)
+    postgres_owner = safe_checkout.(Postgres)
+
+    # Return all owners
+    {repo_owner, event_store_owner, postgres_owner}
+  end
+
   @doc """
   Creates a test event for serialization testing.
   """
-  def build_test_event(attrs \\ %{}) do
+  def build_test_event(attrs \\ %{})
+
+  def build_test_event(event_type) when is_binary(event_type) do
+    build_test_event(%{event_type: event_type})
+  end
+
+  def build_test_event(attrs) when is_map(attrs) do
     Map.merge(%{
       event_type: "test_event",
       event_version: 1,

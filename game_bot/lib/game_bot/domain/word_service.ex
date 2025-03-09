@@ -98,6 +98,9 @@ defmodule GameBot.Domain.WordService do
     dictionary_file = Keyword.get(opts, :dictionary_file, "dictionary.txt")
     variations_file = Keyword.get(opts, :variations_file, "word_variations.json")
 
+    Logger.info("WordService initializing with dictionary file: #{dictionary_file}")
+    Logger.info("WordService initializing with variations file: #{variations_file}")
+
     # Initialize ETS tables with TTL support
     :ets.new(@word_match_cache, [:set, :public, :named_table,
       {:read_concurrency, true}, {:write_concurrency, true}])
@@ -111,9 +114,11 @@ defmodule GameBot.Domain.WordService do
 
     # Load dictionary
     dictionary_result = do_load_dictionary(dictionary_file)
+    Logger.info("Dictionary load result: #{inspect(dictionary_result)}")
 
     # Load word variations
     variations_result = do_load_variations(variations_file)
+    Logger.info("Variations load result: #{inspect(variations_result)}")
 
     case {dictionary_result, variations_result} do
       {{:ok, words, count}, {:ok, variations}} ->
@@ -229,39 +234,83 @@ defmodule GameBot.Domain.WordService do
   # Private functions
 
   defp do_load_dictionary(filename) do
-    path = Application.app_dir(:game_bot, "priv/dictionaries/#{filename}")
+    # Try multiple approaches to find the file:
+    # 1. Try direct path (for tests or custom locations)
+    # 2. Try relative to current directory
+    # 3. Try application directory
+    potential_paths = [
+      filename,                                        # Direct path as provided
+      Path.join(File.cwd!(), filename),                # Relative to current directory
+      Application.app_dir(:game_bot, "priv/dictionaries/#{filename}") # App directory
+    ]
 
-    case File.read(path) do
-      {:ok, content} ->
-        words = content
-                |> String.split("\n")
-                |> Enum.map(&String.downcase/1)
-                |> Enum.filter(&(String.trim(&1) != ""))
-                |> MapSet.new()
+    Logger.debug("Searching for dictionary file in these locations: #{inspect(potential_paths)}")
 
-        {:ok, words, MapSet.size(words)}
+    path = Enum.find(potential_paths, fn p ->
+      exists = File.exists?(p)
+      Logger.debug("Checking path #{p}: #{exists}")
+      exists
+    end)
 
-      {:error, reason} ->
-        {:error, reason}
+    case path do
+      nil ->
+        {:error, :enoent}
+      found_path ->
+        Logger.info("Found dictionary at path: #{found_path}")
+        case File.read(found_path) do
+          {:ok, content} ->
+            words = content
+                    |> String.split("\n")
+                    |> Enum.map(&String.downcase/1)
+                    |> Enum.filter(&(String.trim(&1) != ""))
+                    |> MapSet.new()
+
+            {:ok, words, MapSet.size(words)}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 
   defp do_load_variations(filename) do
-    path = Application.app_dir(:game_bot, "priv/dictionaries/#{filename}")
+    # Try multiple approaches to find the file:
+    # 1. Try direct path (for tests or custom locations)
+    # 2. Try relative to current directory
+    # 3. Try application directory
+    potential_paths = [
+      filename,                                        # Direct path as provided
+      Path.join(File.cwd!(), filename),                # Relative to current directory
+      Application.app_dir(:game_bot, "priv/dictionaries/#{filename}") # App directory
+    ]
 
-    case File.read(path) do
-      {:ok, content} ->
-        try do
-          variations = Jason.decode!(content)
-          {:ok, variations}
-        rescue
-          e ->
-            Logger.error("Failed to parse variations JSON: #{inspect(e)}")
-            {:error, :invalid_json}
+    Logger.debug("Searching for variations file in these locations: #{inspect(potential_paths)}")
+
+    path = Enum.find(potential_paths, fn p ->
+      exists = File.exists?(p)
+      Logger.debug("Checking path #{p}: #{exists}")
+      exists
+    end)
+
+    case path do
+      nil ->
+        {:error, :enoent}
+      found_path ->
+        Logger.info("Found variations at path: #{found_path}")
+        case File.read(found_path) do
+          {:ok, content} ->
+            try do
+              variations = Jason.decode!(content)
+              {:ok, variations}
+            rescue
+              e ->
+                Logger.error("Failed to parse variations JSON: #{inspect(e)}")
+                {:error, :invalid_json}
+            end
+
+          {:error, reason} ->
+            {:error, reason}
         end
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 

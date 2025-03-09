@@ -1,157 +1,139 @@
 defmodule GameBot.Replay.Utils.NameGenerator do
   @moduledoc """
-  Generates memorable, unique names for game replays.
+  Generates unique memorable names for replays.
 
-  Each replay name consists of a randomly selected word from the dictionary
-  and a random 3-digit number, formatted as `{word}-{number}`.
-
-  For example: "banana-742", "elephant-159", "guitar-305"
-
-  The module ensures uniqueness by checking existing names in the database
-  and retrying with a different combination if a collision is detected.
+  This module implements the {word}-{3-digit-number} naming pattern,
+  creating display names that are:
+  - Easy to remember
+  - URL safe
+  - Collision resistant
+  - User-friendly
   """
 
-  alias GameBot.Repo
-  import Ecto.Query
+  require Logger
 
   @dictionary_path "priv/dictionary.txt"
-  # Minimum and maximum word length to consider from dictionary
-  @min_word_length 4
-  @max_word_length 10
+  @max_retries 10
 
   @doc """
-  Generates a unique, memorable name for a replay.
-
-  ## Examples
-      iex> NameGenerator.generate()
-      {:ok, "banana-742"}
-
-      iex> NameGenerator.generate()
-      {:ok, "elephant-159"}
-  """
-  @spec generate() :: {:ok, String.t()} | {:error, term()}
-  def generate do
-    with {:ok, words} <- load_dictionary(),
-         word <- select_random_word(words),
-         number <- generate_random_number(),
-         name <- format_name(word, number),
-         {:ok, name} <- ensure_unique(name, words) do
-      {:ok, name}
-    else
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Loads the dictionary file and filters words by desired length.
-
-  ## Returns
-  - `{:ok, [String.t()]}` - List of valid words
-  - `{:error, reason}` - If dictionary can't be loaded
-  """
-  @spec load_dictionary() :: {:ok, [String.t()]} | {:error, term()}
-  def load_dictionary do
-    path = Application.app_dir(:game_bot, @dictionary_path)
-
-    case File.read(path) do
-      {:ok, content} ->
-        words = content
-        |> String.split("\n", trim: true)
-        |> Enum.filter(&valid_word?/1)
-
-        {:ok, words}
-
-      {:error, reason} ->
-        {:error, {:dictionary_error, reason}}
-    end
-  end
-
-  @doc """
-  Selects a random word from the filtered dictionary.
-  """
-  @spec select_random_word([String.t()]) :: String.t()
-  def select_random_word(words) do
-    Enum.random(words)
-    |> String.downcase()
-  end
-
-  @doc """
-  Generates a random 3-digit number between 100 and 999.
-  """
-  @spec generate_random_number() :: integer()
-  def generate_random_number do
-    Enum.random(100..999)
-  end
-
-  @doc """
-  Formats a word and number into a replay name.
-  """
-  @spec format_name(String.t(), integer()) :: String.t()
-  def format_name(word, number) do
-    "#{word}-#{number}"
-  end
-
-  @doc """
-  Ensures the generated name is unique by checking against existing replays.
-  If a collision is detected, tries a new name.
+  Generates a unique replay name.
 
   ## Parameters
-  - `name` - The generated name to check
-  - `words` - List of dictionary words (to avoid reloading)
+    - existing_names: Optional list of names to avoid
+    - opts: Additional options
+      - :prefix - Custom prefix to use (default: none)
+      - :max_retries - Maximum number of attempts (default: 10)
 
   ## Returns
-  - `{:ok, name}` - If name is unique
-  - `{:error, reason}` - If unable to generate a unique name after max attempts
+    - {:ok, name} - Successfully generated name
+    - {:error, reason} - Failed to generate name
   """
-  @spec ensure_unique(String.t(), [String.t()], integer()) :: {:ok, String.t()} | {:error, term()}
-  def ensure_unique(name, words, attempts \\ 1) do
-    max_attempts = 10
+  @spec generate_name(list(String.t()) | nil, keyword()) :: {:ok, String.t()} | {:error, term()}
+  def generate_name(existing_names \\ nil, opts \\ []) do
+    # Load the dictionary
+    with {:ok, words} <- load_dictionary() do
+      max_retries = Keyword.get(opts, :max_retries, @max_retries)
+      prefix = Keyword.get(opts, :prefix, nil)
 
-    # Query to check if name exists
-    name_exists? = Repo.exists?(
-      from r in "game_replays",
-      where: r.display_name == ^name,
-      select: 1
-    )
-
-    cond do
-      # Name is unique, return it
-      not name_exists? ->
-        {:ok, name}
-
-      # Max attempts reached, give up
-      attempts >= max_attempts ->
-        {:error, :max_attempts_reached}
-
-      # Try again with new name
-      true ->
-        new_word = select_random_word(words)
-        new_number = generate_random_number()
-        new_name = format_name(new_word, new_number)
-        ensure_unique(new_name, words, attempts + 1)
+      # Try to generate a unique name
+      do_generate_name(words, existing_names, prefix, max_retries)
     end
   end
 
   @doc """
-  Checks if a word is valid for use in replay names.
+  Checks if a name follows the expected format.
 
-  Word requirements:
-  - Length between @min_word_length and @max_word_length
-  - Contains only lowercase letters
-  - No offensive words (could add filter list)
+  ## Parameters
+    - name: The name to validate
+
+  ## Returns
+    - true - Valid name format
+    - false - Invalid name format
   """
-  @spec valid_word?(String.t()) :: boolean()
-  def valid_word?(word) do
-    word_length = String.length(word)
-    word_lowercase = String.downcase(word)
+  @spec valid_name_format?(String.t()) :: boolean()
+  def valid_name_format?(name) do
+    # Validates names in format "word-123"
+    Regex.match?(~r/^[a-z]+-\d{3}$/, name)
+  end
 
-    # Basic validation
-    word_length >= @min_word_length and
-    word_length <= @max_word_length and
-    # Only contains lowercase letters
-    word_lowercase == word and
-    # Regex to ensure only a-z characters
-    Regex.match?(~r/^[a-z]+$/, word)
-    # Add offensive word filter here if needed
+  @doc """
+  Validates a name against a list of existing names (case insensitive).
+
+  ## Parameters
+    - name: The name to check
+    - existing_names: List of names to check against
+
+  ## Returns
+    - :ok - Name is unique
+    - {:error, :name_collision} - Name already exists
+  """
+  @spec validate_unique(String.t(), list(String.t())) :: :ok | {:error, :name_collision}
+  def validate_unique(name, existing_names) do
+    lowercase_name = String.downcase(name)
+
+    if existing_names && Enum.any?(existing_names, fn existing ->
+      String.downcase(existing) == lowercase_name
+    end) do
+      {:error, :name_collision}
+    else
+      :ok
+    end
+  end
+
+  # Private Functions
+
+  # Attempt to generate a unique name, retrying if needed
+  defp do_generate_name(_words, _existing_names, _prefix, 0) do
+    {:error, :max_retries_exceeded}
+  end
+
+  defp do_generate_name(words, existing_names, prefix, retries) do
+    name = create_name(words, prefix)
+
+    if existing_names do
+      case validate_unique(name, existing_names) do
+        :ok -> {:ok, name}
+        {:error, _} -> do_generate_name(words, existing_names, prefix, retries - 1)
+      end
+    else
+      {:ok, name}
+    end
+  end
+
+  # Generate a single name
+  defp create_name(words, prefix) do
+    word = Enum.random(words)
+    number = :rand.uniform(900) + 99  # 100-999
+
+    if prefix do
+      "#{prefix}-#{word}-#{number}"
+    else
+      "#{word}-#{number}"
+    end
+  end
+
+  # Load dictionary file
+  defp load_dictionary do
+    app_dir = Application.app_dir(:game_bot)
+    dictionary_path = Path.join(app_dir, @dictionary_path)
+
+    case File.read(dictionary_path) do
+      {:ok, content} ->
+        words = content
+          |> String.split("\n", trim: true)
+          |> Enum.map(&String.trim/1)
+          |> Enum.filter(&(String.length(&1) > 0))
+
+        if Enum.empty?(words) do
+          Logger.error("Dictionary file is empty: #{dictionary_path}")
+          {:error, :empty_dictionary}
+        else
+          {:ok, words}
+        end
+
+      {:error, reason} ->
+        Logger.error("Failed to read dictionary file: #{inspect(reason)}")
+        {:error, :dictionary_not_found}
+    end
   end
 end

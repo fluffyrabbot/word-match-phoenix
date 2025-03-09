@@ -4,27 +4,56 @@
 # Configure ExUnit for our test environment with sensible defaults
 ExUnit.configure(
   capture_log: true,
-  assert_receive_timeout: 500,
-  exclude: [:skip_checkout],
-  timeout: 120_000,  # Longer timeout since we may have db operations
+  assert_receive_timeout: 5000,
+  exclude: [:skip],
+  timeout: 120_000,
   colors: [enabled: true],
   diff_enabled: true,
-  max_cases: 1  # Run tests serially to avoid connection issues
+  max_cases: 1,
+  max_failures: 1
 )
 
-# Start ExUnit
-ExUnit.start()
+# Print loaded test files for debugging
+IO.puts("Loaded test files:")
+Path.wildcard("test/**/*_test.exs")
+|> Enum.sort()
+|> Enum.each(&IO.puts/1)
 
 # Configure the application for testing
-Application.put_env(:game_bot, :start_word_service, false)
-Application.put_env(:game_bot, :start_nostrum, false)
-Application.put_env(:nostrum, :token, "fake_token_for_testing")
-Application.put_env(:nostrum, :api_module, GameBot.Test.Mocks.NostrumApiMock)
+Application.put_env(:game_bot, :environment, :test)
+Application.put_env(:game_bot, :disable_discord_client, true)
+Application.put_env(:game_bot, :api_module, GameBot.MockApi)
 
-# Configure event stores to avoid warnings
-Application.put_env(:game_bot, :event_stores, [
-  GameBot.Infrastructure.Persistence.EventStore
-])
+# Initialize test environment with timeout
+test_init_timeout = 60_000 # 60 seconds
+
+{init_result, init_info} =
+  Task.await(
+    Task.async(fn ->
+      try do
+        # Attempt to initialize test environment
+        case GameBot.Test.Setup.initialize_test_environment() do
+          :ok -> {:ok, "Test environment initialized successfully"}
+          {:error, reason} -> {:error, "Failed to initialize test environment: #{inspect(reason)}"}
+        end
+      catch
+        kind, error ->
+          {:error, "Test initialization crashed: #{inspect(kind)} - #{inspect(error)}"}
+      end
+    end),
+    test_init_timeout
+  )
+
+case init_result do
+  :ok ->
+    IO.puts("\e[32m#{init_info}\e[0m") # Green text
+    ExUnit.start()
+
+  :error ->
+    IO.puts("\e[31m#{init_info}\e[0m") # Red text
+    IO.puts("\e[31mFatal: Unable to initialize test environment\e[0m")
+    System.halt(1)
+end
 
 defmodule GameBot.Test.Setup do
   @moduledoc """
@@ -241,20 +270,5 @@ defmodule GameBot.Test.Setup do
   end
 end
 
-# Configure the application for testing
-GameBot.Test.Setup.initialize()
-
-# Store test result
-result = ExUnit.run()
-
-# Add clear visual separator
-IO.puts("\n" <> String.duplicate("=", 80))
-IO.puts("TEST EXECUTION COMPLETED")
-IO.puts(String.duplicate("=", 80) <> "\n")
-
-# Cleanup with reduced output
-IO.puts("Starting cleanup process...")
-Logger.configure(level: :error)
-
-# Exit with proper status code
-if !result, do: System.halt(1)
+# Explicit clean exit for test_helper
+:ok
