@@ -26,11 +26,11 @@ end
 ```elixir
 defmodule GameBot.Replay.Types do
   @type base_replay :: %{
-    game_id: String.t(),
+    replay_id: String.t(),      # Unique identifier for the replay
+    game_id: String.t(),        # Reference to the original event stream
     mode: module(),
     start_time: DateTime.t(),
     end_time: DateTime.t(),
-    events: [Event.t()],
     base_stats: base_stats()
   }
   
@@ -47,39 +47,43 @@ end
 
 ### Database Schema
 ```sql
--- Completed game replays
+-- Completed game replays (lightweight references)
 CREATE TABLE game_replays (
   id SERIAL PRIMARY KEY,
-  game_id TEXT NOT NULL UNIQUE,
+  replay_id TEXT NOT NULL UNIQUE,  -- Unique, memorable identifier for the replay
+  game_id TEXT NOT NULL UNIQUE,    -- Reference to event stream in EventStore
   mode TEXT NOT NULL,
   start_time TIMESTAMP NOT NULL,
   end_time TIMESTAMP NOT NULL,
-  event_stream JSONB NOT NULL,
-  base_stats JSONB NOT NULL,
-  mode_stats JSONB,
+  base_stats JSONB NOT NULL,       -- Pre-computed common statistics
+  mode_stats JSONB,                -- Mode-specific statistics
+  display_name TEXT NOT NULL,      -- Human-readable name (word + number)
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- Replay access tracking
 CREATE TABLE replay_access_logs (
   id SERIAL PRIMARY KEY,
-  game_id TEXT NOT NULL,
+  replay_id TEXT NOT NULL,
   accessed_at TIMESTAMP NOT NULL,
   accessed_by TEXT NOT NULL,
-  FOREIGN KEY (game_id) REFERENCES game_replays(game_id)
+  FOREIGN KEY (replay_id) REFERENCES game_replays(replay_id)
 );
 
 -- Indexes
 CREATE INDEX idx_game_replays_mode ON game_replays(mode);
 CREATE INDEX idx_game_replays_start_time ON game_replays(start_time);
-CREATE INDEX idx_replay_access_logs_game_id ON replay_access_logs(game_id);
+CREATE INDEX idx_replay_access_logs_replay_id ON replay_access_logs(replay_id);
+CREATE INDEX idx_game_replays_display_name ON game_replays(display_name);
 ```
 
 ### Persistence Flow
 1. **Game Completion**
    - Game completion event triggers replay persistence
-   - Event stream and stats are processed and stored
-   - Existing replay data is never modified (immutable)
+   - Event stream is analyzed to calculate statistics
+   - Lightweight replay reference is stored with pre-computed stats
+   - Generated memorable display name (word + 3-digit number)
+   - Original events remain only in EventStore (no duplication)
 
 2. **Data Management**
    - Access tracking for analytics
@@ -89,24 +93,35 @@ CREATE INDEX idx_replay_access_logs_game_id ON replay_access_logs(game_id);
    ```elixir
    defmodule GameBot.Replay.Storage do
      @doc """
-     Stores a completed game replay
+     Stores a completed game replay reference
      """
-     @spec store_replay(Replay.t()) :: {:ok, String.t()} | {:error, term()}
+     @spec store_replay(String.t(), atom(), DateTime.t(), DateTime.t(), map(), map()) :: 
+       {:ok, String.t()} | {:error, term()}
      
      @doc """
-     Retrieves a replay by game_id
+     Retrieves a replay by replay_id, fetching events from EventStore when needed
      """
      @spec get_replay(String.t()) :: {:ok, Replay.t()} | {:error, term()}
      
      @doc """
+     Retrieves just the replay metadata and stats (without loading events)
+     """
+     @spec get_replay_metadata(String.t()) :: {:ok, map()} | {:error, term()}
+     
+     @doc """
      Lists recent replays with optional filtering
      """
-     @spec list_replays(opts :: keyword()) :: {:ok, [Replay.t()]} | {:error, term()}
+     @spec list_replays(opts :: keyword()) :: {:ok, [map()]} | {:error, term()}
      
      @doc """
      Manages replay retention and cleanup
      """
      @spec cleanup_old_replays() :: {:ok, integer()} | {:error, term()}
+     
+     @doc """
+     Generates a unique memorable display name for a replay
+     """
+     @spec generate_replay_name() :: String.t()
    end
    ```
 
@@ -114,7 +129,7 @@ CREATE INDEX idx_replay_access_logs_game_id ON replay_access_logs(game_id);
    - Caching layer for frequently accessed replays
    - Batch processing for cleanup operations
    - Streaming for large event sets
-   - Compression for long-term storage
+   - Lazy loading of events (only when full replay needed)
 
 ## Mode-Specific Implementations
 
@@ -152,6 +167,7 @@ CREATE INDEX idx_replay_access_logs_game_id ON replay_access_logs(game_id);
   - [ ] Basic statistics calculation
   - [ ] Event stream validation
   - [ ] Error handling
+- [ ] Implement memorable name generation (word + 3-digit number)
 
 ### Persistence Layer
 - [ ] Database setup
@@ -165,10 +181,10 @@ CREATE INDEX idx_replay_access_logs_game_id ON replay_access_logs(game_id);
   - [ ] Set up cleanup job
 - [ ] Event processing
   - [ ] Game completion handlers
-  - [ ] Event stream serialization
-  - [ ] Stats calculation and storage
+  - [ ] Event stream stats calculation
+  - [ ] Lightweight reference storage
 - [ ] Performance optimization
-  - [ ] Implement compression
+  - [ ] Implement replay name generator
   - [ ] Add batch processing
   - [ ] Configure caching
   - [ ] Set up monitoring
@@ -257,6 +273,7 @@ lib/game_bot/replay/
 ├── utils/
 │   ├── time_formatter.ex   # Time formatting utilities
 │   ├── stats_calculator.ex # Common statistics functions
+│   ├── name_generator.ex   # Memorable replay name generator
 │   └── embed_formatter.ex  # Shared embed formatting
 ├── modes/
 │   ├── two_player.ex      # Two player mode replay
@@ -269,9 +286,11 @@ lib/game_bot/replay/
 ## Usage Example
 ```elixir
 # Fetching and displaying a replay
-def handle_replay_command(game_id) do
-  with {:ok, events} <- EventStore.read_stream_forward(game_id),
-       mode = determine_game_mode(events),
+def handle_replay_command(replay_id) do
+  with {:ok, replay_meta} <- ReplayStorage.get_replay_metadata(replay_id),
+       # Only fetch full events when needed for detailed view
+       {:ok, events} <- EventStore.read_stream_forward(replay_meta.game_id),
+       mode = replay_meta.mode,
        replay_module = get_replay_module(mode),
        {:ok, replay} <- replay_module.build_replay(events),
        embed = replay_module.format_embed(replay) do

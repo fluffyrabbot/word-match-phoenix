@@ -13,6 +13,9 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
       field(:data, :map)
     ]
 
+  # Declare that this module implements the GameEvents behaviour
+  @behaviour GameBot.Domain.Events.GameEvents
+
   alias GameBot.Domain.Events.{Metadata, EventStructure, GameEvents}
 
   @type t :: %__MODULE__{
@@ -67,7 +70,8 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   Creates a new ExampleEvent from a parent event.
   """
   def from_parent(parent_event, player_id, action, data) do
-    case Metadata.from_parent_event(parent_event.metadata, %{actor_id: player_id}) do
+    # Convert map to keyword list for from_parent_event
+    case Metadata.from_parent_event(parent_event.metadata, [actor_id: player_id]) do
       {:ok, metadata} ->
         attrs = %{
           game_id: parent_event.game_id,
@@ -89,7 +93,6 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   @doc """
   Returns the list of required fields for this event.
   """
-  @impl true
   def required_fields do
     super() ++ [:player_id, :action, :data]
   end
@@ -97,7 +100,6 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   @doc """
   Validates custom fields specific to this event.
   """
-  @impl true
   def validate_custom_fields(changeset) do
     changeset
     |> validate_inclusion(:action, @valid_actions, message: "must be one of: #{Enum.join(@valid_actions, ", ")}")

@@ -8,7 +8,10 @@ defmodule GameBot.Domain.Events.Pipeline do
   5. Broadcasting
   """
 
-  alias GameBot.Domain.Events.{Cache, Registry, Telemetry}
+ alias GameBot.Domain.Events.{Cache, Telemetry}
+
+   @doc """
+   Processes an event through the pipeline.
 
   @doc """
   Processes an event through the pipeline.

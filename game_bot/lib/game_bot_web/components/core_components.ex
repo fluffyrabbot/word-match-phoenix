@@ -109,7 +109,7 @@ defmodule GameBotWeb.CoreComponents do
 
     ~H"""
     <div
-      :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
+      :if={_msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
@@ -125,7 +125,7 @@ defmodule GameBotWeb.CoreComponents do
         <.icon :if={@kind == :error} name="hero-exclamation-circle-mini" class="h-4 w-4" />
         {@title}
       </p>
-      <p class="mt-2 text-sm leading-5">{msg}</p>
+      <p class="mt-2 text-sm leading-5">{_msg}</p>
       <button type="button" class="group absolute top-1 right-1 p-2" aria-label="close">
         <.icon name="hero-x-mark-solid" class="h-5 w-5 opacity-40 group-hover:opacity-70" />
       </button>
@@ -200,11 +200,11 @@ defmodule GameBotWeb.CoreComponents do
 
   def simple_form(assigns) do
     ~H"""
-    <.form :let={f} for={@for} as={@as} {@rest}>
+    <.form :let={_f} for={@for} as={@as} {@rest}>
       <div class="mt-10 space-y-8 bg-white">
-        {render_slot(@inner_block, f)}
-        <div :for={action <- @actions} class="mt-2 flex items-center justify-between gap-6">
-          {render_slot(action, f)}
+        {render_slot(@inner_block, _f)}
+        <div :for={_action <- @actions} class="mt-2 flex items-center justify-between gap-6">
+          {render_slot(_action, _f)}
         </div>
       </div>
     </.form>
@@ -322,7 +322,7 @@ defmodule GameBotWeb.CoreComponents do
         />
         {@label}
       </label>
-      <.error :for={msg <- @errors}>{msg}</.error>
+      <.error :for={_msg <- @errors}>{_msg}</.error>
     </div>
     """
   end
@@ -341,7 +341,7 @@ defmodule GameBotWeb.CoreComponents do
         <option :if={@prompt} value="">{@prompt}</option>
         {Phoenix.HTML.Form.options_for_select(@options, @value)}
       </select>
-      <.error :for={msg <- @errors}>{msg}</.error>
+      <.error :for={_msg <- @errors}>{_msg}</.error>
     </div>
     """
   end
@@ -360,7 +360,7 @@ defmodule GameBotWeb.CoreComponents do
         ]}
         {@rest}
       >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
-      <.error :for={msg <- @errors}>{msg}</.error>
+      <.error :for={_msg <- @errors}>{_msg}</.error>
     </div>
     """
   end
@@ -382,7 +382,7 @@ defmodule GameBotWeb.CoreComponents do
         ]}
         {@rest}
       />
-      <.error :for={msg <- @errors}>{msg}</.error>
+      <.error :for={_msg <- @errors}>{_msg}</.error>
     </div>
     """
   end
@@ -476,7 +476,7 @@ defmodule GameBotWeb.CoreComponents do
       <table class="w-[40rem] mt-11 sm:w-full">
         <thead class="text-sm text-left leading-6 text-zinc-500">
           <tr>
-            <th :for={col <- @col} class="p-0 pb-4 pr-6 font-normal">{col[:label]}</th>
+            <th :for={_col <- @col} class="p-0 pb-4 pr-6 font-normal">{_col[:label]}</th>
             <th :if={@action != []} class="relative p-0 pb-4">
               <span class="sr-only">Actions</span>
             </th>
@@ -489,14 +489,14 @@ defmodule GameBotWeb.CoreComponents do
         >
           <tr :for={row <- @rows} id={@row_id && @row_id.(row)} class="group hover:bg-zinc-50">
             <td
-              :for={{col, i} <- Enum.with_index(@col)}
+              :for={{_col, i} <- Enum.with_index(@col)}
               phx-click={@row_click && @row_click.(row)}
               class={["relative p-0", @row_click && "hover:cursor-pointer"]}
             >
               <div class="block py-4 pr-6">
                 <span class="absolute -inset-y-px right-0 -left-4 group-hover:bg-zinc-50 sm:rounded-l-xl" />
                 <span class={["relative", i == 0 && "font-semibold text-zinc-900"]}>
-                  {render_slot(col, @row_item.(row))}
+                  {render_slot(_col, @row_item.(row))}
                 </span>
               </div>
             </td>
@@ -504,10 +504,10 @@ defmodule GameBotWeb.CoreComponents do
               <div class="relative whitespace-nowrap py-4 text-right text-sm font-medium">
                 <span class="absolute -inset-y-px -right-4 left-0 group-hover:bg-zinc-50 sm:rounded-r-xl" />
                 <span
-                  :for={action <- @action}
+                  :for={_action <- @action}
                   class="relative ml-4 font-semibold leading-6 text-zinc-900 hover:text-zinc-700"
                 >
-                  {render_slot(action, @row_item.(row))}
+                  {render_slot(_action, @row_item.(row))}
                 </span>
               </div>
             </td>
@@ -536,9 +536,9 @@ defmodule GameBotWeb.CoreComponents do
     ~H"""
     <div class="mt-14">
       <dl class="-my-4 divide-y divide-zinc-100">
-        <div :for={item <- @item} class="flex gap-4 py-4 text-sm leading-6 sm:gap-8">
-          <dt class="w-1/4 flex-none text-zinc-500">{item.title}</dt>
-          <dd class="text-zinc-700">{render_slot(item)}</dd>
+        <div :for={_item <- @item} class="flex gap-4 py-4 text-sm leading-6 sm:gap-8">
+          <dt class="w-1/4 flex-none text-zinc-500">{_item.title}</dt>
+          <dd class="text-zinc-700">{render_slot(_item)}</dd>
         </div>
       </dl>
     </div>

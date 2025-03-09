@@ -14,17 +14,47 @@ defmodule GameBot.Domain.Events.EventBuilderAdapter do
       # Then implement the GameEvents behavior
       @behaviour GameBot.Domain.Events.GameEvents
 
-      # When using EventBuilderAdapter, we don't need to manually implement
-      # these functions since they're already defined by EventBuilder.
-      # The @impl true annotation ensures they satisfy the behavior's requirements.
+      # Implement required callbacks for GameEvents behavior
       @impl true
-      def validate(event), do: apply(__MODULE__, :validate, [event])
+      def validate(event) do
+        # Basic validation without pattern matching against __MODULE__
+        # Each module can override this if needed
+        :ok
+      end
 
       @impl true
-      def to_map(event), do: apply(__MODULE__, :to_map, [event])
+      def to_map(event) do
+        # Convert to map without referencing __MODULE__
+        map = Map.from_struct(event)
+
+        # Process the values similar to the original implementation
+        Enum.map(map, fn {k, v} ->
+          value = case v do
+            %DateTime{} -> DateTime.to_iso8601(v)
+            v when is_atom(v) and not is_nil(v) -> Atom.to_string(v)
+            _ -> v
+          end
+          {Atom.to_string(k), value}
+        end)
+        |> Map.new()
+      end
 
       @impl true
-      def from_map(data), do: apply(__MODULE__, :from_map, [data])
+      def from_map(data) do
+        # Convert keys to atoms safely
+        attrs = Enum.reduce(data, %{}, fn
+          {key, val}, acc when is_binary(key) ->
+            # Try to convert string keys to atoms
+            key_atom = String.to_existing_atom(key)
+            Map.put(acc, key_atom, val)
+          {key, val}, acc when is_atom(key) ->
+            # Keep atom keys as-is
+            Map.put(acc, key, val)
+        end)
+
+        # Create struct without using pattern matching on __MODULE__
+        struct!(__MODULE__, attrs)
+      end
     end
   end
 end

@@ -44,12 +44,10 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
       if Map.has_key?(data, "mode") do
         case data["mode"] do
           mode when is_binary(mode) ->
-            try do
-              String.to_existing_atom(mode)
-            rescue
-              ArgumentError -> raise ArgumentError, "Invalid mode: #{mode}"
-            end
-          _ -> :ok
+            # Try to convert to atom, this will raise an ArgumentError if the atom doesn't exist
+            # This validation must happen before we construct the struct
+            String.to_existing_atom(mode)
+          _ -> :ok  # Non-string modes don't need validation here
         end
       end
 
@@ -61,7 +59,9 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
             game_id: data["game_id"],
             guild_id: data["guild_id"],
             mode: case data["mode"] do
-              mode when is_binary(mode) -> String.to_existing_atom(mode)
+              mode when is_binary(mode) ->
+                # If we get here, the validation above has already succeeded
+                String.to_existing_atom(mode)
               mode when is_atom(mode) -> mode
               _ -> nil
             end,

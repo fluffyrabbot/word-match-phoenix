@@ -81,6 +81,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
     def event_type(), do: "guess_processed"
 
     @impl true
+    def event_version(), do: 1
+
     def validate_attrs(attrs) do
       with {:ok, base_attrs} <- super(attrs),
            :ok <- validate_required_field(attrs, :team_id),
@@ -181,6 +183,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
     def event_type(), do: "guess_started"
 
     @impl true
+    def event_version(), do: 1
+
     def validate_attrs(attrs) do
       with {:ok, base_attrs} <- super(attrs),
            :ok <- validate_required_field(attrs, :team_id),
@@ -270,6 +274,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
     def event_type(), do: "guess_abandoned"
 
     @impl true
+    def event_version(), do: 1
+
     def validate_attrs(attrs) do
       with {:ok, base_attrs} <- super(attrs),
            :ok <- validate_required_field(attrs, :team_id),
