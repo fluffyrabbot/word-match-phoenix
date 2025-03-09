@@ -48,16 +48,6 @@
   - Added proper verification of table existence before operations
 - ✅ Fixed serialization and deserialization issues in the event registry
 
-## Completed Steps
-
-1. ✅ Implement the missing factory functions for event creation:
-   - ✅ `GameBot.Domain.Events.GameEvents.GameStarted.new/6`
-   - ✅ `GameBot.Domain.Events.TeamEvents.TeamCreated.new/5`
-   - ✅ `GameBot.Domain.Events.GameEvents.GuessProcessed.new/4`
-2. ✅ Created `GameCompletedValidator` module with missing validation functions
-3. ✅ Fixed correlation ID handling in command handlers
-4. ✅ Run full verification on the test suite - All tests passing!
-
 ## Remaining Code Quality Issues
 
 ### Compiler Warnings

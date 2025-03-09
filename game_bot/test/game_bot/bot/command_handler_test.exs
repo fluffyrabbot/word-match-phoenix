@@ -22,6 +22,20 @@ defmodule GameBot.Bot.CommandHandlerTest do
     }
   end
 
+  # Create test metadata that matches what the CommandHandler creates
+  defp create_test_metadata(opts \\ []) do
+    %{
+      timestamp: DateTime.utc_now(),
+      source: Keyword.get(opts, :source, :interaction),
+      user_id: Keyword.get(opts, :user_id, "user_1"),
+      guild_id: Keyword.get(opts, :guild_id, "123456789"),
+      correlation_id: Keyword.get(opts, :correlation_id, UUID.uuid4()),
+      source_id: Keyword.get(opts, :source_id, "user_1"),
+      interaction_id: Keyword.get(opts, :interaction_id),
+      causation_id: Keyword.get(opts, :causation_id)
+    }
+  end
+
   describe "handle_start_game/3" do
     test "creates game started event with proper metadata" do
       interaction = mock_interaction()
@@ -70,10 +84,10 @@ defmodule GameBot.Bot.CommandHandlerTest do
       interaction = mock_interaction()
       game_id = "game_123"
       word = "test"
-      parent_metadata = %{
+      parent_metadata = create_test_metadata(
         guild_id: "123456789",
         correlation_id: "parent_correlation_id"
-      }
+      )
 
       {:ok, event} = CommandHandler.handle_guess(interaction, game_id, word, parent_metadata)
 
@@ -100,7 +114,14 @@ defmodule GameBot.Bot.CommandHandlerTest do
 
       # The first event gets a new correlation_id but no causation_id
       assert is_binary(game_event.metadata.correlation_id)
-      assert is_nil(game_event.metadata.causation_id)
+      # Check if causation_id exists before asserting its value
+      assert Map.has_key?(game_event.metadata, :causation_id) || Map.has_key?(game_event.metadata, "causation_id")
+      # It should be nil for the first event
+      if Map.has_key?(game_event.metadata, :causation_id) do
+        assert is_nil(game_event.metadata.causation_id)
+      else
+        assert is_nil(game_event.metadata["causation_id"])
+      end
 
       # Submit a guess - child event in chain
       {:ok, guess_event} = CommandHandler.handle_guess(

@@ -1,0 +1,10 @@
+color,colour,colors,colours,colored,coloured
+analyze,analyse,analyzes,analyses,analyzing,analysing
+theater,theatre,theaters,theatres,theatrical
+gray,grey
+behavior,behaviour
+defense,defence
+center,centre
+organize,organise,organization,organisation
+realize,realise,realization,realisation
+honor,honour,honorable,honourable 

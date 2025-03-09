@@ -18,6 +18,11 @@ defmodule GameBot.Domain.WordService do
   @base_form_cache :base_form_cache        # For lemmatization results
   @cache_ttl :timer.hours(24)              # Cache entries expire after 24 hours
 
+  # Default paths
+  @default_dictionary_path "priv/dictionaries/dictionary.txt"
+  @default_variations_path "priv/dictionaries/word_variations.txt"
+  @test_variations_path "test/support/word_variations.txt"
+
   # Irregular verb forms
   @irregular_verbs %{
     "be" => ["am", "is", "are", "was", "were", "been", "being"],
@@ -44,7 +49,7 @@ defmodule GameBot.Domain.WordService do
   @doc """
   Loads a dictionary from a specified file.
   """
-  def load_dictionary(filename \\ "dictionary.txt") do
+  def load_dictionary(filename \\ @default_dictionary_path) do
     GenServer.call(__MODULE__, {:load_dictionary, filename})
   end
 
@@ -95,8 +100,8 @@ defmodule GameBot.Domain.WordService do
 
   @impl true
   def init(opts) do
-    dictionary_file = Keyword.get(opts, :dictionary_file, "dictionary.txt")
-    variations_file = Keyword.get(opts, :variations_file, "word_variations.json")
+    dictionary_file = Keyword.get(opts, :dictionary_file, @default_dictionary_path)
+    variations_file = Keyword.get(opts, :variations_file, @default_variations_path)
 
     Logger.info("WordService initializing with dictionary file: #{dictionary_file}")
     Logger.info("WordService initializing with variations file: #{variations_file}")
@@ -117,7 +122,7 @@ defmodule GameBot.Domain.WordService do
     Logger.info("Dictionary load result: #{inspect(dictionary_result)}")
 
     # Load word variations
-    variations_result = do_load_variations(variations_file)
+    variations_result = load_variations_file()
     Logger.info("Variations load result: #{inspect(variations_result)}")
 
     case {dictionary_result, variations_result} do
@@ -241,7 +246,7 @@ defmodule GameBot.Domain.WordService do
     potential_paths = [
       filename,                                        # Direct path as provided
       Path.join(File.cwd!(), filename),                # Relative to current directory
-      Application.app_dir(:game_bot, "priv/dictionaries/#{filename}") # App directory
+      Application.app_dir(:game_bot, "priv/dictionaries/#{Path.basename(filename)}") # App directory
     ]
 
     Logger.debug("Searching for dictionary file in these locations: #{inspect(potential_paths)}")
@@ -273,44 +278,70 @@ defmodule GameBot.Domain.WordService do
     end
   end
 
-  defp do_load_variations(filename) do
-    # Try multiple approaches to find the file:
-    # 1. Try direct path (for tests or custom locations)
-    # 2. Try relative to current directory
-    # 3. Try application directory
+  # Load variations from either JSON or plain text format
+  defp load_variations_file() do
+    # Try to find the variations file in multiple locations
     potential_paths = [
-      filename,                                        # Direct path as provided
-      Path.join(File.cwd!(), filename),                # Relative to current directory
-      Application.app_dir(:game_bot, "priv/dictionaries/#{filename}") # App directory
+      @default_variations_path,                                          # Default production path
+      @test_variations_path,                                            # Test path
+      Path.join(File.cwd!(), @default_variations_path),                  # Relative to current directory
+      Path.join(File.cwd!(), @test_variations_path),                    # Relative test path
+      Application.app_dir(:game_bot, "priv/dictionaries/word_variations.txt"),  # App directory
+      Application.app_dir(:game_bot, "priv/dictionaries/word_variations.json")  # App directory (JSON)
     ]
 
     Logger.debug("Searching for variations file in these locations: #{inspect(potential_paths)}")
 
-    path = Enum.find(potential_paths, fn p ->
-      exists = File.exists?(p)
-      Logger.debug("Checking path #{p}: #{exists}")
-      exists
-    end)
+    case find_variations_file(potential_paths) do
+      {:ok, path, content} ->
+        Logger.info("Found variations at path: #{path}")
+        parse_variations(path, content)
+      {:error, reason} ->
+        Logger.error("Failed to load word variations: #{reason}")
+        {:error, reason}
+    end
+  end
 
-    case path do
-      nil ->
-        {:error, :enoent}
-      found_path ->
-        Logger.info("Found variations at path: #{found_path}")
-        case File.read(found_path) do
-          {:ok, content} ->
-            try do
-              variations = Jason.decode!(content)
-              {:ok, variations}
-            rescue
-              e ->
-                Logger.error("Failed to parse variations JSON: #{inspect(e)}")
-                {:error, :invalid_json}
-            end
-
-          {:error, reason} ->
-            {:error, reason}
+  defp find_variations_file([]), do: {:error, :enoent}
+  defp find_variations_file([path | rest]) do
+    case File.exists?(path) do
+      true ->
+        case File.read(path) do
+          {:ok, content} -> {:ok, path, content}
+          {:error, reason} -> find_variations_file(rest)
         end
+      false ->
+        find_variations_file(rest)
+    end
+  end
+
+  defp parse_variations(path, content) do
+    cond do
+      # If it's a JSON file, parse it as JSON
+      String.ends_with?(path, ".json") ->
+        try do
+          variations = Jason.decode!(content)
+          {:ok, variations}
+        rescue
+          e ->
+            Logger.error("Failed to parse variations JSON: #{inspect(e)}")
+            {:error, :invalid_json}
+        end
+
+      # Otherwise parse as comma-separated text file
+      true ->
+        variations_map = content
+          |> String.split("\n")
+          |> Enum.filter(&(String.trim(&1) != ""))
+          |> Enum.map(&String.split(&1, ","))
+          |> Enum.filter(&(length(&1) > 1))
+          |> Enum.map(fn [word | variations] ->
+            {String.trim(word), Enum.map(variations, &String.trim/1)}
+          end)
+          |> Enum.into(%{})
+
+        Logger.debug("Parsed variations: #{inspect(variations_map)}")
+        {:ok, variations_map}
     end
   end
 

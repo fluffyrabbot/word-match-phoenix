@@ -13,8 +13,7 @@ defmodule GameBot.RepositoryCase do
       import Ecto
       import Ecto.Query
       import GameBot.RepositoryCase
-      # Import Mox for setting up expectations
-      import Mox
+      # We use :meck for mocking in our tests
     end
   end
 
@@ -56,15 +55,19 @@ defmodule GameBot.RepositoryCase do
       repo_impl = Application.get_env(:game_bot, :repo_implementation)
       IO.puts("Repository implementation set to: #{inspect(repo_impl)}")
 
-      # Only pass the TestServer pid if it exists
-      test_server = Process.whereis(GameBot.TestServer)
-      if test_server do
-        IO.puts("TestServer exists, adding to allowed processes")
-        Mox.allow(GameBot.Infrastructure.Persistence.Repo.MockRepo, self(), test_server)
-      else
-        IO.puts("TestServer does not exist, only allowing test process")
-        Mox.set_mox_global(GameBot.Infrastructure.Persistence.Repo.MockRepo)
-        Mox.verify_on_exit!()
+      # Set up :meck for mocking
+      # Only create if not already created (to handle nested describe blocks)
+      unless :meck.is_mocked(MockRepo) do
+        IO.puts("Setting up :meck for MockRepo")
+        :meck.new(MockRepo, [:passthrough])
+
+        # Ensure :meck is cleaned up after the test
+        on_exit(fn ->
+          if :meck.is_mocked(MockRepo) do
+            IO.puts("Cleaning up :meck for MockRepo")
+            :meck.unload(MockRepo)
+          end
+        end)
       end
     else
       # For regular tests, use the actual Postgres repo

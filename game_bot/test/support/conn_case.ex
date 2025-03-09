@@ -37,8 +37,13 @@ defmodule GameBotWeb.ConnCase do
     # Ensure repositories are started (double check since DataCase will also do this)
     RepositoryManager.ensure_all_started()
 
-    # Use DataCase for sandbox setup
-    GameBot.DataCase.setup_sandbox(tags)
+    # Set up sandbox using DatabaseHelper
+    GameBot.Test.DatabaseHelper.setup_sandbox(tags)
+
+    # Register cleanup callback
+    on_exit(fn ->
+      GameBot.Test.DatabaseHelper.cleanup_connections()
+    end)
 
     # Return connection
     {:ok, conn: Phoenix.ConnTest.build_conn()}

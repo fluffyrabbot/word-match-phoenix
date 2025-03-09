@@ -1,19 +1,38 @@
+# Ensure protocols are not consolidated in a way that prevents test implementations
+Code.put_compiler_option(:ignore_module_conflict, true)
+Code.compiler_options(ignore_module_conflict: true)
+
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Config module.
 
-# Configure ExUnit for our test environment with sensible defaults
+# Configure ExUnit with appropriate settings
 ExUnit.configure(
-  capture_log: true,
-  assert_receive_timeout: 500,
-  exclude: [:skip_checkout],
-  timeout: 120_000,  # Longer timeout since we may have db operations
-  colors: [enabled: true],
-  diff_enabled: true,
-  max_cases: 1  # Run tests serially to avoid connection issues
+  exclude: [:skip_db],
+  timeout: 60_000,
+  trace: false,
+  seed: 0,
+  formatters: [ExUnit.CLIFormatter]
 )
 
 # Start ExUnit
 ExUnit.start()
+
+# Initialize test environment using centralized DatabaseHelper
+case GameBot.Test.DatabaseHelper.initialize_test_environment() do
+  :ok ->
+    IO.puts("\n=== Test Environment Initialized Successfully ===\n")
+  {:error, reason} ->
+    IO.puts("\n=== Failed to Initialize Test Environment ===")
+    IO.puts("Reason: #{inspect(reason)}")
+    System.halt(1)
+end
+
+# Register cleanup for after the test suite
+ExUnit.after_suite(fn _ ->
+  IO.puts("\n=== Cleaning up after test suite ===")
+  GameBot.Test.DatabaseHelper.cleanup_connections()
+  IO.puts("=== Test suite cleanup complete ===\n")
+end)
 
 # Configure the application for testing
 Application.put_env(:game_bot, :start_word_service, false)
@@ -25,6 +44,67 @@ Application.put_env(:nostrum, :api_module, GameBot.Test.Mocks.NostrumApiMock)
 Application.put_env(:game_bot, :event_stores, [
   GameBot.Infrastructure.Persistence.EventStore
 ])
+
+# Define a helper module to ensure protocol implementations are registered properly
+defmodule GameBot.Test.ProtocolHelpers do
+  @moduledoc """
+  Helper functions for dealing with protocol consolidation in tests.
+  """
+
+  @doc """
+  Force protocol implementations to be recompiled if needed.
+  """
+  def ensure_protocol_implementations do
+    # Force relevant modules to be available to protocols
+    modules = [
+      # Module aliases that implement protocols
+      GameBot.Domain.Events.TestEvents.ValidatorTestEvent,
+      GameBot.Domain.Events.TestEvents.ValidatorOptionalFieldsEvent
+    ]
+
+    # Reset any consolidated protocols that might interfere with our test implementations
+    for protocol <- [GameBot.Domain.Events.EventValidator] do
+      # Clean up consolidated protocol
+      consolidated_path = :code.priv_dir(:game_bot)
+                         |> Path.join("/protocol_consolidation/#{Atom.to_string(protocol)}.beam")
+
+      # If the consolidated protocol exists, delete it to force runtime protocol dispatch
+      if File.exists?(consolidated_path) do
+        File.rm(consolidated_path)
+        IO.puts("Removed consolidated protocol: #{consolidated_path}")
+      end
+    end
+
+    # Force recompilation of protocol implementation file
+    test_events_path = Path.join([File.cwd!(), "test", "support", "test_events.ex"])
+    if File.exists?(test_events_path) do
+      # Remove any existing compiled modules
+      for module <- modules do
+        :code.purge(module)
+        :code.delete(module)
+      end
+
+      # Recompile the file
+      Code.compile_file(test_events_path)
+      IO.puts("Recompiled test events file: #{test_events_path}")
+    else
+      IO.puts("Warning: Test events file not found at #{test_events_path}")
+    end
+
+    # Ensure modules are loaded
+    for module <- modules do
+      # Make sure the module is loaded
+      if Code.ensure_loaded?(module) do
+        IO.puts("Protocol implementation module loaded: #{inspect(module)}")
+      else
+        IO.puts("Warning: Failed to load module: #{inspect(module)}")
+      end
+    end
+  end
+end
+
+# Run protocol implementation checks
+GameBot.Test.ProtocolHelpers.ensure_protocol_implementations()
 
 defmodule GameBot.Test.Setup do
   @moduledoc """

@@ -30,87 +30,13 @@ defmodule GameBot.EventStoreCase do
   end
 
   setup tags do
-    # Skip database setup if the test doesn't need it
-    if tags[:skip_db] do
-      :ok
-    else
-      pid = self()
-      # First, make sure we kill any lingering connections
-      # This is necessary to ensure we have a clean state
-      close_db_connections()
+    # Set up sandbox using DatabaseHelper
+    GameBot.Test.DatabaseHelper.setup_sandbox(tags)
 
-      # Clear sandbox to ensure we're starting fresh
-      Enum.each(@repos, fn repo ->
-        try do
-          Ecto.Adapters.SQL.Sandbox.checkin(repo)
-        rescue
-          _ -> :ok
-        catch
-          _, _ -> :ok
-        end
-      end)
-
-      # Ensure PG notifications are turned off
-      try_turn_off_notifications()
-
-      # Wait a bit to allow connections to fully close
-      Process.sleep(100)
-
-      # Explicitly checkout the repositories for the test process
-      # This ensures we have isolated database access for this test
-      Enum.each(@repos, fn repo ->
-        try do
-          case Ecto.Adapters.SQL.Sandbox.checkout(repo, [ownership_timeout: @checkout_timeout]) do
-            :ok ->
-              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(pid)}")
-            {:ok, _} ->
-              IO.puts("Successfully checked out #{inspect(repo)} for test process #{inspect(pid)}")
-            {:error, error} ->
-              raise "Failed to checkout #{inspect(repo)}: #{inspect(error)}"
-          end
-
-          # Allow shared connections if test is not async
-          unless tags[:async] do
-            Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, pid})
-            IO.puts("Enabled shared sandbox mode for #{inspect(repo)}")
-          end
-        rescue
-          e ->
-            IO.puts("Error during checkout for #{inspect(repo)}: #{inspect(e)}")
-            # Don't reraise - try to continue with other repos
-        end
-      end)
-
-      # Clean the database tables to ensure a fresh state for this test
-      clean_database()
-
-      # Make sure connections are explicitly released after test
-      on_exit(fn ->
-        IO.puts("Running on_exit cleanup for test process #{inspect(pid)}")
-
-        # First try to clean the database again
-        try do
-          clean_database()
-        rescue
-          e ->
-            IO.puts("Warning: Failed to clean database: #{inspect(e)}")
-        end
-
-        # Check in repositories
-        Enum.each(@repos, fn repo ->
-          try do
-            Ecto.Adapters.SQL.Sandbox.checkin(repo)
-            IO.puts("Checked in #{inspect(repo)} for test process #{inspect(pid)}")
-          rescue
-            e ->
-              IO.puts("Warning: Failed to checkin connection for #{inspect(repo)}: #{inspect(e)}")
-          end
-        end)
-
-        # Force close any lingering connections
-        close_db_connections()
-      end)
-    end
+    # Register cleanup callback
+    on_exit(fn ->
+      GameBot.Test.DatabaseHelper.cleanup_connections()
+    end)
 
     :ok
   end
@@ -180,29 +106,35 @@ defmodule GameBot.EventStoreCase do
   defp is_database_connection(_), do: false
 
   @doc """
-  Creates a test stream with the given ID and optional events.
+  Creates a test event with the given type and data.
   """
-  def create_test_stream(stream_id, events \\ []) do
-    try do
-      case EventStore.append_to_stream(stream_id, :no_stream, events, [timeout: @db_timeout]) do
-        {:ok, version} -> {:ok, version}
-        error -> error
-      end
-    rescue
-      e -> {:error, e}
-    end
+  def create_test_event(type, data \\ %{}) do
+    %{
+      event_type: type,
+      data: data,
+      metadata: %{
+        correlation_id: UUID.uuid4(),
+        causation_id: UUID.uuid4(),
+        user_id: "test_user"
+      }
+    }
   end
 
   @doc """
-  Creates a test event with given fields.
+  Creates a test stream with the given events.
   """
-  def create_test_event(id, data \\ %{}) do
-    %{
-      stream_id: "test-#{id}",
-      event_type: "test_event",
-      data: data,
-      metadata: %{}
-    }
+  def create_test_stream(events) when is_list(events) do
+    stream_id = UUID.uuid4()
+    {:ok, _} = EventStore.append_to_stream(stream_id, :any_version, events)
+    stream_id
+  end
+
+  @doc """
+  Reads all events from a stream.
+  """
+  def read_stream_events(stream_id) do
+    {:ok, events} = EventStore.read_stream_forward(stream_id)
+    events
   end
 
   @doc """

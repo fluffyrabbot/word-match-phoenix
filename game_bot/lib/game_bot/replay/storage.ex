@@ -11,7 +11,7 @@ defmodule GameBot.Replay.Storage do
   """
 
   alias GameBot.Replay.{GameReplay, ReplayAccessLog, Types, EventStoreAccess}
-  alias GameBot.Infrastructure.Persistence.Repo
+  alias GameBot.Infrastructure.Repository
   alias GameBot.Infrastructure.Persistence.Repo.Transaction
   import Ecto.Query
 
@@ -35,7 +35,7 @@ defmodule GameBot.Replay.Storage do
       replay = GameReplay.from_reference(replay_reference)
 
       # Insert into database
-      case Repo.insert(GameReplay.changeset(replay, Map.from_struct(replay))) do
+      case Repository.insert(GameReplay.changeset(replay, Map.from_struct(replay))) do
         {:ok, stored_replay} ->
           {:ok, GameReplay.to_reference(stored_replay)}
 
@@ -127,7 +127,7 @@ defmodule GameBot.Replay.Storage do
 
     # Execute query with transaction for consistency
     Transaction.execute(fn ->
-      replays = Repo.all(query)
+      replays = Repository.all(query)
 
       {:ok, Enum.map(replays, &GameReplay.to_reference/1)}
     end)
@@ -157,7 +157,7 @@ defmodule GameBot.Replay.Storage do
     )
 
     # Insert log entry
-    case Repo.insert(changeset) do
+    case Repository.insert(changeset) do
       {:ok, _} -> :ok
       {:error, changeset} ->
         Logger.error("Failed to log replay access: #{inspect(changeset.errors)}")
@@ -183,7 +183,7 @@ defmodule GameBot.Replay.Storage do
       query = from r in GameReplay,
         where: r.created_at < ^cutoff_date
 
-      case Repo.delete_all(query) do
+      case Repository.delete_all(query) do
         {count, _} -> {:ok, count}
         error -> {:error, error}
       end
@@ -201,7 +201,7 @@ defmodule GameBot.Replay.Storage do
       from r in GameReplay, where: r.display_name == ^String.downcase(id_or_name)
     end
 
-    case Repo.one(query) do
+    case Repository.one(query) do
       nil ->
         {:error, :replay_not_found}
 

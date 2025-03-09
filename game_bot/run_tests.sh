@@ -22,13 +22,6 @@ export ECTO_OWNERSHIP_TIMEOUT=120000
 export PAGER=cat
 export PGSTYLEPAGER=cat
 
-# Use consistent database names across the script
-TIMESTAMP=$(date +%s)
-export TEST_DB_TIMESTAMP=$TIMESTAMP
-export MAIN_DB="game_bot_test_${TIMESTAMP}"
-export EVENT_DB="game_bot_eventstore_test_${TIMESTAMP}"
-echo -e "${BLUE}Using database names: MAIN_DB=$MAIN_DB, EVENT_DB=$EVENT_DB${NC}"
-
 # Function to handle errors
 handle_error() {
   echo -e "${RED}Error: $1${NC}"
@@ -68,33 +61,9 @@ if ! PGPASSWORD=csstarahid pg_isready -h localhost -U postgres > /dev/null 2>&1;
   handle_error "PostgreSQL is not running. Please start PostgreSQL before running tests."
 fi
 
-# Update the config file with our database names
-echo -e "${BLUE}Updating test config with database names...${NC}"
-cat > config/test.runtime.exs <<EOF
-import Config
-
-# Use predefined database names from environment
-config :game_bot, GameBot.Infrastructure.Persistence.Repo,
-  database: "${MAIN_DB}"
-
-config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
-  database: "${EVENT_DB}"
-
-config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
-  database: "${EVENT_DB}"
-
-config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
-  database: "${MAIN_DB}"
-
-# Store database names in application env for access in scripts
-config :game_bot, :test_databases,
-  main_db: "${MAIN_DB}",
-  event_db: "${EVENT_DB}"
-EOF
-
 # Run the tests with optimized settings and longer timeouts
 echo -e "${YELLOW}Running tests...${NC}"
-TEST_DB_TIMESTAMP=$TIMESTAMP mix test $@ || handle_error "Tests failed"
+mix test $@ || handle_error "Tests failed"
 
 # Display success message
 echo -e "${GREEN}All tests passed successfully!${NC}"

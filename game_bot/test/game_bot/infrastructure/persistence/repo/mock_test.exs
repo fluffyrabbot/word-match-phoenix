@@ -23,8 +23,6 @@ defmodule GameBot.Infrastructure.Persistence.Repo.MockTest do
     :ok
   end
 
-  setup :verify_on_exit!
-
   @tag :mock
   test "uses mock repository for transactions" do
     # Set up expectations - when transaction is called, execute the callback and return its result
@@ -34,8 +32,8 @@ defmodule GameBot.Infrastructure.Persistence.Repo.MockTest do
     mock_called = :ets.new(:mock_called, [:set, :public])
     :ets.insert(mock_called, {:transaction_called, false})
 
-    MockRepo
-    |> expect(:transaction, fn callback, _opts ->
+    # Create meck expectation
+    :meck.expect(MockRepo, :transaction, fn callback, _opts ->
       IO.puts("Mock transaction called with callback")
       :ets.insert(mock_called, {:transaction_called, true})
       # Simulate successful transaction
@@ -72,8 +70,8 @@ defmodule GameBot.Infrastructure.Persistence.Repo.MockTest do
     mock_called = :ets.new(:error_mock_called, [:set, :public])
     :ets.insert(mock_called, {:transaction_called, false})
 
-    MockRepo
-    |> expect(:transaction, fn _callback, _opts ->
+    # Create meck expectation
+    :meck.expect(MockRepo, :transaction, fn _callback, _opts ->
       IO.puts("Mock transaction returning error")
       :ets.insert(mock_called, {:transaction_called, true})
       # Simulate transaction error
@@ -109,9 +107,8 @@ defmodule GameBot.Infrastructure.Persistence.Repo.MockTest do
     mock_called = :ets.new(:insert_mock_called, [:set, :public])
     :ets.insert(mock_called, {:insert_called, false})
 
-    # Set up expectations
-    MockRepo
-    |> expect(:insert, fn _struct, _opts ->
+    # Create meck expectation
+    :meck.expect(MockRepo, :insert, fn _struct, _opts ->
       IO.puts("Mock insert called")
       :ets.insert(mock_called, {:insert_called, true})
       # Simulate successful insert

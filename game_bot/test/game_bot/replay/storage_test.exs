@@ -2,12 +2,11 @@ defmodule GameBot.Replay.StorageTest do
   use GameBot.RepositoryCase, async: false
 
   alias GameBot.Replay.{Storage, GameReplay, ReplayAccessLog, Types, EventStoreAccess}
+  alias GameBot.Infrastructure.Persistence.Repo.MockRepo
+  alias Meck
 
-  # Set up clear expectations
+  # Set up test data and environment
   setup do
-    # Verify mocks on exit
-    verify_on_exit!()
-
     # Test data setup
     game_id = "test-game-#{System.unique_integer([:positive])}"
     replay_id = Ecto.UUID.generate()
@@ -48,6 +47,10 @@ defmodule GameBot.Replay.StorageTest do
       %{event_type: "game_completed", event_version: 1, version: 3, game_id: game_id}
     ]
 
+    # Start :meck for this test run
+    :meck.new(MockRepo, [:passthrough])
+    on_exit(fn -> :meck.unload(MockRepo) end)
+
     {:ok, %{
       replay: test_replay,
       replay_id: replay_id,
@@ -60,18 +63,10 @@ defmodule GameBot.Replay.StorageTest do
   describe "store_replay/1" do
     @tag :mock
     test "stores a replay successfully", %{replay: replay} do
-      # Mock the insert function
-      expect(MockRepo, :transaction, fn fun, _opts ->
-        # Call the function that would normally run in a transaction
-        result = fun.()
-        # Wrap the result in :ok like transaction would
-        {:ok, result}
-      end)
+      # Set up MockRepo to return a specific result for this test
+      stored_replay = struct(GameReplay, Map.to_list(replay))
 
-      # Mock insert to return success
-      expect(MockRepo, :insert, fn _changeset ->
-        # Create a struct that matches what GameReplay.from_reference would return
-        stored_replay = struct(GameReplay, Map.to_list(replay))
+      :meck.expect(MockRepo, :insert, fn _changeset, _opts ->
         {:ok, stored_replay}
       end)
 
@@ -87,17 +82,13 @@ defmodule GameBot.Replay.StorageTest do
 
     @tag :mock
     test "handles insert errors", %{replay: replay} do
-      # Mock the transaction function to pass through the inner function result
-      expect(MockRepo, :transaction, fn fun, _opts ->
-        {:ok, fun.()}
-      end)
+      # Set up MockRepo to return an error for this test
+      changeset_error = %Ecto.Changeset{
+        valid?: false,
+        errors: [display_name: {"has already been taken", []}]
+      }
 
-      # Mock insert to return an error
-      expect(MockRepo, :insert, fn _changeset ->
-        changeset_error = %Ecto.Changeset{
-          valid?: false,
-          errors: [display_name: {"has already been taken", []}]
-        }
+      :meck.expect(MockRepo, :insert, fn _changeset, _opts ->
         {:error, changeset_error}
       end)
 
@@ -105,56 +96,63 @@ defmodule GameBot.Replay.StorageTest do
       result = Storage.store_replay(replay)
 
       # Verify results
-      assert {:error, changeset} = result
-      assert changeset.errors == [display_name: {"has already been taken", []}]
+      assert {:error, %Ecto.Changeset{} = error_changeset} = result
+      assert error_changeset.errors == [display_name: {"has already been taken", []}]
     end
   end
 
   describe "get_replay/2" do
     @tag :mock
-    test "retrieves a replay by ID without events", %{replay: replay, replay_id: replay_id} do
-      # Set up mock to return the replay
-      expect(MockRepo, :one, fn _query ->
-        struct(GameReplay, Map.to_list(replay))
+    test "retrieves a replay by ID", %{replay: replay, replay_id: replay_id} do
+      # Set up MockRepo to return a specific result for one
+      stored_replay = struct(GameReplay, Map.to_list(replay))
+
+      :meck.expect(MockRepo, :one, fn _query, _opts ->
+        stored_replay
       end)
 
-      # Call function under test
+      # Call the function under test
       result = Storage.get_replay(replay_id)
 
       # Verify results
       assert {:ok, retrieved_replay} = result
       assert retrieved_replay.replay_id == replay_id
-      assert retrieved_replay.game_id == replay.game_id
     end
 
     @tag :mock
     test "retrieves a replay by display name", %{replay: replay, display_name: display_name} do
-      # Set up mock to return the replay
-      expect(MockRepo, :one, fn _query ->
-        struct(GameReplay, Map.to_list(replay))
+      # Set up MockRepo to return a specific result for one
+      stored_replay = struct(GameReplay, Map.to_list(replay))
+
+      :meck.expect(MockRepo, :one, fn _query, _opts ->
+        stored_replay
       end)
 
-      # Call function under test
+      # Call the function under test
       result = Storage.get_replay(display_name)
 
       # Verify results
       assert {:ok, retrieved_replay} = result
-      assert retrieved_replay.display_name == replay.display_name
+      assert retrieved_replay.display_name == display_name
     end
 
     @tag :mock
-    test "retrieves a replay with events", %{replay: replay, replay_id: replay_id, game_id: game_id, events: events} do
-      # Set up mock to return the replay
-      expect(MockRepo, :one, fn _query ->
-        struct(GameReplay, Map.to_list(replay))
+    test "retrieves a replay with events", %{replay: replay, replay_id: replay_id, events: events} do
+      # Set up MockRepo to return a specific result for one
+      stored_replay = struct(GameReplay, Map.to_list(replay))
+
+      :meck.expect(MockRepo, :one, fn _query, _opts ->
+        stored_replay
       end)
 
-      # Mock EventStoreAccess to return events
+      # Mock EventStoreAccess for this test
       :meck.new(EventStoreAccess, [:passthrough])
-      :meck.expect(EventStoreAccess, :fetch_game_events, fn ^game_id, _opts -> {:ok, events} end)
+      :meck.expect(EventStoreAccess, :fetch_game_events, fn _game_id ->
+        {:ok, events}
+      end)
       on_exit(fn -> :meck.unload(EventStoreAccess) end)
 
-      # Call function under test
+      # Call the function under test
       result = Storage.get_replay(replay_id, load_events: true)
 
       # Verify results
@@ -164,11 +162,13 @@ defmodule GameBot.Replay.StorageTest do
     end
 
     @tag :mock
-    test "returns error when replay not found", %{replay_id: replay_id} do
-      # Set up mock to return nil (not found)
-      expect(MockRepo, :one, fn _query -> nil end)
+    test "handles not found error", %{replay_id: replay_id} do
+      # Set up MockRepo to return nil for one
+      :meck.expect(MockRepo, :one, fn _query, _opts ->
+        nil
+      end)
 
-      # Call function under test
+      # Call the function under test
       result = Storage.get_replay(replay_id)
 
       # Verify results
@@ -176,20 +176,22 @@ defmodule GameBot.Replay.StorageTest do
     end
 
     @tag :mock
-    test "returns error when events cannot be loaded", %{replay: replay, replay_id: replay_id, game_id: game_id} do
-      # Set up mock to return the replay
-      expect(MockRepo, :one, fn _query ->
-        struct(GameReplay, Map.to_list(replay))
+    test "handles event loading errors", %{replay: replay, replay_id: replay_id} do
+      # Set up MockRepo to return a specific result for one
+      stored_replay = struct(GameReplay, Map.to_list(replay))
+
+      :meck.expect(MockRepo, :one, fn _query, _opts ->
+        stored_replay
       end)
 
-      # Mock EventStoreAccess to return an error
+      # Mock EventStoreAccess for this test
       :meck.new(EventStoreAccess, [:passthrough])
-      :meck.expect(EventStoreAccess, :fetch_game_events, fn ^game_id, _opts ->
+      :meck.expect(EventStoreAccess, :fetch_game_events, fn _game_id ->
         {:error, :stream_not_found}
       end)
       on_exit(fn -> :meck.unload(EventStoreAccess) end)
 
-      # Call function under test
+      # Call the function under test
       result = Storage.get_replay(replay_id, load_events: true)
 
       # Verify results

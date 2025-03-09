@@ -13,6 +13,10 @@ defmodule GameBot.TestHelpers do
   which often happens in validation tests where we want to test other aspects
   of game mechanics.
 
+  This function provides fine-grained control for individual test cases.
+  For global word validation disabling, the GAMEBOT_DISABLE_WORD_VALIDATION
+  environment variable is set by apply_test_environment/0.
+
   ## Parameters
     * `state` - The GameState to modify
 
@@ -36,11 +40,10 @@ defmodule GameBot.TestHelpers do
   Apply this module to test environment.
 
   This should be called in each test file's setup function that needs the bypass.
+  Sets a global flag to disable word validation. Use bypass_word_validations/1
+  for more granular control within specific tests.
   """
   def apply_test_environment do
-    # Set the MIX_ENV to test in case it wasn't already
-    System.put_env("MIX_ENV", "test")
-
     # Set a specific flag for disabling word validation
     System.put_env("GAMEBOT_DISABLE_WORD_VALIDATION", "true")
   end

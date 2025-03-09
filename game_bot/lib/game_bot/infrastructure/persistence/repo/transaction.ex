@@ -4,7 +4,7 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Transaction do
   Provides transaction capabilities with proper logging and error handling.
   """
 
-  alias GameBot.Infrastructure.Persistence.Repo.Postgres
+  alias GameBot.Infrastructure.Repository
   alias GameBot.Infrastructure.Persistence.Error
   require Logger
 
@@ -32,7 +32,7 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Transaction do
 
     # Attempt the transaction with retries for certain errors
     result = with_retry(fn ->
-      Postgres.execute_transaction(fun, opts)
+      Repository.transaction(fun, opts)
     end, @max_retries, log_prefix)
 
     case result do
