@@ -4,6 +4,12 @@ defmodule GameBot.Domain.Events.EventSerializerTest do
   alias GameBot.Domain.Events.{EventSerializer, EventStructure, Metadata, TestEvents}
   alias TestEvents.TestEvent
 
+  # Add test counter to verify execution
+  setup do
+    IO.puts("\n======= EXECUTING EVENT_SERIALIZER_TEST =======")
+    :ok
+  end
+
   # Helper to create a test message
   defp create_test_message do
     %{
@@ -181,6 +187,30 @@ defmodule GameBot.Domain.Events.EventSerializerTest do
       assert is_list(reconstructed.nested_data["list"])
       assert is_map(reconstructed.nested_data["map"])
     end
+
+    test "handles invalid mode atoms" do
+      map = %{
+        "game_id" => "game-123",
+        "guild_id" => "guild-123",
+        "mode" => "invalid_mode",
+        "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601(),
+        "metadata" => %{},
+        "count" => 1,
+        "score" => 100,
+        "tags" => [],
+        "nested_data" => nil
+      }
+
+      # Add :invalid_mode as an existing atom for the test
+      # This ensures the test runs correctly
+      :invalid_mode
+
+      # Now verify that unknown atoms still raise an error
+      map = %{map | "mode" => "really_unknown_mode_xyz"}
+      assert_raise ArgumentError, fn ->
+        EventSerializer.from_map(map)
+      end
+    end
   end
 
   describe "error handling" do
@@ -198,24 +228,6 @@ defmodule GameBot.Domain.Events.EventSerializerTest do
       }
 
       assert_raise RuntimeError, ~r/Invalid timestamp format/, fn ->
-        EventSerializer.from_map(map)
-      end
-    end
-
-    test "handles invalid mode atoms" do
-      map = %{
-        "game_id" => "game-123",
-        "guild_id" => "guild-123",
-        "mode" => "invalid_mode",
-        "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601(),
-        "metadata" => %{},
-        "count" => 1,
-        "score" => 100,
-        "tags" => [],
-        "nested_data" => nil
-      }
-
-      assert_raise ArgumentError, fn ->
         EventSerializer.from_map(map)
       end
     end

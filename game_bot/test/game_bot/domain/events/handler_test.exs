@@ -38,18 +38,14 @@ defmodule GameBot.Domain.Events.HandlerTest do
 
     @impl true
     def handle_info({:event, event}, state) do
-      case handle_event(event, state) do
-        :ok -> {:noreply, state}
-        {:error, reason} ->
-          Logger.error("Error handling event #{inspect(event.__struct__)}: #{inspect(reason)}")
+      try do
+        handle_event(event, state)
+        {:noreply, state}
+      rescue
+        e ->
+          Logger.error("Error handling event #{inspect(event.__struct__)}: #{Exception.message(e)}")
           {:noreply, state}
       end
-    rescue
-      e ->
-        Logger.error("Exception while handling event: #{Exception.message(e)}")
-        # Resubscribe to topics
-        subscribe_to_interests()
-        {:noreply, state}
     end
 
     @impl true

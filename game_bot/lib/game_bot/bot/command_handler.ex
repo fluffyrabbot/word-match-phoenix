@@ -125,20 +125,26 @@ defmodule GameBot.Bot.CommandHandler do
       correlation_id: UUID.uuid4(),
       timestamp: DateTime.utc_now(),
       source: :interaction,
+      source_id: interaction.user.id,
       interaction_id: interaction.id,
       user_id: interaction.user.id
     }
 
     # Create game started event
-    {:ok, event} = GameBot.Domain.Events.GameEvents.GameStarted.new(
+    event = GameBot.Domain.Events.GameEvents.GameStarted.new(
       UUID.uuid4(),  # game_id
+      interaction.guild_id,  # guild_id
       mode,
+      options.teams.team_map,  # teams
       options.teams.team_ids,
       options.teams.player_ids,
-      options.teams.team_map,
-      metadata
+      %{},  # roles (empty map as default)
+      %{},  # config (empty map as default)
+      nil,  # started_at (nil uses current time)
+      metadata  # pass the metadata we created
     )
 
+    # Return {:ok, event} tuple as expected by tests
     {:ok, event}
   end
 
@@ -152,6 +158,7 @@ defmodule GameBot.Bot.CommandHandler do
       correlation_id: UUID.uuid4(),
       timestamp: DateTime.utc_now(),
       source: :interaction,
+      source_id: interaction.user.id,
       interaction_id: interaction.id,
       user_id: interaction.user.id
     }
@@ -180,6 +187,7 @@ defmodule GameBot.Bot.CommandHandler do
     metadata = Map.merge(parent_metadata, %{
       timestamp: DateTime.utc_now(),
       source: :interaction,
+      source_id: interaction.user.id,
       interaction_id: interaction.id,
       user_id: interaction.user.id
     })

@@ -2,7 +2,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
   use ExUnit.Case, async: false
 
   alias GameBot.Infrastructure.Error
-  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.{Base, Behaviour}
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base
   alias GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
 
   # Define the TestEvent struct for tests

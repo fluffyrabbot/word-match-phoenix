@@ -10,14 +10,12 @@ defmodule GameBot.GameSessions.Session do
   alias GameBot.Domain.{GameState, WordService, Events}
   alias GameBot.Domain.Events.{
     GameEvents,
-    ErrorEvents.GuessError,
-    ErrorEvents.GuessPairError,
-    ErrorEvents.RoundCheckError
+    ErrorEvents
   }
-  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base, as: EventStore
+  alias GameBot.Infrastructure.Persistence.EventStore
   alias GameBot.Domain.Events.{EventRegistry, Metadata}
   alias GameBot.Domain.Events.GameEvents.{GameCompleted, GuessProcessed}
-  alias GameBot.Domain.Events.ErrorEvents.{GuessError, GuessPairError}
+  alias GameBot.Domain.Events.ErrorEvents.{GuessError, GuessPairError, RoundCheckError}
 
   # Constants for timeouts
   @round_check_interval :timer.seconds(5)  # How often to check round status
@@ -168,7 +166,7 @@ defmodule GameBot.GameSessions.Session do
       :continue ->
         {:reply, :continue, state}
       {:error, reason} ->
-        error_event = RoundCheckError.new(state.game_id, reason)
+        error_event = RoundCheckError.new(state.game_id, reason, %{})
         :ok = persist_events([error_event], state)
         {:reply, {:error, reason}, state}
     end
@@ -185,7 +183,7 @@ defmodule GameBot.GameSessions.Session do
         final_scores = compute_final_scores(state)
         game_duration = DateTime.diff(DateTime.utc_now(), state.started_at)
 
-        game_completed = Events.GameCompleted.new(
+        game_completed = GameCompleted.new(
           state.game_id,
           state.guild_id,
           state.mode,
@@ -327,9 +325,14 @@ defmodule GameBot.GameSessions.Session do
   defp has_player_submitted?(%{pending_guess: %{player1_id: p1, player2_id: p2}}, player_id), do: player_id in [p1, p2]
   defp has_player_submitted?(_, _), do: false
 
-  defp persist_events(game_id, events) do
-    # Use the adapter's safe functions instead of direct EventStore access
-    EventStore.append_to_stream(game_id, :any, events)
+  defp persist_events(events, state) when is_map(state) do
+    {:ok, _} = EventStore.append_to_stream(state.game_id, :any_version, events, [])
+    :ok
+  end
+
+  defp persist_events(events, %{game_id: game_id}) do
+    {:ok, _} = EventStore.append_to_stream(game_id, :any_version, events, [])
+    :ok
   end
 
   defp handle_guess_pair(word1, word2, team_id, state, previous_events) do

@@ -300,6 +300,23 @@ This document provides a prioritized plan for addressing compiler warnings ident
   - Location: `lib/game_bot/domain/events/game_events.ex:30`
   - Fix: Remove if not needed
 
+#### 3.6 Fix Test Code Warnings
+
+- [x] **BaseTest Module**
+  - Issue: Unused alias `Behaviour`
+  - Location: `test/game_bot/infrastructure/persistence/event_store/adapter/base_test.exs:5:3`
+  - Fix: Remove the alias
+
+- [x] **PostgresTest Module**
+  - Issue: Undefined or private function `unsubscribe_from_stream/3`
+  - Location: `test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:46:14`
+  - Fix: Replace with the adapter module call `Adapter.unsubscribe_from_stream`
+
+- [x] **HandlerTest Module**
+  - Issue: Typing violation - clause will never match because it attempts to match on a dynamic(:ok) result
+  - Location: `test/game_bot/domain/events/handler_test.exs:43`
+  - Fix: Update the pattern match to handle the correct return type from `handle_event/1`
+
 ## Implementation Approach
 
 ### For Automated Fixes
@@ -338,8 +355,8 @@ After implementing each batch of fixes:
 
 - [x] Phase 1: Critical Warnings - 3/3 completed
 - [ ] Phase 2: Important Warnings - 0/11 completed
-- [ ] Phase 3: Maintainability Warnings - 0/43 completed
-- [ ] Total warnings fixed: 3/57
+- [ ] Phase 3: Maintainability Warnings - 3/46 completed
+- [ ] Total warnings fixed: 6/60
 
 ## Completion Criteria
 
