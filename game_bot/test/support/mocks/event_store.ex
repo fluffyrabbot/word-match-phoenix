@@ -20,19 +20,75 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @doc """
   Starts the mock event store server.
+
+  This function handles already-running instances gracefully and ensures
+  proper process registration.
   """
   @impl EventStore
   def start_link(opts) do
-    # We'll delegate to the Core implementation
-    case EventStoreCore.start_link(opts) do
-      {:ok, pid} ->
-        # Register with the module name for backward compatibility
-        if not Process.whereis(__MODULE__) do
-          Process.register(pid, __MODULE__)
+    name = Keyword.get(opts, :name, __MODULE__)
+
+    # Check if a process is already registered with this name
+    case Process.whereis(name) do
+      nil ->
+        # No process running, start a new one
+        start_new_process(name, opts)
+      pid when is_pid(pid) ->
+        # Process already running, check if it's alive
+        if Process.alive?(pid) do
+          Logger.debug("#{inspect(name)} is already running, returning existing pid")
+          # Return the existing pid
+          {:ok, pid}
+        else
+          # Process is dead but still registered, clean up and start a new one
+          Logger.warning("Found dead process registered as #{inspect(name)}, cleaning up")
+          Process.unregister(name)
+          start_new_process(name, opts)
         end
-        {:ok, pid}
-      other -> other
     end
+  end
+
+  # Starts a new process and handles registration
+  defp start_new_process(name, opts) do
+    # We'll delegate to the Core implementation
+    core_result = EventStoreCore.start_link(opts)
+
+    case core_result do
+      {:ok, pid} ->
+        # Register the process with the desired name
+        try do
+          true = Process.register(pid, name)
+          {:ok, pid}
+        rescue
+          e ->
+            Logger.error("Failed to register #{inspect(name)}: #{inspect(e)}")
+            # Process may have been started by another concurrent call
+            # If so, just return the existing pid
+            case Process.whereis(name) do
+              nil ->
+                # This should not happen, but handle it anyway
+                Logger.error("Process registration failed and no process exists with name #{inspect(name)}")
+                # Kill the unregistered process to avoid leaks
+                Process.exit(pid, :kill)
+                {:error, :registration_failed}
+              existing_pid ->
+                # Another process got registered first
+                Logger.debug("Process already registered as #{inspect(name)}, returning existing pid")
+                # Kill our unregistered process to avoid leaks
+                Process.exit(pid, :kill)
+                {:ok, existing_pid}
+            end
+        end
+      error -> error
+    end
+  end
+
+  @doc """
+  Starts the mock event store server with default options.
+  This function is provided for backward compatibility.
+  """
+  def start_link do
+    start_link([])
   end
 
   @doc """
@@ -46,21 +102,21 @@ defmodule GameBot.Test.Mocks.EventStore do
   Setup fake events for a stream.
   """
   def setup_events(stream_id, events, version \\ 0) do
-    EventStoreCore.setup_events(stream_id, events, version)
+    EventStoreCore.setup_events(EventStoreCore, stream_id, events, version)
   end
 
   @doc """
   Configure the mock to return an error for certain operations.
   """
   def setup_error(operation, error) do
-    EventStoreCore.setup_error(operation, error)
+    EventStoreCore.setup_error(EventStoreCore, operation, error)
   end
 
   # EventStore.Adapter.Behaviour callbacks
 
   @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
   def append_to_stream(stream_id, expected_version, events, opts) do
-    EventStoreCore.append_events(stream_id, expected_version, events, opts)
+    EventStoreCore.append_events(EventStoreCore, stream_id, expected_version, events, opts)
   end
 
   # Version without opts - delegates to the main implementation
@@ -70,7 +126,8 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
   def read_stream_forward(stream_id, start_version, count, opts) do
-    EventStoreCore.read_events_forward(stream_id, start_version, count, opts)
+    # Use EventStoreCore as the server name (not stream_id)
+    EventStoreCore.read_events_forward(EventStoreCore, stream_id, start_version, count, opts)
   end
 
   # Version without opts - delegates to the main implementation
@@ -80,7 +137,14 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
   def stream_version(stream_id, opts) do
-    EventStoreCore.get_stream_version(stream_id, opts)
+    # Use EventStoreCore as the server name (not stream_id)
+    # For non-existent streams, we need to return {:ok, 0} instead of an error
+    result = EventStoreCore.get_stream_version(EventStoreCore, stream_id, opts)
+
+    case result do
+      {:error, :stream_not_found} -> {:ok, 0}  # Convert stream_not_found to just indicate version 0
+      other -> other  # Return any other result as-is
+    end
   end
 
   # Version without opts - delegates to the main implementation
@@ -90,7 +154,8 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
   def subscribe_to_stream(stream_id, subscription_name, subscriber, opts) do
-    EventStoreCore.subscribe_to_stream(stream_id, subscription_name, subscriber, opts)
+    # Use EventStoreCore as the server name (not stream_id)
+    EventStoreCore.subscribe_to_stream(EventStoreCore, stream_id, subscription_name, subscriber, opts)
   end
 
   # Version without opts - delegates to the main implementation
@@ -102,7 +167,7 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl EventStore
   def ack(subscription, event_number) do
-    EventStoreCore.ack(subscription, event_number)
+    EventStoreCore.ack(EventStoreCore, subscription, event_number)
   end
 
   @impl EventStore
@@ -114,7 +179,7 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl EventStore
   def delete_stream(stream_id, expected_version, opts) do
-    EventStoreCore.delete_stream(stream_id, expected_version, opts)
+    EventStoreCore.delete_stream(EventStoreCore, stream_id, expected_version, opts)
   end
 
   # Version without opts - delegates to the main implementation
@@ -124,7 +189,7 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl EventStore
   def link_to_stream(source_stream_id, target_stream_id, event_ids, opts) do
-    EventStoreCore.link_to_stream(source_stream_id, target_stream_id, event_ids, opts)
+    EventStoreCore.link_to_stream(EventStoreCore, source_stream_id, target_stream_id, event_ids, opts)
   end
 
   # Version without opts - delegates to the main implementation
@@ -144,12 +209,12 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl EventStore
   def read_stream_backward(stream_id, start_event_number, count) do
-    EventStoreCore.read_events_backward(stream_id, start_event_number, count)
+    EventStoreCore.read_events_backward(EventStoreCore, stream_id, start_event_number, count)
   end
 
   @impl EventStore
   def subscribe_to_all_streams(subscription_name, subscriber, opts) do
-    EventStoreCore.subscribe_to_all_streams(subscription_name, subscriber, opts)
+    EventStoreCore.subscribe_to_all_streams(EventStoreCore, subscription_name, subscriber, opts)
   end
 
   # Version without opts - delegates to the main implementation
@@ -159,37 +224,37 @@ defmodule GameBot.Test.Mocks.EventStore do
 
   @impl EventStore
   def unsubscribe_from_all_streams(subscription) do
-    EventStoreCore.unsubscribe_from_all_streams(subscription)
+    EventStoreCore.unsubscribe_from_all_streams(EventStoreCore, subscription)
   end
 
   @impl EventStore
   def unsubscribe_from_stream(subscription) do
-    EventStoreCore.unsubscribe_from_stream(subscription)
+    EventStoreCore.unsubscribe_from_stream(EventStoreCore, subscription)
   end
 
   @impl EventStore
   def delete_subscription(subscription_name, stream_uuid) do
-    EventStoreCore.delete_subscription(subscription_name, stream_uuid)
+    EventStoreCore.delete_subscription(EventStoreCore, subscription_name, stream_uuid)
   end
 
   @impl EventStore
   def delete_all_streams_subscription(subscription_name) do
-    EventStoreCore.delete_all_streams_subscription(subscription_name)
+    EventStoreCore.delete_all_streams_subscription(EventStoreCore, subscription_name)
   end
 
   @impl EventStore
   def read_snapshot(source_uuid) do
-    EventStoreCore.read_snapshot(source_uuid)
+    EventStoreCore.read_snapshot(EventStoreCore, source_uuid)
   end
 
   @impl EventStore
   def record_snapshot(snapshot) do
-    EventStoreCore.record_snapshot(snapshot)
+    EventStoreCore.record_snapshot(EventStoreCore, snapshot)
   end
 
   @impl EventStore
   def delete_snapshot(source_uuid) do
-    EventStoreCore.delete_snapshot(source_uuid)
+    EventStoreCore.delete_snapshot(EventStoreCore, source_uuid)
   end
 
   # Additional EventStore Callbacks (Not fully implemented)

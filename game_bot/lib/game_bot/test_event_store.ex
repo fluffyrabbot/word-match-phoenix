@@ -46,6 +46,14 @@ defmodule GameBot.TestEventStore do
   end
 
   @doc """
+  Starts the TestEventStore with default options.
+  This function is provided for backward compatibility.
+  """
+  def start_link do
+    start_link([])
+  end
+
+  @doc """
   Resets the EventStore to its initial empty state.
   This is essential for test isolation and should be called
   between tests to prevent state from leaking between tests.
@@ -103,6 +111,14 @@ defmodule GameBot.TestEventStore do
   @impl EventStore
   def read_stream_forward(server, stream_id, start_version, count) do
     EventStoreCore.read_stream_forward(server, stream_id, start_version, count)
+  end
+
+  @doc """
+  Convenience function to read all events from a stream.
+  This function is provided for backward compatibility.
+  """
+  def read_stream_forward(stream_id) do
+    read_stream_forward(__MODULE__, stream_id, 0, 1000)
   end
 
   @impl EventStore
@@ -239,5 +255,18 @@ defmodule GameBot.TestEventStore do
   # Version without opts for compatibility
   def subscribe_to_stream(server, subscriber, stream_id) do
     subscribe_to_stream(server, subscriber, stream_id, [])
+  end
+
+  @doc """
+  Gets the current version of a stream.
+
+  This will return:
+  - `{:ok, version}` for existing streams
+  - `{:ok, 0}` for non-existent streams
+  - `{:error, reason}` for failures
+  """
+  @impl EventStore
+  def stream_version(server, stream_id, opts \\ []) do
+    EventStoreCore.get_stream_version(server, stream_id, opts)
   end
 end

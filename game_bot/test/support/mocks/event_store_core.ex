@@ -215,21 +215,26 @@ defmodule GameBot.Test.Mocks.EventStoreCore do
 
   @impl GenServer
   def handle_call({:read_stream_forward, stream_id, start_version, count, _opts}, _from, state) do
-    case Map.get(state.errors, :read_stream_forward) do
+    case Map.get(state.errors, :read) do
       nil ->
         case Map.get(state.streams, stream_id) do
           nil ->
             # Stream doesn't exist
-            {:reply, {:ok, [], 0, 0}, state}
+            {:reply, {:ok, []}, state}
 
           stream ->
             # Filter events from the stream
             events = stream.events
-                    |> Enum.with_index()
-                    |> Enum.filter(fn {_, index} -> index >= start_version && index < start_version + count end)
+                    |> Enum.with_index(0)  # Start indexing from 0
+                    |> Enum.filter(fn {_, index} ->
+                      # Make sure we're comparing correctly for version numbers
+                      index >= start_version && index < start_version + count
+                    end)
                     |> Enum.map(fn {event, _} -> event end)
 
-            {:reply, {:ok, events, stream.version, length(stream.events)}, state}
+            Logger.debug("Read #{length(events)} events from stream #{stream_id} starting at #{start_version}, requested #{count}")
+
+            {:reply, {:ok, events}, state}
         end
 
       error ->
@@ -239,7 +244,7 @@ defmodule GameBot.Test.Mocks.EventStoreCore do
 
   @impl GenServer
   def handle_call({:stream_version, stream_id, _opts}, _from, state) do
-    case Map.get(state.errors, :stream_version) do
+    case Map.get(state.errors, :version) do
       nil ->
         case Map.get(state.streams, stream_id) do
           nil -> {:reply, {:ok, 0}, state}

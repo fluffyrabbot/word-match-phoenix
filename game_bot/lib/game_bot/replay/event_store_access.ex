@@ -40,6 +40,10 @@ defmodule GameBot.Replay.EventStoreAccess do
       e ->
         Logger.error("Error fetching events: #{inspect(e)}")
         {:error, :fetch_failed}
+    catch
+      _, e ->
+        Logger.error("Caught error fetching events: #{inspect(e)}")
+        {:error, :fetch_failed}
     end
   end
 
@@ -48,14 +52,25 @@ defmodule GameBot.Replay.EventStoreAccess do
 
   ## Parameters
     - game_id: The unique identifier of the game
+    - opts: Additional options for event retrieval (default: [])
 
   ## Returns
     - {:ok, version} - Current version of the stream
     - {:error, reason} - Failed to retrieve version
   """
-  @spec get_stream_version(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def get_stream_version(game_id) do
-    Adapter.stream_version(game_id)
+  @spec get_stream_version(String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def get_stream_version(game_id, opts \\ []) do
+    try do
+      Adapter.stream_version(game_id, opts)
+    rescue
+      e ->
+        Logger.error("Error getting stream version: #{inspect(e)}")
+        {:error, :version_fetch_failed}
+    catch
+      _, e ->
+        Logger.error("Caught error getting stream version: #{inspect(e)}")
+        {:error, :version_fetch_failed}
+    end
   end
 
   @doc """
@@ -95,8 +110,15 @@ defmodule GameBot.Replay.EventStoreAccess do
       {:ok, batch} ->
         # Got some events, check if we need more
         new_events = events ++ batch
+
+        # Get the last event and calculate the next version
         last_event = List.last(batch)
+        # Make sure we don't skip any events by using the correct next version
+        # The version is the event's position in the stream, so we need to use this
+        # as our next starting point
         next_version = last_event.version + 1
+
+        Logger.debug("Fetched batch of #{length(batch)} events. Total: #{length(new_events)}. Next version: #{next_version}")
 
         # Recursively fetch more if needed
         do_fetch_events(game_id, next_version, max_events, batch_size, new_events)

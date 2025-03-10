@@ -21,24 +21,43 @@
   - [x] Maintain EventStore behavior
   - [x] Fix function signatures to match EventStore behavior
   - [x] Add proper @impl annotations
-- [ ] Refactor `GameBot.Test.Mocks.EventStore`
-  - [ ] Remove GenServer usage
-  - [ ] Implement delegation to Core
-  - [ ] Maintain EventStore behavior
+  - [x] Add backward compatibility functions (start_link/0, read_stream_forward/1)
+- [x] Refactor `GameBot.Test.Mocks.EventStore`
+  - [x] Remove GenServer usage
+  - [x] Implement delegation to Core
+  - [x] Maintain EventStore behavior
+  - [x] Add backward compatibility functions (start_link/0)
 
-### Phase 3: Integration & Testing
-- [x] Fix diagnostic test for EventStore
-  - [x] Update to handle different return formats
-  - [x] Add robust error handling
-  - [x] Fix instance management
-- [ ] Update repository case
-- [ ] Update event store case
+### Phase 3: Fix Supporting Infrastructure
+- [x] Fix `GameBot.Test.DatabaseHelper`
+  - [x] Add missing setup_sandbox/1 function with tag support
+  - [x] Add cleanup_connections/0 for backward compatibility
+  - [x] Update function calls with proper setup_sandbox parameter handling
+- [ ] Fix event store test initialization issues
+  - [x] Update EventStoreAccessTest to properly initialize mock services
+  - [ ] Update IntegrationTest to properly initialize repositories
+  - [ ] Fix test event definition issues for serialization
+- [ ] Update test case modules
+  - [ ] Update repository case
+  - [ ] Update event store case
+  - [ ] Handle mock initialization consistently
 
 ## Current Progress
 
-We have completed the core implementation phase and most of the interface refactoring for the `GameBot.TestEventStore` module. The separation of concerns between GenServer behavior and EventStore behavior is now properly implemented for the main TestEventStore module.
+We have completed the core implementation phase and have successfully refactored both TestEventStore and Mocks.EventStore to follow the delegation pattern. The separation of concerns between GenServer behavior and EventStore behavior is now properly implemented for both modules.
 
-The diagnostic tests now pass with the refactored TestEventStore implementation, confirming that the basic functionality is working as expected.
+Recent improvements include:
+1. **Backward Compatibility**:
+   - Added `start_link/0` to both EventStore implementations 
+   - Added `read_stream_forward/1` convenience function to TestEventStore
+   - Added `cleanup_connections/0` alias in DatabaseHelper
+
+2. **Test Infrastructure**: 
+   - Fixed `setup_sandbox/1` function implementation in DatabaseHelper
+   - Updated EventStoreAccessTest to properly handle process initialization
+   - Fixed error handling in process startup/reset functions
+
+The diagnostic tests now partially pass, and we've significantly reduced the number of error types in the remaining test failures.
 
 ## Implementation Details
 
@@ -46,13 +65,13 @@ The diagnostic tests now pass with the refactored TestEventStore implementation,
 
 We've implemented a clear separation of concerns by:
 
-1. Creating a dedicated `EventStoreCore` module that:
-   - Implements the GenServer behavior exclusively
-   - Manages state through a well-defined State struct
-   - Provides a clean API for the interface module
-   - Handles all state mutations and persistence
+1. Creating dedicated `EventStoreCore` modules that:
+   - Implement the GenServer behavior exclusively
+   - Manage state through a well-defined State struct
+   - Provide a clean API for the interface module
+   - Handle all state mutations and persistence
 
-2. Refactoring `TestEventStore` to:
+2. Refactoring interface modules to:
    - Implement only the EventStore behavior
    - Delegate all state management to the Core module
    - Handle protocol-specific conversions
@@ -75,10 +94,20 @@ We've improved process management by:
 2. Adding proper process registration/deregistration
 3. Implementing clean error handling for process operations
 4. Adding robust reset functionality
+5. Making setup functions more tolerant of process state inconsistencies
 
 ## Remaining Issues
 
-### 1. Code Quality Warnings
+### 1. Test Environment Initialization
+
+The most critical remaining issue is inconsistent test environment initialization:
+
+- Many tests fail because repositories are not properly started
+- The EventStore processes are not always initialized before use
+- Integration tests encounter serialization errors with event formats
+- Tests using Mox/mock modules cannot find their mock definitions
+
+### 2. Code Quality Warnings
 
 There are still several code quality warnings throughout the codebase:
 
@@ -87,44 +116,46 @@ There are still several code quality warnings throughout the codebase:
 - Functions with multiple clauses that have incompatible defaults
 - Missing `@impl` annotations in some behavior implementations
 
-### 2. EventStore Mock Implementation
+### 3. Test Module Inconsistencies
 
-The `GameBot.Test.Mocks.EventStore` module still needs to be refactored:
+Some test modules have inconsistent expectations about:
 
-- It currently implements both GenServer and EventStore behaviors in the same module
-- Several functions have conflicting implementations
-- Some EventStore callbacks are missing or incomplete
-- The delegation pattern needs to be applied to separate concerns
+- Return formats from list operations (expecting lists instead of {:ok, list})
+- Event structure validation and serialization rules
+- Process initialization sequencing and requirements
+- Mock definitions and availability
 
-### 3. Integration Tests
+## Next Steps (Prioritized)
 
-We need to update the repository and event store case modules to ensure they work with the refactored implementation:
+1. **🔴 Fix Test Environment Initialization Issues**
+   - Implement consistent repository initialization across all test modules
+   - Add event serialization validation to test event creation functions
+   - Update test event formats to comply with serializer requirements
+   - Ensure TestEventStore and EventStoreCore are properly initialized before tests
 
-- Verify that the separation of concerns doesn't break existing tests
-- Update case modules to use the new APIs correctly
-- Add robust error handling in test helpers
+2. **🔴 Add Missing Mock Implementations**
+   - Create missing `MockEventStoreAccess` and `MockSubscriptionManager` modules
+   - Ensure mock definitions are accessible to all tests
+   - Standardize mock setup and teardown
+   - Consider using Mox more consistently across the codebase
 
-## Next Steps
+3. **⏩ Update Test Case Modules**
+   - Update repository case to properly initialize the test environment
+   - Update event store case to handle different EventStore implementations
+   - Standardize setup and teardown procedures across test cases
+   - Add better error reporting for test environment issues
 
-1. **Complete EventStore Mock Refactoring**
-   - Apply the same separation of concerns pattern to `GameBot.Test.Mocks.EventStore`
-   - Ensure all required callbacks are properly implemented
-   - Fix remaining function signature issues
-
-2. **Fix Code Quality Issues**
-   - Address unused variables and aliases
+4. **⏩ Address Code Quality Issues**
+   - Fix unused variables by prefixing with underscore
+   - Remove or properly use unused aliases
    - Fix function clause conflicts
    - Add missing `@impl` annotations
 
-3. **Update Test Infrastructure**
-   - Update repository and event store case modules
-   - Verify compatibility with existing tests
-   - Add comprehensive testing for the new implementation
-
-4. **Document Architecture**
-   - Create documentation for the new architecture
-   - Update existing documentation to reflect changes
-   - Provide migration guide for tests
+5. **⏩ Improve Error Handling and Reporting**
+   - Add more detailed error messages to failures
+   - Improve error propagation through delegate functions
+   - Add error recovery options where appropriate
+   - Standardize error return formats
 
 ## Lessons Learned
 
@@ -142,10 +173,13 @@ We need to update the repository and event store case modules to ensure they wor
    - Error handling must be robust for all process operations
    - Reset functionality must handle all state components
 
+4. **Backward Compatibility**
+   - Adding simplified function forms for backward compatibility helps migration
+   - Checking for existing processes before initialization prevents crashes
+   - Aliasing deprecated function names maintains compatibility
+
 ## Conclusion
 
-The EventStore separation project has made significant progress, with the core implementation and main interface refactoring now complete. The diagnostic tests now pass with the refactored implementation, confirming that the basic functionality is working as expected.
+The EventStore separation project has made significant progress, with both the main interface modules now refactored to use the delegation pattern. The remaining issues are primarily related to test environment initialization, mock implementation, and integration with existing test modules.
 
-However, there are still several important tasks remaining, particularly the refactoring of the `GameBot.Test.Mocks.EventStore` module and the integration with the repository and event store case modules. Additionally, there are several code quality issues that need to be addressed throughout the codebase.
-
-With the completion of these remaining tasks, the EventStore separation project will provide a much more robust and maintainable testing infrastructure for the GameBot application. 
+By addressing the prioritized issues listed above, we can complete the EventStore separation project and provide a much more robust and maintainable testing infrastructure for the GameBot application. The most critical next steps are fixing the test environment initialization issues and adding the missing mock implementations, as these are causing the majority of the remaining test failures. 

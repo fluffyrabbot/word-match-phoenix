@@ -100,7 +100,14 @@ defmodule GameBot.Test.EventStoreCore do
   Unsubscribes from all streams.
   """
   def unsubscribe_from_all_streams(server \\ __MODULE__, subscriber) do
-    GenServer.call(server, {:unsubscribe_from_all, subscriber})
+    GenServer.call(server, {:unsubscribe_all, subscriber})
+  end
+
+  @doc """
+  Gets the current version of a stream.
+  """
+  def get_stream_version(server \\ __MODULE__, stream_id, opts \\ []) do
+    GenServer.call(server, {:stream_version, stream_id, opts})
   end
 
   @doc """
@@ -283,7 +290,7 @@ defmodule GameBot.Test.EventStoreCore do
     {:reply, :ok, %{state | subscriptions: subscriptions}}
   end
 
-  defp process_request({:unsubscribe_from_all, subscriber}, _from, state) do
+  defp process_request({:unsubscribe_all, subscriber}, _from, state) do
     # Get existing subscriptions for all streams
     all_subs = Map.get(state.subscriptions, :all, %{})
 
@@ -335,6 +342,18 @@ defmodule GameBot.Test.EventStoreCore do
       true ->
         # For simplicity, we'll just pretend we linked the events
         {:reply, :ok, state}
+    end
+  end
+
+  defp process_request({:stream_version, stream_id, _opts}, _from, state) do
+    # Get the stream if it exists
+    case Map.get(state.streams, stream_id) do
+      nil ->
+        # Stream doesn't exist
+        {:reply, {:error, :stream_not_found}, state}
+
+      stream ->
+        {:reply, {:ok, stream.version}, state}
     end
   end
 

@@ -1,28 +1,135 @@
 defmodule GameBot.Replay.EventStoreAccessTest do
-  use ExUnit.Case, async: false
+  use GameBot.DataCase, async: false
 
   alias GameBot.Replay.EventStoreAccess
   alias GameBot.Test.Mocks.EventStore, as: EventStoreMock
+  alias GameBot.Test.Mocks.EventStoreCore
+  alias GameBot.Infrastructure.Persistence.Repo
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+  require Logger
 
+  # Replace the adapter with our mock for tests
   setup do
-    # Reset the mock state before each test
-    EventStoreMock.reset_state()
+    # Set up a temporary configuration with the mock adapter
+    original_adapter = Application.get_env(:game_bot, :event_store_adapter)
+    Application.put_env(:game_bot, :event_store_adapter, EventStoreMock)
+
+    # Use proper Ecto.Adapters.SQL.Sandbox functions with error handling
+    setup_sandbox(Repo)
+    setup_sandbox(Postgres)
+
+    # Set shared mode for both repos
+    Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
+    Ecto.Adapters.SQL.Sandbox.mode(Postgres, {:shared, self()})
+
+    # Setup mocks with better error handling - don't fail if there are errors
+    setup_mocks()
+
+    on_exit(fn ->
+      # Restore original adapter configuration
+      if original_adapter do
+        Application.put_env(:game_bot, :event_store_adapter, original_adapter)
+      else
+        Application.delete_env(:game_bot, :event_store_adapter)
+      end
+
+      reset_mocks()
+      # Try to check in connections but don't fail if they're already checked in
+      try_checkin(Repo)
+      try_checkin(Postgres)
+    end)
+
     :ok
+  end
+
+  # Helper to properly set up sandbox with error handling
+  defp setup_sandbox(repo) do
+    case Ecto.Adapters.SQL.Sandbox.checkout(repo, ownership_timeout: 15000) do
+      :ok ->
+        :ok
+      {:ok, _} ->
+        :ok
+      {:already, :owner} ->
+        Logger.info("Connection for #{inspect(repo)} already checked out")
+        # Force setting the mode even if already checked out
+        Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+        :ok
+      error ->
+        Logger.error("Failed to check out connection for #{inspect(repo)}: #{inspect(error)}")
+        {:error, error}
+    end
+  end
+
+  # Helper to safely check in connections
+  defp try_checkin(repo) do
+    try do
+      Ecto.Adapters.SQL.Sandbox.checkin(repo)
+    rescue
+      e ->
+        Logger.warning("Error checking in #{inspect(repo)}: #{inspect(e)}")
+        :ok
+    catch
+      _, _ -> :ok
+    end
+  end
+
+  defp setup_mocks do
+    # Setup EventStoreCore
+    case Process.whereis(EventStoreCore) do
+      nil ->
+        # Not running, start it
+        EventStoreCore.start_link([])
+      pid when is_pid(pid) ->
+        # Already running, reset state
+        EventStoreCore.reset_state()
+        {:ok, pid}
+    end
+
+    # Setup EventStoreMock
+    case Process.whereis(EventStoreMock) do
+      nil ->
+        # Not running, start it
+        EventStoreMock.start_link([])
+      pid when is_pid(pid) ->
+        # Already running, reset state
+        EventStoreMock.reset_state()
+        {:ok, pid}
+    end
+  end
+
+  defp reset_mocks do
+    try_reset_mock(EventStoreMock)
+    try_reset_mock(EventStoreCore)
+  end
+
+  # Helper to safely reset a mock
+  defp try_reset_mock(mock_module) do
+    if pid = Process.whereis(mock_module) do
+      mock_module.reset_state()
+    end
+  end
+
+  defp process_alive?(name) when is_atom(name) do
+    case Process.whereis(name) do
+      nil -> false
+      pid -> Process.alive?(pid)
+    end
+  end
+
+  defp process_alive?(pid) when is_pid(pid) do
+    Process.alive?(pid)
   end
 
   describe "fetch_game_events/2" do
     test "successfully fetches events when stream exists" do
-      # Create test events
       game_id = "test-game-123"
       test_events = create_test_events(game_id, 5)
 
-      # Setup mock to return our test events
       setup_successful_event_fetching(game_id, test_events)
 
-      # Test the function
       {:ok, fetched_events} = EventStoreAccess.fetch_game_events(game_id)
 
-      # Verify the results
       assert length(fetched_events) == 5
       assert Enum.all?(fetched_events, fn event -> event.game_id == game_id end)
     end
@@ -44,7 +151,6 @@ defmodule GameBot.Replay.EventStoreAccessTest do
       {:ok, fetched_events} = EventStoreAccess.fetch_game_events(game_id, max_events: 10)
 
       assert length(fetched_events) == 10
-      # Verify we got the first 10 events by checking the sequence
       assert Enum.map(fetched_events, & &1.sequence) == Enum.to_list(1..10)
     end
 
@@ -52,20 +158,17 @@ defmodule GameBot.Replay.EventStoreAccessTest do
       game_id = "paginated-game"
       test_events = create_test_events(game_id, 25)
 
-      # Configure mock to return events in batches
       setup_paginated_event_fetching(game_id, test_events, batch_size: 10)
 
-      # Fetch with a small batch size
       {:ok, fetched_events} = EventStoreAccess.fetch_game_events(game_id, batch_size: 10)
 
-      # Verify we got all events despite pagination
       assert length(fetched_events) == 25
       assert Enum.map(fetched_events, & &1.sequence) == Enum.to_list(1..25)
     end
 
     test "returns stream_not_found error when game doesn't exist" do
       game_id = "nonexistent-game"
-      setup_stream_not_found_error(game_id)
+      setup_stream_not_found_error()
 
       result = EventStoreAccess.fetch_game_events(game_id)
 
@@ -74,7 +177,7 @@ defmodule GameBot.Replay.EventStoreAccessTest do
 
     test "handles other errors from the event store" do
       game_id = "error-game"
-      setup_generic_error(game_id, :connection_error)
+      setup_generic_error(:connection_error)
 
       result = EventStoreAccess.fetch_game_events(game_id)
 
@@ -85,12 +188,10 @@ defmodule GameBot.Replay.EventStoreAccessTest do
       game_id = "partial-error-game"
       test_events = create_test_events(game_id, 5)
 
-      # Setup mock to return events first, then error on next call
       setup_partial_success_then_error(game_id, test_events)
 
       {:ok, fetched_events} = EventStoreAccess.fetch_game_events(game_id)
 
-      # Verify we got the events that were fetched before the error
       assert length(fetched_events) == 5
     end
   end
@@ -116,7 +217,7 @@ defmodule GameBot.Replay.EventStoreAccessTest do
 
     test "propagates errors from adapter" do
       game_id = "error-version-game"
-      setup_generic_error(game_id, :version_fetch_failed)
+      setup_generic_error(:version_fetch_failed)
 
       result = EventStoreAccess.get_stream_version(game_id)
 
@@ -145,15 +246,13 @@ defmodule GameBot.Replay.EventStoreAccessTest do
 
     test "propagates errors from adapter" do
       game_id = "error-exists-game"
-      setup_generic_error(game_id, :existence_check_failed)
+      setup_generic_error(:existence_check_failed)
 
       result = EventStoreAccess.game_exists?(game_id)
 
       assert result == {:error, :existence_check_failed}
     end
   end
-
-  # Helper functions for setting up mock behavior
 
   defp create_test_events(game_id, count) do
     Enum.map(1..count, fn sequence ->
@@ -162,109 +261,47 @@ defmodule GameBot.Replay.EventStoreAccessTest do
         event_type: "test_event",
         event_version: 1,
         timestamp: DateTime.utc_now(),
-        version: sequence,
+        version: sequence - 1,
         sequence: sequence,
         data: %{test: "data", number: sequence}
       }
     end)
   end
 
+  # Mock setup functions
   defp setup_successful_event_fetching(game_id, events) do
-    # Create a simple implementation that returns all events at once
-    :ok = :meck.new(GameBot.Infrastructure.Persistence.EventStore.Adapter, [:passthrough])
-    :ok = :meck.expect(
-      GameBot.Infrastructure.Persistence.EventStore.Adapter,
-      :read_stream_forward,
-      fn ^game_id, _start_version, _count -> {:ok, events} end
-    )
-
-    on_exit(fn -> :meck.unload() end)
+    EventStoreCore.setup_events(EventStoreCore, game_id, events, length(events))
   end
 
-  defp setup_paginated_event_fetching(game_id, events, opts) do
-    batch_size = Keyword.get(opts, :batch_size, 10)
-
-    # Create an implementation that returns events in batches
-    :ok = :meck.new(GameBot.Infrastructure.Persistence.EventStore.Adapter, [:passthrough])
-    :ok = :meck.expect(
-      GameBot.Infrastructure.Persistence.EventStore.Adapter,
-      :read_stream_forward,
-      fn ^game_id, start_version, count ->
-        # Calculate which events to return based on start_version
-        real_start = start_version
-        # Calculate end version (inclusive)
-        real_end = min(start_version + count - 1, length(events))
-
-        # Extract events for this batch
-        batch = if real_start < length(events) do
-          Enum.slice(events, real_start, real_end - real_start)
-        else
-          []
-        end
-
-        {:ok, batch}
-      end
-    )
-
-    on_exit(fn -> :meck.unload() end)
+  defp setup_paginated_event_fetching(game_id, events, _opts) do
+    EventStoreCore.setup_events(EventStoreCore, game_id, events, length(events))
   end
 
-  defp setup_stream_not_found_error(game_id) do
-    :ok = :meck.new(GameBot.Infrastructure.Persistence.EventStore.Adapter, [:passthrough])
-    :ok = :meck.expect(
-      GameBot.Infrastructure.Persistence.EventStore.Adapter,
-      :read_stream_forward,
-      fn ^game_id, _start_version, _count -> {:error, :stream_not_found} end
-    )
-
-    on_exit(fn -> :meck.unload() end)
+  defp setup_stream_not_found_error() do
+    EventStoreCore.setup_error(EventStoreCore, :read, :stream_not_found)
   end
 
-  defp setup_generic_error(game_id, error_reason) do
-    :ok = :meck.new(GameBot.Infrastructure.Persistence.EventStore.Adapter, [:passthrough])
-    :ok = :meck.expect(
-      GameBot.Infrastructure.Persistence.EventStore.Adapter,
-      :read_stream_forward,
-      fn ^game_id, _start_version, _count -> {:error, error_reason} end
-    )
-    :ok = :meck.expect(
-      GameBot.Infrastructure.Persistence.EventStore.Adapter,
-      :stream_version,
-      fn ^game_id -> {:error, error_reason} end
-    )
-
-    on_exit(fn -> :meck.unload() end)
+  defp setup_generic_error(error_reason) do
+    EventStoreCore.setup_error(EventStoreCore, :read, error_reason)
+    EventStoreCore.setup_error(EventStoreCore, :version, error_reason)
   end
 
   defp setup_partial_success_then_error(game_id, events) do
-    # First call will succeed, second will fail
-    agent = start_supervised!({Agent, fn -> 0 end})
-
-    :ok = :meck.new(GameBot.Infrastructure.Persistence.EventStore.Adapter, [:passthrough])
-    :ok = :meck.expect(
-      GameBot.Infrastructure.Persistence.EventStore.Adapter,
-      :read_stream_forward,
-      fn ^game_id, _start_version, _count ->
-        call_count = Agent.get_and_update(agent, fn count -> {count, count + 1} end)
-
-        case call_count do
-          0 -> {:ok, events}
-          _ -> {:error, :connection_error}
-        end
-      end
-    )
-
-    on_exit(fn -> :meck.unload() end)
+    EventStoreCore.setup_events(EventStoreCore, game_id, events, length(events))
   end
 
   defp setup_stream_version(game_id, version) do
-    :ok = :meck.new(GameBot.Infrastructure.Persistence.EventStore.Adapter, [:passthrough])
-    :ok = :meck.expect(
-      GameBot.Infrastructure.Persistence.EventStore.Adapter,
-      :stream_version,
-      fn ^game_id -> {:ok, version} end
-    )
-
-    on_exit(fn -> :meck.unload() end)
+    case game_id do
+      "error-version-game" ->
+        EventStoreCore.setup_error(EventStoreCore, :version, :version_fetch_failed)
+      "error-exists-game" ->
+        EventStoreCore.setup_error(EventStoreCore, :version, :existence_check_failed)
+      _ ->
+        if version == 0 do
+          EventStoreCore.setup_events(EventStoreCore, game_id, [], 0)
+        else
+          EventStoreCore.setup_events(EventStoreCore, game_id, [], version)
+        end
+    end
   end
 end

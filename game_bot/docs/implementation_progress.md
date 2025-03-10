@@ -15,6 +15,8 @@ This document tracks the progress of fixing the critical issues identified in th
 - Fixed TestEventStore start/stop handling to work with already-running instances
 - Fixed function call signatures to match behavior expectations
 - Updated diagnostic tests to verify proper operation
+- Added backward compatibility functions (start_link/0, read_stream_forward/1)
+- Properly delegated behavior implementations to core modules
 
 ### 2. Reset Implementation
 
@@ -65,7 +67,7 @@ This document tracks the progress of fixing the critical issues identified in th
 ✅ **Fixed Function Naming and Parameter Consistency** 
 - Updated `initialize_test_environment()` to `initialize()` in DatabaseHelper
 - Updated `cleanup_connections()` to `cleanup()` in DatabaseHelper
-- Updated `setup_sandbox(tags)` to `reset_sandbox()` in EventStoreCase
+- Added backward compatibility aliases for renamed functions
 - Fixed parameter mismatches in function calls
 - Ensured consistent function signatures across modules
 
@@ -77,18 +79,26 @@ This document tracks the progress of fixing the critical issues identified in th
 - Let Mix handle the test execution naturally
 - Properly set up after_suite cleanup hooks
 
+### 9. Test Environment Setup
+
+✅ **Improved Test Environment Setup**
+- Added setup_sandbox/1 function to properly replace missing functionality
+- Improved event store initialization and error handling
+- Added better process state validation before operations
+- Updated sandbox checkout handling to include timeout and async support
+
 ## Diagnostic Test Results
 
-Our updated diagnostic tests now run successfully and include:
+Our updated diagnostic tests now run with significantly fewer errors, though some issues remain:
 
 1. ✅ Basic environment verification
 2. ✅ PostgreSQL connection testing
-3. ✅ Repository initialization testing  
-4. ✅ EventStore mock functionality testing
+3. ⚠️ Repository initialization testing - Some repositories not starting properly
+4. ⚠️ EventStore mock functionality testing - Issues with event serialization
 
-All tests now pass with our improved implementation. The diagnostic test suite:
+The improved implementation:
 - Handles already-running EventStoreCore instances
-- Properly delegates between TestEventStore and EventStoreCore
+- Properly delegates between interfaces and core implementations
 - Correctly manages process registration/deregistration
 - Properly handles different return formats from operations
 - Includes comprehensive error handling
@@ -96,14 +106,38 @@ All tests now pass with our improved implementation. The diagnostic test suite:
 ## Current Status
 
 The test infrastructure has been significantly improved with:
-1. Proper behavior separation for TestEventStore and EventStoreCore
+1. Proper behavior separation for both TestEventStore and EventStoreMock
 2. Robust process management and error handling
 3. Consistent function naming and parameters
-4. Simplified and more reliable testing flow
+4. Better test environment initialization
 
 ## Remaining Issues
 
-### 1. Code Quality Warnings
+### 1. Test Environment Initialization Issues 🔴
+
+The most critical remaining issue is inconsistent test environment initialization:
+- Many tests fail because repositories are not properly started or connected
+- The EventStore processes are not always initialized in the correct order
+- Some tests expect processes to be initialized, others initialize them themselves
+- Repository checkout timings cause race conditions in some tests
+
+### 2. Mock Implementation and Availability Issues 🔴
+
+Several tests fail because they can't find or load mock modules:
+- Missing `MockEventStoreAccess` and `MockSubscriptionManager` modules
+- Inconsistent mock initialization and teardown procedures
+- Some tests trying to use Mox with undefined mocks
+- Mock return values don't match expected formats in some cases
+
+### 3. Event Serialization Issues ⚠️
+
+Some integration tests fail due to event serialization problems:
+- Event structures don't meet validation requirements
+- Events missing required type keys during serialization
+- Inconsistent expectations about event formats between tests
+- Different implementations handling event formats differently
+
+### 4. Code Quality Warnings ⚠️
 
 There are still multiple warnings in the application code that need attention:
 - Unused variables and aliases
@@ -111,57 +145,59 @@ There are still multiple warnings in the application code that need attention:
 - Missing `@impl` annotations in behavior implementations
 - Private functions with `@doc` attributes causing documentation loss
 
-### 2. EventStore Mock Implementation
+### 5. Test Result Format Inconsistencies ⚠️
 
-The `GameBot.Test.Mocks.EventStore` module still requires refactoring:
-- It needs to follow the same pattern as TestEventStore
-- The delegation pattern should be applied to separate behaviors
-- Some callbacks require proper implementation
-- Function signatures need to be updated for consistency
+Some tests expect different return formats than the implementations provide:
+- Some expect raw lists rather than {:ok, list} tuples
+- Others expect structs rather than maps in return values
+- Return format expectations vary between tests for the same functions
+- Inconsistent error handling expectations between test modules
 
-### 3. Integration with Existing Tests
+## Next Steps (Prioritized)
 
-Additional work is needed to ensure existing tests function properly with the updated implementation:
-- Repository case module may need adjustments
-- Event store case module requires updates for new API
-- Some tests may rely on now-changed behavior
+### 1. Fix Test Environment Initialization Issues 🔴
 
-## Next Steps
+- Update the repository case module to consistently initialize repositories
+- Create a standard pre-test environment validation process
+- Ensure consistent startup sequence across all test modules
+- Add better error handling for initialization failures
 
-### 1. Refactor GameBot.Test.Mocks.EventStore
+### 2. Create Missing Mock Implementations 🔴
 
-- Apply the same separation of concerns pattern used for TestEventStore
-- Move GenServer functionality to dedicated Core module
-- Ensure proper implementation of all required callbacks
-- Fix function signatures and parameter handling
-- Add comprehensive error handling
+- Create and implement missing mock modules:
+  - `MockEventStoreAccess` with required callbacks
+  - `MockSubscriptionManager` with required callbacks
+- Update test modules to properly initialize mocks
+- Standardize mock setup and teardown procedures
+- Add comprehensive error handling for mock operations
 
-### 2. Address Code Quality Issues
+### 3. Fix Event Serialization Issues ⚠️
+
+- Update test event creation helpers to ensure proper format
+- Add validation to catch invalid event formats early
+- Create standard event factory functions for tests
+- Document required event formats for all implementations
+
+### 4. Address Code Quality Issues ⚠️
 
 - Fix unused variables by prefixing with underscore
 - Remove or properly use unused aliases
-- Add missing `@impl` annotations
 - Fix function clause conflicts
+- Add missing `@impl` annotations
+- Fix private function documentation
 
-### 3. Update Test Case Modules
+### 5. Standardize Test Expectations ⚠️
 
-- Verify all test case modules work with the new EventStore implementation
-- Update API usage in tests
-- Ensure proper error handling
-- Add comprehensive tests for new functionality
-
-### 4. Update Documentation
-
-The documentation has been updated to reflect the changes:
-- Added event_store_separation_analysis.md with detailed progress tracking
-- Updated implementation_progress.md with latest status
-- Next will be adding architecture documentation and migration guide
+- Update test expectations to match actual implementation return formats
+- Create helper functions for result validation
+- Document expected return formats for all functions
+- Add type specifications to clarify expected formats
 
 ## Conclusion
 
-The EventStore separation project has made significant progress with the successful implementation of behavior separation for the TestEventStore module. The diagnostic tests now pass, confirming that the basic functionality works correctly with the new architecture.
+We've made substantial progress fixing the critical issues in the test infrastructure, particularly with the EventStore behavior separation and function consistency improvements. The remaining issues are primarily related to test environment initialization, mock implementation, and integration with the existing test suite.
 
-The remaining work focuses on extending this pattern to the EventStore mock implementation, addressing code quality issues, and ensuring integration with existing tests. With these improvements, the test infrastructure will be much more reliable and maintainable.
+By addressing the prioritized issues above, we can complete the test infrastructure improvements and provide a much more robust and maintainable testing environment for GameBot.
 
 ---
 

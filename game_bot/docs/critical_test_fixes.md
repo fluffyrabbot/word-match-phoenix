@@ -8,16 +8,14 @@ This document outlines critical issues in the GameBot test infrastructure that r
 
 **Problem:** `GameBot.Test.Mocks.EventStore` implements both `GenServer` and `EventStore` behaviors, but has conflicting implementations which leads to compiler warnings and runtime errors.
 
-**Status:** ✅ Partially Fixed
+**Status:** ✅ Fixed
 - Resolved the default parameter conflicts in `start_link/1` and other functions
 - Added proper `@impl` annotations to clarify which behavior each function implements
 - Fixed the TestEventStore to better handle start/stop with already running instances
 - Updated function signatures to match behavior expectations
-
-**Remaining Work:**
-- Some behavior callbacks still have implementation conflicts between GenServer and EventStore
-- Need to complete implementation of missing callbacks
-- Further testing needed to verify all edge cases are handled
+- Created separate `EventStoreCore` modules to handle GenServer functionality
+- Delegated behavior implementations between modules to avoid conflicts
+- Added backward compatibility functions for smoother transition
 
 ### 2. Reset Implementation Failures
 
@@ -60,10 +58,11 @@ This document outlines critical issues in the GameBot test infrastructure that r
 - Updated function names to be consistent across modules:
   - `initialize_test_environment()` → `initialize()`
   - `cleanup_connections()` → `cleanup()`
-  - `setup_sandbox(tags)` → `reset_sandbox()`
+- Added backward compatibility aliases for renamed functions
 - Fixed parameter mismatches in function calls
 - Ensured proper function signatures in all test modules
 - Added diagnostic tests to verify correct function operation
+- Added previously missing `setup_sandbox/1` function
 
 ### 6. Test Execution Flow Issues
 
@@ -78,7 +77,37 @@ This document outlines critical issues in the GameBot test infrastructure that r
 
 ## Newly Identified Issues
 
-### 7. Code Quality Warnings
+### 7. Test Environment Initialization Issues 🔴
+
+**Problem:** Test repositories are not consistently initialized, leading to widespread test failures.
+
+**Status:** 🔴 Critical Priority
+- Many tests fail because repositories are not properly started or connected
+- The EventStore processes are not always initialized in the correct order
+- Some tests expect processes to be initialized, others initialize them themselves
+- Repository checkout timings cause race conditions in some tests
+
+### 8. Mock Implementation and Availability Issues 🔴
+
+**Problem:** Several tests fail because they can't find or load mock modules.
+
+**Status:** 🔴 Critical Priority
+- Missing `MockEventStoreAccess` and `MockSubscriptionManager` modules 
+- Inconsistent mock initialization and teardown procedures
+- Some tests trying to use Mox with undefined mocks
+- Mock return values don't match expected formats in some cases
+
+### 9. Event Serialization Issues
+
+**Problem:** Integration tests fail due to event serialization validation failures.
+
+**Status:** ⚠️ Needs Attention
+- Event structures don't meet validation requirements
+- Events missing required type keys during serialization
+- Inconsistent expectations about event formats between tests
+- Different implementations handling event formats differently
+
+### 10. Code Quality Warnings
 
 **Problem:** Multiple code quality warnings exist throughout the codebase, which may lead to runtime issues or maintenance problems.
 
@@ -89,117 +118,93 @@ This document outlines critical issues in the GameBot test infrastructure that r
 - Missing @impl annotations for behavior implementations
 - Type inconsistencies and potential runtime type errors
 
-### 8. EventStore Mock Implementation Gaps
+### 11. Test Result Format Inconsistencies
 
-**Problem:** The EventStore mock implementation is incomplete, with missing callbacks and potential behavior conflicts.
-
-**Status:** ⚠️ Partially Fixed
-- Fixed basic operations for TestEventStore
-- Still need to complete implementation of all required callbacks
-- Some functions have conflicting behaviors with GenServer implementation
-- Need better type specifications and documentation
-
-### 9. Shell Script Integration Issues
-
-**Problem:** The shell scripts do not fully integrate with the new Elixir test infrastructure.
+**Problem:** Tests expect different return formats than the implementations provide.
 
 **Status:** ⚠️ Needs Attention
-- Scripts still use hardcoded values instead of Config module values
-- Process termination not fully synchronized with Elixir cleanup
-- Error reporting inconsistent between shell and Elixir components
-- Environment variable handling needs standardization
-
-### 10. Behavior Implementation Paradigm Issues
-
-**Problem:** The current approach of implementing both GenServer and EventStore behaviors in the same module creates fundamental conflicts.
-
-**Status:** 🔴 Critical Priority
-- Multiple behaviors define the same functions (init/1, handle_call/3) with different expectations
-- Function signatures can't simultaneously satisfy both behavior specifications
-- Annotations (@impl) are ambiguous when applied to shared callback names
-- Type specifications become overly complex or impossible to satisfy for both behaviors
+- Some expect raw lists rather than {:ok, list} tuples
+- Others expect structs rather than maps in return values
+- Return format expectations vary between tests for the same functions
+- Inconsistent error handling expectations between test modules
 
 ## Implementation Plan
 
 ### Completed Steps:
 
 1. ✅ Create consolidated Config module
-2. ✅ Fix function naming consistency
+2. ✅ Fix function naming consistency 
 3. ✅ Implement proper reset functionality
 4. ✅ Fix database connection management
 5. ✅ Fix test execution flow ordering
 6. ✅ Add comprehensive diagnostic tests
 7. ✅ Remove circular dependencies
+8. ✅ Separate GenServer and EventStore implementations for both test modules
+9. ✅ Add backward compatibility functions for renamed/modified API
+10. ✅ Add missing `setup_sandbox/1` function to DatabaseHelper
 
 ### Next Steps (Prioritized):
 
-1. 🔴 **Separate GenServer and EventStore Implementations**
-   - Create dedicated modules for each behavior:
-     - `GameBot.Test.EventStoreCore` (GenServer implementation)
-     - `GameBot.Test.EventStoreMock` (EventStore behavior)
-   - Use delegation pattern to connect the modules
-   - Ensure proper function signatures for each behavior
-   - Update all references to use the new modules
-   - Verify operation through diagnostic tests
+1. 🔴 **Fix Test Environment Initialization Issues**
+   - Update the repository case module to consistently initialize repositories
+   - Create a standard pre-test environment validation process
+   - Ensure consistent startup sequence across all test modules
+   - Add better error handling for initialization failures
+   - Implement process monitoring for critical test resources
 
-2. ⏩ Address code quality warnings
+2. 🔴 **Create Missing Mock Implementations**
+   - Create and implement missing mock modules:
+     - `MockEventStoreAccess` with required callbacks
+     - `MockSubscriptionManager` with required callbacks
+   - Update test modules to properly initialize mocks
+   - Standardize mock setup and teardown procedures
+   - Add comprehensive error handling for mock operations
+
+3. ⏩ **Fix Event Serialization Issues**
+   - Update test event creation helpers to ensure proper format
+   - Add validation to catch invalid event formats early
+   - Create standard event factory functions for tests
+   - Document required event formats for all implementations
+
+4. ⏩ **Address Code Quality Warnings**
    - Prefix unused variables with underscore
    - Fix default parameter issues in function clauses
    - Fix @doc attributes on private functions
    - Add proper @impl annotations
 
-3. ⏩ Complete EventStore mock implementation
-   - Implement missing callbacks
-   - Resolve conflicting behavior implementations
-   - Improve type specifications
+5. ⏩ **Standardize Test Expectations**
+   - Update test expectations to match actual implementation return formats
+   - Create helper functions for result validation
+   - Document expected return formats for all functions
+   - Add type specifications to clarify expected formats
 
-4. ⏩ Enhance shell script integration
-   - Update scripts to use Config module values
-   - Improve synchronization with Elixir components
-   - Standardize error reporting and handling
+## Test Environment Initialization Strategy
 
-## Behavior Separation Strategy
+To fix the test environment initialization issues, we'll:
 
-To properly separate the behaviors, we need to:
+1. Create a standardized test environment initialization sequence:
+   - Define a proper order for starting repositories and services
+   - Add checks to validate environment state before tests
+   - Implement better error reporting for initialization failures
 
-1. **Analyze Current Usage**
-   - Identify all modules that reference the EventStore mocks
-   - Document the expected behavior of each function
-   - Map GenServer callbacks to their EventStore counterparts
+2. Update repository case module:
+   - Ensure consistent repository startup across all tests
+   - Add health checks for repositories before tests
+   - Implement proper cleanup between tests
 
-2. **Design Public API**
-   - Define clear interfaces for the new modules
-   - Ensure backward compatibility where possible
-   - Document any breaking changes
+3. Improve process monitoring:
+   - Track all critical processes started during tests
+   - Ensure proper cleanup of all monitored processes
+   - Add diagnostics for process lifecycle events
 
-3. **Implement Core GenServer**
-   - Create a focused GenServer implementation
-   - Move state management logic to this module
-   - Expose proper interface for delegation
-
-4. **Implement EventStore Interface**
-   - Create a module that implements only EventStore behavior
-   - Delegate to the GenServer core for operation
-   - Ensure proper function signatures and return types
-
-5. **Update References**
-   - Modify all references to use the new structure
-   - Update tests to use the correct modules
-   - Add explicit documentation about the separation
-
-## Files to Analyze & Update
-
-The following files need to be carefully analyzed:
-
-1. `game_bot/test/support/mocks/event_store.ex` - Primary source of conflict
-2. `game_bot/lib/game_bot/test_event_store.ex` - May have similar issues
-3. `game_bot/test/support/event_store_case.ex` - Uses the EventStore mock
-4. `game_bot/test/diagnostic_test.exs` - Tests the EventStore functionality
-5. `game_bot/test/support/repository_case.ex` - May start the TestEventStore
+4. Standardize mock initialization:
+   - Create a unified approach to mock initialization
+   - Ensure all mocks are properly defined and available
+   - Add validation for mock setup and configuration
 
 ## Verification Strategy
 
-To verify the fixes, we have implemented a comprehensive set of diagnostic tests that check:
+To verify our fixes, we will continue to use the diagnostic tests that check:
 
 1. Basic environment initialization
 2. Database connection establishment
@@ -207,19 +212,15 @@ To verify the fixes, we have implemented a comprehensive set of diagnostic tests
 4. TestEventStore operations with reset and reload
 5. Configuration loading and validation
 
-All diagnostic tests are now passing, indicating that the core test infrastructure is functional. However, the remaining issues related to code quality warnings, EventStore mock implementation gaps, and shell script integration still need to be addressed.
+We'll add additional tests to verify:
 
-## Performance Considerations
-
-The current implementation focuses on reliability over performance. Future optimizations could include:
-
-1. More efficient database reset mechanisms
-2. Better connection pooling strategies
-3. Improved parallel test execution
-4. Selective cleanup based on test requirements
+1. Mock module availability and initialization
+2. Event serialization validation
+3. Process monitoring and cleanup
+4. Test environment state consistency
 
 ## Conclusion
 
-We have successfully addressed the most critical issues in the test infrastructure. The test environment now initializes correctly, connections are properly managed, and the TestEventStore functions as expected. The remaining issues are primarily related to code quality and completeness rather than critical functionality.
+We've successfully addressed several critical issues in the test infrastructure, including the EventStore behavior separation, function consistency, and connection management. The remaining work focuses on fixing test environment initialization issues and adding missing mock implementations, which are causing the majority of the remaining test failures.
 
-The next phase of work should focus on separating the GenServer and EventStore behaviors into distinct modules, which will fundamentally improve the stability and maintainability of our test infrastructure. This separation will eliminate the behavioral conflicts that are the root cause of many issues we've been addressing. 
+By addressing these issues in the prioritized order, we can complete the test infrastructure improvements and provide a robust foundation for testing the GameBot application. 
