@@ -31,11 +31,11 @@ defmodule GameBot.EventStoreCase do
 
   setup tags do
     # Set up sandbox using DatabaseHelper
-    GameBot.Test.DatabaseHelper.setup_sandbox(tags)
+    GameBot.Test.DatabaseHelper.reset_sandbox()
 
     # Register cleanup callback
     on_exit(fn ->
-      GameBot.Test.DatabaseHelper.cleanup_connections()
+      GameBot.Test.DatabaseHelper.cleanup()
     end)
 
     :ok

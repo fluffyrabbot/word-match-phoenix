@@ -1,0 +1,105 @@
+#!/bin/bash
+
+echo "Running tests..."
+
+# Define color codes for output formatting
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Set environment to test mode
+export MIX_ENV=test
+
+# Get database configuration via the Config module
+# This eliminates hardcoded values in the script
+echo -e "${BLUE}Loading database configuration...${NC}"
+DB_CONFIG=$(mix run -e 'alias GameBot.Test.Config; IO.puts "username=#{Config.db_username()}\npassword=#{Config.db_password()}\nhostname=#{Config.db_hostname()}\nport=#{Config.db_port()}\nmain_db=#{Config.main_db_name()}\nevent_db=#{Config.event_db_name()}"')
+
+# Parse the output into variables
+DB_USERNAME=$(echo "$DB_CONFIG" | grep "username=" | cut -d= -f2)
+DB_PASSWORD=$(echo "$DB_CONFIG" | grep "password=" | cut -d= -f2)
+DB_HOSTNAME=$(echo "$DB_CONFIG" | grep "hostname=" | cut -d= -f2)
+DB_PORT=$(echo "$DB_CONFIG" | grep "port=" | cut -d= -f2)
+MAIN_DB=$(echo "$DB_CONFIG" | grep "main_db=" | cut -d= -f2)
+EVENT_DB=$(echo "$DB_CONFIG" | grep "event_db=" | cut -d= -f2)
+
+# Get timeout settings from Config module
+TIMEOUT_CONFIG=$(mix run -e 'alias GameBot.Test.Config; IO.puts "db_timeout=#{Config.db_timeout()}\nownership_timeout=#{Config.ownership_timeout()}\nconnection_timeout=#{Config.connection_timeout()}\npool_size=#{Config.pool_size()}"')
+
+# Parse timeout settings
+DB_TIMEOUT=$(echo "$TIMEOUT_CONFIG" | grep "db_timeout=" | cut -d= -f2)
+OWNERSHIP_TIMEOUT=$(echo "$TIMEOUT_CONFIG" | grep "ownership_timeout=" | cut -d= -f2)
+CONNECTION_TIMEOUT=$(echo "$TIMEOUT_CONFIG" | grep "connection_timeout=" | cut -d= -f2)
+POOL_SIZE=$(echo "$TIMEOUT_CONFIG" | grep "pool_size=" | cut -d= -f2)
+
+# Set database environment variables from the Config module values
+export ECTO_POOL_SIZE=$POOL_SIZE
+export ECTO_TIMEOUT=$DB_TIMEOUT
+export ECTO_CONNECT_TIMEOUT=$CONNECTION_TIMEOUT
+export ECTO_OWNERSHIP_TIMEOUT=$OWNERSHIP_TIMEOUT
+
+# Disable PostgreSQL paging to prevent interactive prompts
+export PAGER=cat
+export PGSTYLEPAGER=cat
+
+# Set PostgreSQL password from Config
+mix run -e 'prev = GameBot.Test.Config.set_pg_password(); IO.puts "Previous PGPASSWORD=#{prev}"'
+
+# Function to handle errors
+handle_error() {
+  echo -e "${RED}Error: $1${NC}"
+  cleanup_all_resources
+  # Restore original PGPASSWORD 
+  mix run -e 'GameBot.Test.Config.restore_pg_password(nil)'
+  exit 1
+}
+
+# Function to clean up resources on exit
+cleanup_all_resources() {
+  echo -e "${BLUE}Performing comprehensive cleanup...${NC}"
+  
+  # Kill any beam processes related to our app
+  if command -v pkill > /dev/null; then
+    echo "Terminating any beam processes..."
+    pkill -f "iex.*game_bot" || true
+    pkill -f "mix.*game_bot" || true
+    pkill -9 -f "beam.*game_bot" || true
+  fi
+  
+  # Terminate all connections to non-postgres databases using Config module to get connection info
+  echo "Terminating all test database connections..."
+  psql -P pager=off -U $DB_USERNAME -h $DB_HOSTNAME -p $DB_PORT -d postgres -c "
+    SELECT pg_terminate_backend(pid) 
+    FROM pg_stat_activity 
+    WHERE datname IN ('$MAIN_DB', '$EVENT_DB') 
+    AND pid <> pg_backend_pid();" || true
+  
+  echo -e "${BLUE}Comprehensive cleanup complete${NC}"
+}
+
+# Register cleanup function to run on exit
+trap cleanup_all_resources EXIT SIGINT SIGTERM
+
+# Check if PostgreSQL is running
+echo -e "${BLUE}Checking PostgreSQL status...${NC}"
+if ! pg_isready -h $DB_HOSTNAME -p $DB_PORT -U $DB_USERNAME > /dev/null 2>&1; then
+  handle_error "PostgreSQL is not running. Please start PostgreSQL before running tests."
+fi
+
+# Use the DatabaseHelper module to initialize test environment
+echo -e "${BLUE}Initializing test environment...${NC}"
+mix run -e 'GameBot.Test.DatabaseHelper.initialize_test_environment()'
+
+# Run the tests with optimized settings and longer timeouts
+echo -e "${YELLOW}Running tests...${NC}"
+mix test $@ || handle_error "Tests failed"
+
+# Display success message
+echo -e "${GREEN}All tests passed successfully!${NC}"
+cleanup_all_resources
+echo -e "${GREEN}Cleanup complete.${NC}"
+
+# Restore original PGPASSWORD
+mix run -e 'GameBot.Test.Config.restore_pg_password(nil)' 

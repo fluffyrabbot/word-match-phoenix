@@ -11,8 +11,10 @@ defmodule GameBot.Infrastructure.Repository do
   Returns the configured repository implementation.
   """
   defp impl do
-    Application.get_env(:game_bot, :repository_implementation,
-      GameBot.Infrastructure.Persistence.Repo.Postgres)
+    # Check both configuration keys for backward compatibility
+    Application.get_env(:game_bot, :repository_implementation) ||
+      Application.get_env(:game_bot, :repo_implementation,
+        GameBot.Infrastructure.Persistence.Repo.Postgres)
   end
 
   @doc """

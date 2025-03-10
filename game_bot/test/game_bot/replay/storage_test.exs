@@ -3,7 +3,6 @@ defmodule GameBot.Replay.StorageTest do
 
   alias GameBot.Replay.{Storage, GameReplay, ReplayAccessLog, Types, EventStoreAccess}
   alias GameBot.Infrastructure.Persistence.Repo.MockRepo
-  alias Meck
 
   # Set up test data and environment
   setup do
@@ -47,9 +46,8 @@ defmodule GameBot.Replay.StorageTest do
       %{event_type: "game_completed", event_version: 1, version: 3, game_id: game_id}
     ]
 
-    # Start :meck for this test run
-    :meck.new(MockRepo, [:passthrough])
-    on_exit(fn -> :meck.unload(MockRepo) end)
+    # We don't need to start meck here as it's handled by RepositoryCase
+    # when the test is tagged with :mock
 
     {:ok, %{
       replay: test_replay,
@@ -203,7 +201,7 @@ defmodule GameBot.Replay.StorageTest do
     @tag :mock
     test "retrieves only replay metadata", %{replay: replay, replay_id: replay_id} do
       # Set up mock to return the replay
-      expect(MockRepo, :one, fn _query ->
+      :meck.expect(MockRepo, :one, fn query, _opts ->
         struct(GameReplay, Map.to_list(replay))
       end)
 
@@ -226,12 +224,12 @@ defmodule GameBot.Replay.StorageTest do
       ]
 
       # Mock the transaction function
-      expect(MockRepo, :transaction, fn fun, _opts ->
+      :meck.expect(MockRepo, :transaction, fn fun, _opts ->
         {:ok, fun.()}
       end)
 
       # Mock the all function to return replays
-      expect(MockRepo, :all, fn _query -> replays end)
+      :meck.expect(MockRepo, :all, fn _query -> replays end)
 
       # Call function under test
       result = Storage.list_replays()
@@ -247,12 +245,12 @@ defmodule GameBot.Replay.StorageTest do
       replay_struct = struct(GameReplay, Map.to_list(replay))
 
       # Mock the transaction function
-      expect(MockRepo, :transaction, fn fun, _opts ->
+      :meck.expect(MockRepo, :transaction, fn fun, _opts ->
         {:ok, fun.()}
       end)
 
       # Mock the all function to return filtered replay
-      expect(MockRepo, :all, fn _query -> [replay_struct] end)
+      :meck.expect(MockRepo, :all, fn _query -> [replay_struct] end)
 
       # Call function under test with filter
       result = Storage.list_replays(%{
@@ -270,12 +268,12 @@ defmodule GameBot.Replay.StorageTest do
     @tag :mock
     test "returns empty list when no replays match filters" do
       # Mock the transaction function
-      expect(MockRepo, :transaction, fn fun, _opts ->
+      :meck.expect(MockRepo, :transaction, fn fun, _opts ->
         {:ok, fun.()}
       end)
 
       # Mock the all function to return empty list
-      expect(MockRepo, :all, fn _query -> [] end)
+      :meck.expect(MockRepo, :all, fn _query -> [] end)
 
       # Call function under test with filter
       result = Storage.list_replays(%{game_id: "nonexistent-game"})
@@ -290,7 +288,7 @@ defmodule GameBot.Replay.StorageTest do
     @tag :mock
     test "logs access successfully", %{replay_id: replay_id} do
       # Mock insert to return success
-      expect(MockRepo, :insert, fn changeset ->
+      :meck.expect(GameBot.Infrastructure.Persistence.Repo.MockRepo, :insert, fn changeset ->
         assert changeset.changes.replay_id == replay_id
         assert changeset.changes.user_id == "user123"
         assert changeset.changes.guild_id == "guild123"
@@ -311,7 +309,7 @@ defmodule GameBot.Replay.StorageTest do
     @tag :mock
     test "returns error on failed insert", %{replay_id: replay_id} do
       # Mock insert to return an error
-      expect(MockRepo, :insert, fn _changeset ->
+      :meck.expect(GameBot.Infrastructure.Persistence.Repo.MockRepo, :insert, fn _changeset ->
         changeset_error = %Ecto.Changeset{
           valid?: false,
           errors: [user_id: {"is invalid", []}]
@@ -332,12 +330,12 @@ defmodule GameBot.Replay.StorageTest do
     @tag :mock
     test "deletes old replays" do
       # Mock the transaction function
-      expect(MockRepo, :transaction, fn fun, _opts ->
+      :meck.expect(MockRepo, :transaction, fn fun, _opts ->
         {:ok, fun.()}
       end)
 
       # Mock delete_all to return success with count
-      expect(MockRepo, :delete_all, fn _query ->
+      :meck.expect(MockRepo, :delete_all, fn _query ->
         {5, nil}  # 5 records deleted
       end)
 
@@ -352,12 +350,12 @@ defmodule GameBot.Replay.StorageTest do
     @tag :mock
     test "handles delete errors" do
       # Mock the transaction function
-      expect(MockRepo, :transaction, fn fun, _opts ->
+      :meck.expect(MockRepo, :transaction, fn fun, _opts ->
         {:ok, fun.()}
       end)
 
       # Mock delete_all to return an error
-      expect(MockRepo, :delete_all, fn _query ->
+      :meck.expect(MockRepo, :delete_all, fn _query ->
         {:error, "database error"}
       end)
 

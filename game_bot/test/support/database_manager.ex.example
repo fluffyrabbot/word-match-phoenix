@@ -1,0 +1,452 @@
+defmodule GameBot.Test.DatabaseManager do
+  @moduledoc """
+  Unified database management for tests.
+  
+  This module consolidates functionality previously spread across multiple modules:
+  - DatabaseConnectionManager
+  - DatabaseHelper
+  
+  It provides a single interface for all database operations needed during testing,
+  addressing duplication and inconsistency issues in the previous implementation.
+  
+  ## Usage
+  
+  ```elixir
+  # In your test_helper.exs:
+  GameBot.Test.DatabaseManager.initialize_test_environment()
+  
+  # In your test case setup:
+  setup tags do
+    GameBot.Test.DatabaseManager.setup_sandbox(tags)
+    on_exit(&GameBot.Test.DatabaseManager.cleanup_connections/0)
+    :ok
+  end
+  ```
+  """
+  
+  use ExUnit.CaseTemplate
+  require Logger
+  alias GameBot.Test.Config
+  
+  # List of all repositories that need to be managed
+  @repos [
+    GameBot.Infrastructure.Persistence.Repo,
+    GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+  ]
+  
+  # Maximum number of retries for database operations
+  @max_retries 5
+  # Initial retry delay in milliseconds
+  @retry_interval 100
+  
+  @doc """
+  Initializes the test environment.
+  This should be called once at the start of the test suite.
+  
+  ## Examples
+  
+  ```elixir
+  # In test_helper.exs
+  GameBot.Test.DatabaseManager.initialize_test_environment()
+  ```
+  """
+  def initialize_test_environment do
+    Logger.info("Initializing test environment")
+    
+    # Start required applications in order
+    apps = [
+      :logger,
+      :crypto,
+      :ssl,
+      :postgrex,
+      :ecto,
+      :ecto_sql,
+      :eventstore
+    ]
+    
+    # Start each application and handle errors
+    Enum.each(apps, fn app ->
+      case Application.ensure_all_started(app) do
+        {:ok, _} -> :ok
+        {:error, {dep, reason}} ->
+          Logger.error("Failed to start #{app}. Dependency #{dep} failed: #{inspect(reason)}")
+          raise "Failed to start required application: #{app}"
+      end
+    end)
+    
+    # Log database names for debugging
+    log_database_names()
+    
+    # Initialize repositories with retry logic
+    with :ok <- terminate_existing_connections(),
+         :ok <- ensure_repositories_started() do
+      configure_sandbox_mode()
+    else
+      {:error, reason} ->
+        Logger.error("Failed to initialize test environment: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+  
+  @doc """
+  Sets up the sandbox for a test based on the provided tags.
+  This should be called in the setup block of test cases.
+  
+  ## Examples
+  
+  ```elixir
+  setup tags do
+    GameBot.Test.DatabaseManager.setup_sandbox(tags)
+    :ok
+  end
+  ```
+  """
+  def setup_sandbox(tags) do
+    if tags[:skip_db] do
+      :ok
+    else
+      if tags[:mock] do
+        setup_mock_sandbox(tags)
+      else
+        do_setup_sandbox(tags)
+      end
+    end
+  end
+  
+  @doc """
+  Gracefully closes database connections.
+  This should be called in the on_exit callback of test cases.
+  
+  ## Examples
+  
+  ```elixir
+  setup do
+    on_exit(&GameBot.Test.DatabaseManager.cleanup_connections/0)
+    :ok
+  end
+  ```
+  """
+  def cleanup_connections do
+    Logger.debug("Cleaning up database connections")
+    
+    # First, try to close connections gracefully through the repos
+    close_repo_connections()
+    
+    # Force terminate remaining connections as a last resort
+    terminate_postgres_connections()
+    
+    # Small delay to allow processes to fully terminate
+    Process.sleep(100)
+    
+    # Then, restart repositories if needed
+    restart_repositories_if_needed()
+    
+    :ok
+  end
+  
+  @doc """
+  Terminates all PostgreSQL connections to test databases.
+  Uses a separate database connection to issue the pg_terminate_backend command.
+  """
+  def terminate_postgres_connections do
+    query = """
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE pid <> pg_backend_pid()
+    AND datname IN ($1, $2)
+    """
+    
+    # Connect to postgres database (not the test database)
+    try do
+      # Use Config module to get connection parameters
+      {:ok, conn} = Postgrex.start_link([
+        hostname: Config.db_hostname(),
+        username: Config.db_username(),
+        password: Config.db_password(),
+        database: "postgres",
+        connect_timeout: Config.connection_timeout()
+      ])
+      
+      # Execute the connection termination query
+      try do
+        Postgrex.query!(conn, query, [Config.main_db_name(), Config.event_db_name()])
+      rescue
+        e ->
+          Logger.warning("Error executing termination query: #{inspect(e)}")
+      end
+      
+      # Close our connection
+      try do
+        GenServer.stop(conn, :normal, 500)
+      rescue
+        _ -> :ok
+      end
+    rescue
+      e ->
+        Logger.warning("Failed to terminate connections: #{inspect(e)}")
+    end
+  end
+  
+  # Private Functions
+  
+  defp setup_mock_sandbox(_tags) do
+    Logger.debug("Setting up mock sandbox")
+    
+    # Configure the repository implementation to use the mock
+    Application.put_env(:game_bot, :repository_implementation,
+      GameBot.Infrastructure.Persistence.Repo.MockRepo)
+    
+    # Verify the configuration
+    repo_impl = Application.get_env(:game_bot, :repository_implementation)
+    Logger.debug("Repository implementation set to: #{inspect(repo_impl)}")
+    
+    :ok
+  end
+  
+  defp do_setup_sandbox(tags) do
+    # First ensure clean state
+    cleanup_connections()
+    
+    # Configure the repository implementation to use PostgreSQL
+    Application.put_env(:game_bot, :repository_implementation,
+      GameBot.Infrastructure.Persistence.Repo.Postgres)
+    
+    # Verify the configuration
+    repo_impl = Application.get_env(:game_bot, :repository_implementation)
+    Logger.debug("Repository implementation set to: #{inspect(repo_impl)}")
+    
+    # Configure sandbox based on async setting
+    sandbox_opts = [
+      ownership_timeout: Config.ownership_timeout(),
+      shared: not tags[:async]
+    ]
+    
+    # Ensure repositories are running
+    ensure_repositories_started()
+    
+    # Checkout repositories with proper error handling and retry
+    Enum.each(@repos, fn repo ->
+      try_with_retries(@max_retries, @retry_interval, fn ->
+        try do
+          case Ecto.Adapters.SQL.Sandbox.checkout(repo, sandbox_opts) do
+            :ok ->
+              Logger.debug("Successfully checked out #{inspect(repo)}")
+              # Allow shared mode for non-async tests
+              unless tags[:async] do
+                Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+              end
+              :ok
+            {:ok, _} ->
+              Logger.debug("Successfully checked out #{inspect(repo)}")
+              # Allow shared mode for non-async tests
+              unless tags[:async] do
+                Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+              end
+              :ok
+            {:error, error} ->
+              Logger.error("Failed to checkout #{inspect(repo)}: #{inspect(error)}")
+              raise "Failed to checkout repository: #{inspect(repo)}"
+          end
+        rescue
+          e ->
+            Logger.error("Error during sandbox setup for #{inspect(repo)}: #{inspect(e)}")
+            # Force reconnect on error
+            restart_repository(repo)
+            # Re-raise to trigger retry
+            reraise e, __STACKTRACE__
+        end
+      end)
+    end)
+    
+    :ok
+  end
+  
+  defp ensure_repositories_started do
+    Logger.info("Starting repositories")
+    
+    repo_results = Enum.map(@repos, &start_repository/1)
+    
+    if Enum.all?(repo_results, &(&1 == :ok)) do
+      :ok
+    else
+      errors = Enum.filter(repo_results, &(elem(&1, 0) == :error))
+      {:error, "Failed to start repositories: #{inspect(errors)}"}
+    end
+  end
+  
+  defp restart_repositories_if_needed do
+    Logger.debug("Checking and restarting repositories if needed")
+    
+    Enum.each(@repos, fn repo ->
+      case Process.whereis(repo) do
+        nil ->
+          # Repository not running, restart it
+          Logger.debug("Repository #{inspect(repo)} not found, starting it")
+          start_repository(repo)
+        pid when is_pid(pid) ->
+          # Repository is running, check its state
+          if Process.alive?(pid) do
+            # Check if connections are working
+            try do
+              # Try a simple query to check connection
+              repo.aggregate(repo, :count, :id)
+              Logger.debug("Repository #{inspect(repo)} connections are working")
+            rescue
+              e ->
+                Logger.warning("Repository #{inspect(repo)} connection check failed: #{inspect(e)}")
+                restart_repository(repo)
+            end
+          else
+            # Process is dead, restart it
+            Logger.warning("Repository #{inspect(repo)} process is dead, restarting")
+            start_repository(repo)
+          end
+      end
+    end)
+  end
+  
+  defp restart_repository(repo) do
+    Logger.info("Restarting repository: #{inspect(repo)}")
+    
+    # First try to stop it cleanly
+    try do
+      if Process.whereis(repo) do
+        repo.stop()
+        Process.sleep(200)  # Give it time to shut down
+      end
+    rescue
+      _ -> :ok  # Ignore errors when stopping
+    end
+    
+    # Then start it again
+    start_repository(repo)
+  end
+  
+  defp start_repository(repo) do
+    Logger.debug("Starting repository: #{inspect(repo)}")
+    
+    # Get config from the Config module based on repo type
+    config = get_repo_config(repo)
+    
+    # Ensure the repository is registered in the Registry
+    Process.put({:repo, repo}, repo)
+    
+    try_with_retries(@max_retries, @retry_interval, fn ->
+      case repo.start_link(config) do
+        {:ok, pid} ->
+          Logger.debug("Successfully started #{inspect(repo)} with PID #{inspect(pid)}")
+          Process.sleep(200) # Give the repo time to fully initialize
+          :ok
+        {:error, {:already_started, pid}} ->
+          Logger.debug("Repository #{inspect(repo)} already started with PID #{inspect(pid)}")
+          :ok
+        {:error, error} ->
+          Logger.error("Failed to start #{inspect(repo)}: #{inspect(error)}")
+          {:error, {repo, error}}
+      end
+    end)
+  end
+  
+  defp get_repo_config(repo) do
+    base_config = case repo do
+      GameBot.Infrastructure.Persistence.Repo -> Config.main_db_config()
+      GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres -> Config.event_db_config()
+      _ -> Application.get_env(:game_bot, repo, [])
+    end
+    
+    # Ensure required options are set
+    Keyword.merge([
+      pool: Ecto.Adapters.SQL.Sandbox,
+      pool_size: Config.pool_size(),
+      ownership_timeout: Config.ownership_timeout(),
+      timeout: Config.db_timeout(),
+      connect_timeout: Config.connection_timeout()
+    ], base_config)
+  end
+  
+  defp configure_sandbox_mode do
+    Logger.info("Configuring sandbox mode for repositories")
+    
+    Enum.each(@repos, fn repo ->
+      :ok = Ecto.Adapters.SQL.Sandbox.mode(repo, :manual)
+    end)
+    
+    :ok
+  end
+  
+  defp terminate_existing_connections do
+    terminate_postgres_connections()
+    :ok
+  end
+  
+  defp log_database_names do
+    Logger.info("""
+    Working with databases:
+    Main DB: #{Config.main_db_name()}
+    Event DB: #{Config.event_db_name()}
+    """)
+  end
+  
+  @doc """
+  Attempts to gracefully close all Postgrex connections.
+  """
+  def close_repo_connections do
+    Logger.debug("Attempting to gracefully close repository connections")
+    
+    # Find all Postgrex connections
+    connections = for pid <- Process.list(),
+      info = Process.info(pid, [:dictionary]),
+      info != nil,
+      dictionary = info[:dictionary],
+      dictionary != nil,
+      initial_call = dictionary[:"$initial_call"],
+      is_database_connection(initial_call) do
+        pid
+    end
+    
+    # Try to gracefully close each connection
+    Enum.each(connections, fn pid ->
+      try do
+        # First try a gentle stop
+        Logger.debug("Sending graceful shutdown to DB connection: #{inspect(pid)}")
+        if Process.alive?(pid) do
+          GenServer.stop(pid, :normal, 100)
+        end
+      rescue
+        _ -> :ok # Ignore errors
+      catch
+        _, _ -> :ok # Ignore errors
+      end
+    end)
+    
+    # Allow time for connections to close
+    Process.sleep(100)
+  end
+  
+  # Helper to detect database connection processes
+  defp is_database_connection({Postgrex.Protocol, :init, 1}), do: true
+  defp is_database_connection({DBConnection.Connection, :init, 1}), do: true
+  defp is_database_connection(_), do: false
+  
+  # Generic retry function with exponential backoff
+  defp try_with_retries(0, _delay, _fun), do: {:error, :max_retries_exceeded}
+  defp try_with_retries(retries, delay, fun) do
+    try do
+      case fun.() do
+        :ok -> :ok
+        {:ok, value} -> {:ok, value}
+        other -> other
+      end
+    rescue
+      e ->
+        Logger.warning("Operation failed (#{retries} retries left): #{inspect(e)}")
+        Process.sleep(delay)
+        try_with_retries(retries - 1, delay * 2, fun)  # Exponential backoff
+    catch
+      :exit, reason ->
+        Logger.warning("Operation exited (#{retries} retries left): #{inspect(reason)}")
+        Process.sleep(delay)
+        try_with_retries(retries - 1, delay * 2, fun)  # Exponential backoff
+    end
+  end
+end 

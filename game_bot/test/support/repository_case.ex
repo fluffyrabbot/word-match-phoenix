@@ -1,9 +1,19 @@
 defmodule GameBot.RepositoryCase do
   @moduledoc """
   This module defines common utilities for testing repositories.
+
+  It provides a robust setup for database-backed tests, with proper
+  resource management and error handling.
   """
 
   use ExUnit.CaseTemplate
+  require Logger
+  alias GameBot.Test.Config
+  alias GameBot.Test.DatabaseHelper
+  alias GameBot.Test.DatabaseConnectionManager
+
+  # Track monitored processes for proper cleanup
+  @process_monitors_key {__MODULE__, :monitors}
 
   using do
     quote do
@@ -31,79 +41,40 @@ defmodule GameBot.RepositoryCase do
     end
 
     # Log for debugging
-    IO.puts("Mock detection - Test tag: #{test_has_mock}, Module tag: #{module_has_mock}")
+    Logger.debug("Mock detection - Test tag: #{test_has_mock}, Module tag: #{module_has_mock}")
 
     # Return true if either the test or the module has the mock tag
     test_has_mock || module_has_mock
   end
 
   setup tags do
-    IO.puts("Repository case setup - tags: #{inspect(tags)}")
+    Logger.debug("Repository case setup - tags: #{inspect(tags)}")
 
-    # Set application env for repository implementation
+    # Initialize process monitor registry for this test
+    Process.put(@process_monitors_key, [])
+
+    # Use DatabaseHelper to clean up connections before starting
+    DatabaseConnectionManager.graceful_shutdown()
+
     # For mock tests, we use the MockRepo
-    # Use our improved mock detection function
     if mock_test?(tags) do
-      # First clear any previous setting to avoid stale configurations
-      Application.delete_env(:game_bot, :repo_implementation)
-
-      # Then set the mock implementation
-      IO.puts("Setting up mock test - configuring MockRepo")
-      Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.MockRepo)
-
-      # Verify the configuration was set correctly
-      repo_impl = Application.get_env(:game_bot, :repo_implementation)
-      IO.puts("Repository implementation set to: #{inspect(repo_impl)}")
-
-      # Set up :meck for mocking
-      # Only create if not already created (to handle nested describe blocks)
-      unless :meck.is_mocked(MockRepo) do
-        IO.puts("Setting up :meck for MockRepo")
-        :meck.new(MockRepo, [:passthrough])
-
-        # Ensure :meck is cleaned up after the test
-        on_exit(fn ->
-          if :meck.is_mocked(MockRepo) do
-            IO.puts("Cleaning up :meck for MockRepo")
-            :meck.unload(MockRepo)
-          end
-        end)
-      end
+      setup_mock_environment(tags)
     else
-      # For regular tests, use the actual Postgres repo
-      IO.puts("Setting up real repository test (no mock tag) - using Postgres")
-      Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.Postgres)
-
-      # Set up the main repository
-      :ok = Ecto.Adapters.SQL.Sandbox.checkout(GameBot.Infrastructure.Persistence.Repo)
-
-      unless tags[:async] do
-        Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo, {:shared, self()})
-      end
-
-      # Set up the Postgres repository
-      :ok = Ecto.Adapters.SQL.Sandbox.checkout(GameBot.Infrastructure.Persistence.Repo.Postgres)
-
-      unless tags[:async] do
-        Ecto.Adapters.SQL.Sandbox.mode(GameBot.Infrastructure.Persistence.Repo.Postgres, {:shared, self()})
-      end
+      # For regular tests, use the centralized setup
+      setup_real_environment(tags)
     end
 
     # Start the test event store if not already started
-    case Process.whereis(GameBot.TestEventStore) do
-      nil ->
-        {:ok, pid} = GameBot.TestEventStore.start_link()
-        on_exit(fn ->
-          if Process.alive?(pid) do
-            GameBot.TestEventStore.stop(GameBot.TestEventStore)
-          end
-        end)
-      pid ->
-        # Reset state if store already exists
-        GameBot.TestEventStore.set_failure_count(0)
-        # Clear any existing streams
-        :sys.replace_state(pid, fn _ -> %GameBot.TestEventStore.State{} end)
-    end
+    start_test_event_store()
+
+    # Register cleanup callback
+    on_exit(fn ->
+      # Clean up all monitored processes
+      cleanup_monitored_processes()
+
+      # Use the DatabaseHelper for final cleanup
+      DatabaseHelper.cleanup_connections()
+    end)
 
     :ok
   end
@@ -129,5 +100,91 @@ defmodule GameBot.RepositoryCase do
   """
   def unique_stream_id do
     "test-stream-#{System.unique_integer([:positive])}"
+  end
+
+  @doc """
+  Monitors a process and ensures it will be cleaned up after the test.
+  """
+  def monitor_process(pid) when is_pid(pid) do
+    case DatabaseConnectionManager.monitor_process(pid) do
+      {:ok, ref} ->
+        # Store the monitor reference for cleanup
+        Process.put(@process_monitors_key, [ref | Process.get(@process_monitors_key, [])])
+        {:ok, ref}
+      error -> error
+    end
+  end
+
+  # Private helper functions
+
+  defp setup_mock_environment(_tags) do
+    Logger.debug("Setting up mock test environment")
+
+    # First clear any previous setting to avoid stale configurations
+    Application.delete_env(:game_bot, :repo_implementation)
+
+    # Then set the mock implementation
+    Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.MockRepo)
+
+    # Verify the configuration was set correctly
+    repo_impl = Application.get_env(:game_bot, :repo_implementation)
+    Logger.debug("Repository implementation set to: #{inspect(repo_impl)}")
+
+    # Set up :meck for mocking
+    setup_meck_for_mock_repo()
+  end
+
+  defp setup_meck_for_mock_repo do
+    # Only create if not already created (to handle nested describe blocks)
+    try do
+      # This will raise an error if the module is not mocked
+      :meck.validate(GameBot.Infrastructure.Persistence.Repo.MockRepo)
+      Logger.debug("MockRepo already mocked, skipping setup")
+    rescue
+      _ ->
+        Logger.debug("Setting up :meck for MockRepo")
+        :meck.new(GameBot.Infrastructure.Persistence.Repo.MockRepo, [:passthrough])
+    end
+  end
+
+  defp setup_real_environment(tags) do
+    Logger.debug("Setting up real repository test environment")
+
+    # Use the centralized DatabaseHelper to initialize the environment
+    DatabaseHelper.setup_sandbox(tags)
+  end
+
+  defp start_test_event_store do
+    case Process.whereis(GameBot.TestEventStore) do
+      nil ->
+        Logger.debug("Starting TestEventStore")
+        {:ok, pid} = GameBot.TestEventStore.start_link()
+        # Monitor the process to ensure cleanup
+        monitor_process(pid)
+      _pid ->
+        Logger.debug("TestEventStore already running, resetting state")
+        # Reset state if store already exists
+        GameBot.TestEventStore.set_failure_count(0)
+        # Clear any existing streams
+        case GameBot.TestEventStore.reset!() do
+          :ok -> :ok
+          error ->
+            Logger.error("Failed to reset TestEventStore: #{inspect(error)}")
+            raise "Failed to reset TestEventStore"
+        end
+    end
+  end
+
+  defp cleanup_monitored_processes do
+    # Get all monitored process references
+    monitors = Process.get(@process_monitors_key, [])
+
+    # Demonitor and try to stop each process
+    Enum.each(monitors, fn ref ->
+      DatabaseConnectionManager.demonitor_process(ref)
+    end)
+
+    # Clear the monitor list
+    Process.put(@process_monitors_key, [])
   end
 end

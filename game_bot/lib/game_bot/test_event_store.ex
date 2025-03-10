@@ -1,412 +1,243 @@
 defmodule GameBot.TestEventStore do
   @moduledoc """
-  In-memory implementation of EventStore for testing.
+  A simple in-memory event store implementation for testing.
 
-  This module implements the EventStore behaviour for test compatibility.
+  This implementation is NOT suitable for production use. It provides
+  implementations of the `EventStore` behaviour callbacks to
+  allow for testing of components that depend on an event store.
+
+  This module delegates to GameBot.Test.EventStoreCore for state management,
+  avoiding the conflicts between GenServer and EventStore behaviors.
   """
 
-  use GenServer
+  require Logger
+  alias GameBot.Test.EventStoreCore
 
-  # Mark that we're implementing EventStore behavior to avoid warnings
+  # Declare that we implement the EventStore behaviour
   @behaviour EventStore
 
-  # State structure
-  defmodule State do
-    defstruct streams: %{},              # stream_id => [event]
-              subscriptions: %{},         # {stream_id, subscriber} => subscription_ref
-              subscribers: %{},           # subscription_ref => subscriber
-              failure_count: 0,           # Number of times to fail before succeeding
-              track_retries: false,       # Whether to track retry attempts
-              retry_delays: [],           # List of delays between retry attempts
-              last_attempt_time: nil      # Timestamp of last attempt for tracking delays
+  # Define child_spec for supervisor compatibility
+  @impl EventStore
+  def child_spec(_opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [[]]},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 500
+    }
   end
 
   # Client API
 
   @doc """
-  Starts the test event store.
-  """
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  @doc """
-  Stops the test event store.
+  Starts the TestEventStore.
   """
   @impl EventStore
-  def stop(server, timeout \\ :infinity) do
-    case server do
-      pid when is_pid(pid) ->
-        if Process.alive?(pid) do
-          GenServer.stop(pid, :normal, timeout)
-        else
-          :ok
-        end
-      name when is_atom(name) ->
-        case Process.whereis(name) do
-          nil -> :ok
-          pid -> GenServer.stop(pid, :normal, timeout)
-        end
-      _ ->
-        :ok
+  def start_link(_opts) do
+    # Try to provide a more specific error message if EventStoreCore is already running
+    case EventStoreCore.start_link(name: EventStoreCore) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} ->
+        Logger.info("EventStoreCore is already running with PID: #{inspect(pid)}")
+        {:error, {:already_started, pid}}
+      other -> other
     end
   end
 
   @doc """
-  Resets the test store state and clears all connections.
-  Ensures compatibility with test helpers that expect this function.
+  Resets the EventStore to its initial empty state.
+  This is essential for test isolation and should be called
+  between tests to prevent state from leaking between tests.
+
+  Returns `:ok` on success or `{:error, reason}` if the reset fails.
   """
   def reset! do
-    case Process.whereis(__MODULE__) do
-      nil ->
-        # If the process is not running, simply return ok
-        :ok
-      _pid ->
-        # Reset internal state
-        reset_state()
-
-        # Return success
-        :ok
-    end
-  end
-
-  @doc """
-  Sets the number of times operations should fail before succeeding.
-  Used for testing retry mechanisms.
-  """
-  def set_failure_count(count) when is_integer(count) and count >= 0 do
-    GenServer.call(__MODULE__, {:set_failure_count, count})
-  end
-
-  @doc """
-  Gets the current failure count.
-  """
-  def get_failure_count do
-    GenServer.call(__MODULE__, :get_failure_count)
-  end
-
-  @doc """
-  Resets the state of the test event store.
-  """
-  def reset_state do
-    GenServer.call(__MODULE__, :reset_state)
-  end
-
-  @doc """
-  Enables or disables tracking of retries.
-  """
-  def set_track_retries(enable) when is_boolean(enable) do
-    GenServer.call(__MODULE__, {:set_track_retries, enable})
-  end
-
-  @doc """
-  Returns the delays between retry attempts.
-  """
-  def get_retry_delays do
-    GenServer.call(__MODULE__, :get_retry_delays)
-  end
-
-  @doc """
-  Gets the current version of a stream.
-  """
-  def stream_version(stream_id) do
-    GenServer.call(__MODULE__, {:version, stream_id})
-  end
-
-  @doc """
-  Gets the current version of a stream with options.
-  """
-  def stream_version(stream_id, _opts) do
-    GenServer.call(__MODULE__, {:version, stream_id})
-  end
-
-  # Implementation of EventStore and GenServer callbacks
-
-  @impl GenServer
-  def init(_config) do
-    {:ok, %State{}}
-  end
-
-  @impl EventStore
-  def config do
-    Application.get_env(:game_bot, __MODULE__, [])
-  end
-
-  @impl EventStore
-  def subscribe(_subscriber, _subscription_options) do
-    {:ok, make_ref()}
-  end
-
-  @impl EventStore
-  def unsubscribe_from_all_streams(_subscription, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def append_to_stream(stream_id, _expected_version, events, _opts \\ []) when is_list(events) do
-    GenServer.call(__MODULE__, {:append, stream_id, events})
-  end
-
-  @impl EventStore
-  def read_stream_forward(stream_id, start_version, count, _opts \\ []) do
-    GenServer.call(__MODULE__, {:read_forward, stream_id, start_version, count})
-  end
-
-  @impl EventStore
-  def read_stream_backward(stream_id, start_version, count, _opts \\ []) do
-    GenServer.call(__MODULE__, {:read_backward, stream_id, start_version, count})
-  end
-
-  @impl EventStore
-  def read_all_streams_forward(_start_from, count, _opts \\ []) do
-    GenServer.call(__MODULE__, {:read_all_forward, count})
-  end
-
-  @impl EventStore
-  def read_all_streams_backward(_start_from, count, _opts \\ []) do
-    GenServer.call(__MODULE__, {:read_all_backward, count})
-  end
-
-  @impl EventStore
-  def subscribe_to_stream(_stream_id, _subscriber, _subscription_options \\ [], _opts \\ []) do
-    {:ok, make_ref()}
-  end
-
-  @impl EventStore
-  def subscribe_to_all_streams(_subscription_name, _subscriber, _subscription_options) do
-    {:ok, make_ref()}
-  end
-
-  @impl EventStore
-  def ack(_subscription, _events) do
-    :ok
-  end
-
-  @impl EventStore
-  def unsubscribe_from_stream(_stream_id, _subscription, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def delete_subscription(_stream_id, _subscription_name, _opts) do
-    :ok
-  end
-
-  @impl EventStore
-  def delete_all_streams_subscription(_subscription_name, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def stream_forward(_stream_id, _start_version \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def stream_backward(_stream_id, _start_version \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def stream_all_forward(_start_from \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def stream_all_backward(_start_from \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def delete_stream(stream_id, _expected_version \\ 0, _hard_delete \\ false, _opts \\ []) do
-    GenServer.call(__MODULE__, {:delete_stream, stream_id})
-  end
-
-  @impl EventStore
-  def link_to_stream(_stream_id, _expected_version, _event_numbers, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def stream_info(_stream_id, _opts \\ []) do
-    {:ok, %{stream_version: 0, stream_id: "", created_at: DateTime.utc_now()}}
-  end
-
-  @impl EventStore
-  def paginate_streams(_opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def read_snapshot(_source_uuid, _opts \\ []) do
-    {:error, :snapshot_not_found}
-  end
-
-  @impl EventStore
-  def record_snapshot(_snapshot, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def delete_snapshot(_source_uuid, _opts \\ []) do
-    :ok
-  end
-
-  # GenServer callback implementations
-
-  @impl GenServer
-  def handle_call({:set_failure_count, count}, _from, state) do
-    {:reply, :ok, %{state | failure_count: count}}
-  end
-
-  @impl GenServer
-  def handle_call(:get_failure_count, _from, state) do
-    {:reply, state.failure_count, state}
-  end
-
-  @impl GenServer
-  def handle_call(:reset_state, _from, _state) do
-    {:reply, :ok, %State{}}
-  end
-
-  @impl GenServer
-  def handle_call({:set_track_retries, enable}, _from, state) do
-    {:reply, :ok, %{state | track_retries: enable, retry_delays: []}}
-  end
-
-  @impl GenServer
-  def handle_call(:get_retry_delays, _from, state) do
-    {:reply, state.retry_delays, state}
-  end
-
-  @impl GenServer
-  def handle_call({:version, stream_id}, _from, state) do
-    events = Map.get(state.streams, stream_id, [])
-    version = length(events)
-    {:reply, {:ok, version}, state}
-  end
-
-  @impl GenServer
-  def handle_call({:delete_stream, stream_id}, _from, state) do
-    # Remove the stream
-    streams = Map.delete(state.streams, stream_id)
-    {:reply, :ok, %{state | streams: streams}}
-  end
-
-  @impl GenServer
-  def handle_call({:append, stream_id, events}, _from, state) do
-    # Check for failure simulation
-    if state.failure_count > 0 do
-      # Simulate a failure for testing retry mechanisms
-      new_state = %{state | failure_count: state.failure_count - 1}
-
-      # Track retry attempt time if enabled
-      new_state = if state.track_retries do
-        now = :os.system_time(:millisecond)
-
-        delay = case state.last_attempt_time do
-          nil -> 0
-          time -> now - time
-        end
-
-        retry_delays = [delay | state.retry_delays]
-        %{new_state | retry_delays: retry_delays, last_attempt_time: now}
-      else
-        new_state
+    try do
+      case EventStoreCore.reset() do
+        :ok -> :ok
+        {:error, reason} ->
+          Logger.error("Failed to reset TestEventStore: #{inspect(reason)}")
+          {:error, reason}
       end
-
-      {:reply, {:error, :temporary_failure}, new_state}
-    else
-      # Get current events for this stream
-      current_events = Map.get(state.streams, stream_id, [])
-
-      # Ensure all events have stream_id set
-      prepared_events = Enum.map(events, fn event ->
-        case event do
-          %{stream_id: _} -> event
-          _ when is_map(event) -> Map.put(event, :stream_id, stream_id)
-          _ -> event
-        end
-      end)
-
-      # Append the new events
-      updated_events = current_events ++ prepared_events
-
-      # Update the streams map
-      streams = Map.put(state.streams, stream_id, updated_events)
-
-      # Return the new version number (number of events)
-      {:reply, {:ok, length(updated_events)}, %{state | streams: streams}}
+    catch
+      kind, reason ->
+        Logger.error("Exception when resetting TestEventStore: #{inspect(kind)}: #{inspect(reason)}")
+        {:error, {:exception, kind, reason}}
     end
   end
 
-  @impl GenServer
-  def handle_call({:read_forward, stream_id, start_version, count}, _from, state) do
-    events = Map.get(state.streams, stream_id, [])
-
-    # Filter events by version and take the requested count
-    result =
-      events
-      |> Enum.drop(start_version)
-      |> Enum.take(count)
-
-    {:reply, {:ok, result}, state}
+  @doc """
+  Sets the number of operations that will fail before succeeding.
+  Useful for testing retry logic.
+  """
+  def set_failure_count(count) do
+    EventStoreCore.set_failure_count(count)
   end
 
-  @impl GenServer
-  def handle_call({:read_backward, stream_id, start_version, count}, _from, state) do
-    events = Map.get(state.streams, stream_id, [])
-    total = length(events)
-
-    # Convert the start_version to a position from the end if it's :end
-    start_pos = if start_version == :end, do: total - 1, else: start_version
-
-    # Calculate the range of events to return
-    end_pos = max(0, start_pos - count + 1)
-
-    # Get the events
-    result =
-      events
-      |> Enum.slice(end_pos..start_pos)
-      |> Enum.reverse()
-
-    {:reply, {:ok, result}, state}
+  @doc """
+  Sets a delay (in milliseconds) to be applied before each operation.
+  Useful for testing asynchronous behavior.
+  """
+  def set_delay(delay) do
+    EventStoreCore.set_delay(delay)
   end
 
-  @impl GenServer
-  def handle_call({:read_all_forward, count}, _from, state) do
-    # Flatten all events from all streams and sort by some criteria
-    events =
-      state.streams
-      |> Map.values()
-      |> List.flatten()
-      |> Enum.sort_by(fn event ->
-        # Sort by created_at or some other field
-        Map.get(event, :created_at, 0)
-      end)
-      |> Enum.take(count)
-
-    {:reply, {:ok, events}, state}
+  @impl EventStore
+  def stop(server, timeout) do
+    GenServer.stop(server, :normal, timeout)
   end
 
-  @impl GenServer
-  def handle_call({:read_all_backward, count}, _from, state) do
-    # Flatten all events from all streams and sort by some criteria
-    events =
-      state.streams
-      |> Map.values()
-      |> List.flatten()
-      |> Enum.sort_by(fn event ->
-        # Sort by created_at or some other field
-        Map.get(event, :created_at, 0)
-      end, :desc)
-      |> Enum.take(count)
+  # EventStore Behaviour Implementations
 
-    {:reply, {:ok, events}, state}
+  @impl EventStore
+  def init(config) do
+    {:ok, config}
   end
 
-  @impl GenServer
-  def handle_cast({:ack, _subscription, _events}, state) do
-    {:noreply, state}
+  @impl EventStore
+  def append_to_stream(server, stream_id, expected_version, events, opts \\ []) do
+    EventStoreCore.append_to_stream(server, stream_id, expected_version, events)
+  end
+
+  @impl EventStore
+  def read_stream_forward(server, stream_id, start_version, count) do
+    EventStoreCore.read_stream_forward(server, stream_id, start_version, count)
+  end
+
+  @impl EventStore
+  def read_stream_backward(server, stream_id, from_event_number, count) do
+    EventStoreCore.read_events_backward(server, stream_id, from_event_number, count)
+  end
+
+  @impl EventStore
+  def subscribe(server, subscriber) do
+    EventStoreCore.subscribe_to_all_streams(server, subscriber, [])
+  end
+
+  @impl EventStore
+  def unsubscribe_from_stream(server, subscriber, stream) do
+    EventStoreCore.unsubscribe_from_stream(server, subscriber, stream)
+  end
+
+  @impl EventStore
+  def subscribe_to_all_streams(server, subscriber, opts) do
+    EventStoreCore.subscribe_to_all_streams(server, subscriber, opts)
+  end
+
+  # Version without opts for compatibility
+  def subscribe_to_all_streams(server, subscriber) do
+    subscribe_to_all_streams(server, subscriber, [])
+  end
+
+  @impl EventStore
+  def unsubscribe_from_all_streams(server, subscriber) do
+    EventStoreCore.unsubscribe_from_all_streams(server, subscriber)
+  end
+
+  @impl EventStore
+  def config() do
+    # Return a dummy configuration. Adjust as needed for your tests.
+    %{some_config_option: :some_value}
+  end
+
+  @impl EventStore
+  def delete_all_streams_subscription(_server, _subscriber_uuid) do
+    :ok
+  end
+
+  @impl EventStore
+  def delete_snapshot(_server, _stream_uuid) do
+    :ok
+  end
+
+  @impl EventStore
+  def delete_stream(server, stream_uuid, expected_version, opts) do
+    EventStoreCore.delete_stream(server, stream_uuid, expected_version, opts)
+  end
+
+  # Version without opts for compatibility
+  def delete_stream(server, stream_uuid, expected_version) do
+    delete_stream(server, stream_uuid, expected_version, [])
+  end
+
+  @impl EventStore
+  def delete_subscription(_server, _subscriber_uuid, _stream_uuid) do
+    :ok
+  end
+
+  @impl EventStore
+  def read_all_streams_backward(_server, _from_event_number, _count) do
+    {:ok, [], nil, nil} # Correct return type
+  end
+
+  @impl EventStore
+  def read_all_streams_forward(_server, _from_event_number, _count) do
+    {:ok, [], nil, nil}  # Correct return type
+  end
+
+  @impl EventStore
+  def read_snapshot(_server, _stream_uuid) do
+    {:error, :snapshot_not_found}  # Correct return type
+  end
+
+  @impl EventStore
+  def stream_all_backward(_server, _from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def stream_all_forward(_server, _from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def stream_backward(_server, _stream_id, _from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def stream_forward(_server, _stream_id, _from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def stream_info(_server, _stream_id) do
+    {:ok, nil} # Correct return type
+  end
+
+  @impl EventStore
+  def ack(_server, _ack_data) do
+    :ok
+  end
+
+  @impl EventStore
+  def link_to_stream(server, source_stream_id, target_stream_id, event_ids, opts) do
+    EventStoreCore.link_to_stream(server, source_stream_id, target_stream_id, event_ids, opts)
+  end
+
+  # Version without opts for compatibility
+  def link_to_stream(server, source_stream_id, target_stream_id, event_ids) do
+    link_to_stream(server, source_stream_id, target_stream_id, event_ids, [])
+  end
+
+  @impl EventStore
+  def paginate_streams(_server) do
+    {:ok, [], nil}
+  end
+
+  @impl EventStore
+  def record_snapshot(_server, _snapshot) do
+    :ok
+  end
+
+  @impl EventStore
+  def subscribe_to_stream(server, subscriber, stream_id, opts) do
+    EventStoreCore.subscribe_to_stream(server, subscriber, stream_id, opts)
+  end
+
+  # Version without opts for compatibility
+  def subscribe_to_stream(server, subscriber, stream_id) do
+    subscribe_to_stream(server, subscriber, stream_id, [])
   end
 end

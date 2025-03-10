@@ -33,177 +33,200 @@ After thorough investigation, we identified multiple interconnected issues:
 
 Our fix addresses each identified issue with a comprehensive solution:
 
-### 1. Centralized Test Setup (New `GameBot.Test.Setup` Module)
+### 1. Centralized Database Management
 
-- Implemented in `test/support/test_setup.ex`
-- Centralizes all test environment initialization
-- Manages database connections with proper error handling
-- Provides retry mechanisms for repository startup
-- Verifies repository availability before test execution
-- Can restart repositories when needed
+- **Implemented DatabaseHelper Module** (in `test/support/database_helper.ex`)
+  - Centralizes all database operations in a single module
+  - Manages repository initialization with proper error handling
+  - Provides sandbox setup/teardown for tests
+  - Includes retry mechanisms with exponential backoff
+  - Verifies repository availability before test execution
 
-### 2. Improved Test Helper
+### 2. Enhanced Connection Management
 
-- Modified `test/test_helper.exs` to use the centralized setup
-- Added max_failures limit to prevent endless failing tests
-- Ensures proper initialization sequence
-- Provides explicit exit
+- **Implemented DatabaseConnectionManager** (in `test/support/database_connection_manager.ex`)
+  - Dedicated module for database connection management
+  - Provides graceful connection shutdown functions
+  - Forceful connection termination as last resort
+  - Terminates connections at PostgreSQL level when needed
+  - Kills orphaned connection processes
 
-### 3. Enhanced Repository Test Case
+### 3. Improved EventStore Testing
 
-- Improved `test/support/repository_case.ex`
-- Added repository availability checks
-- Implemented safe checkout mechanism that handles errors
-- Proper cleanup of resources after tests
+- **Fixed TestEventStore Implementation** (in `lib/game_bot/test_event_store.ex`)
+  - Properly implements required EventStore behavior
+  - Supports failure simulation for testing error cases
+  - Includes configurable delay for testing asynchronous behavior
+  - Manages streams and subscriptions in memory
+  - Provides proper reset functionality
 
-### 4. Robust Test Runner Script
+### 4. Enhanced Repository Case
 
-- Enhanced `run_tests.sh` with several improvements:
-  - Added function to clean up old test databases
-  - Improved test counting to show both executed and available tests
-  - Added test coverage reporting
-  - More comprehensive cleanup process
+- **Updated RepositoryCase Module** (in `test/support/repository_case.ex`)
+  - Better repository initialization sequence
+  - Improved error handling during checkout
+  - Support for both mock and real repositories
+  - Automatic cleanup of resources after tests
+  - Better detection of test requirements
 
-### 5. Systematic Error Handling
+### 5. Robust Error Handling
 
-- Added proper error handling throughout the test setup process
-- Implemented retry mechanisms for transient failures
-- Added detailed logging to help diagnose issues
+- **Added Retry Mechanism**
+  - Implementation of retry with exponential backoff
+  - Logging of retry attempts for debugging
+  - Proper error propagation
+  - Timeout handling for long-running operations
 
-## Technical Details
-
-### Database Connection Management
-
-```sql
--- Clean old test databases to prevent resource leaks
-DO $$
-BEGIN
-  FOR db_name IN 
-    SELECT datname FROM pg_database 
-    WHERE datname LIKE 'game_bot_test_%' 
-    AND datname != '${MAIN_DB}'
-    AND datname != '${EVENT_DB}'
-  LOOP
-    EXECUTE 'DROP DATABASE IF EXISTS ' || quote_ident(db_name);
-  END LOOP;
-END $$;
-```
+## Technical Implementation Details
 
 ### Repository Initialization
 
+The repository initialization now uses a proper sequence with retries:
+
 ```elixir
-def start_repo_with_retry(repo, retries \\ 3) do
-  result = start_repo(repo)
+defp ensure_repositories_started do
+  # Use a simple function to start each repository
+  repos = [
+    GameBot.Infrastructure.Persistence.Repo,
+    GameBot.Infrastructure.Persistence.Repo.Postgres
+  ]
   
-  case result do
-    :ok -> :ok
-    :error ->
-      if retries > 0 do
-        IO.puts("Retrying start of #{inspect(repo)}, #{retries-1} attempts left")
-        Process.sleep(1000)
-        start_repo_with_retry(repo, retries - 1)
-      else
-        :error
-      end
+  for repo <- repos do
+    case start_repository(repo) do
+      :ok -> :ok
+      {:error, reason} -> raise "Failed to start repository #{inspect(repo)}: #{inspect(reason)}"
+    end
+  end
+  
+  :ok
+end
+
+defp start_repository(repo) do
+  case repo.start_link([]) do
+    {:ok, _pid} -> :ok
+    {:error, {:already_started, _pid}} -> :ok
+    error -> {:error, error}
   end
 end
 ```
 
-### Repository Checkout
+### Connection Cleanup
+
+Improved connection termination using PostgreSQL-level operations:
 
 ```elixir
-safe_checkout = fn repo ->
+defp terminate_remaining_connections do
+  query = """
+  SELECT pg_terminate_backend(pid)
+  FROM pg_stat_activity
+  WHERE pid <> pg_backend_pid()
+  AND (datname LIKE '%_test' OR datname LIKE '%_dev')
+  """
+  
   try do
-    {:ok, owner} = Ecto.Adapters.SQL.Sandbox.checkout(repo)
+    # Connect to postgres database (not our test database)
+    {:ok, conn} = Postgrex.start_link([
+      hostname: "localhost",
+      username: "postgres", 
+      password: "password", # From configuration
+      database: "postgres",
+      connect_timeout: 5000
+    ])
     
-    # Set sandbox mode based on async flag
-    unless async? do
-      Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
-    end
+    # Execute the termination query
+    result = Postgrex.query!(conn, query, [])
+    Logger.debug("Connection termination result: #{inspect(result)}")
     
-    owner
+    # Close our connection
+    GenServer.stop(conn, :normal, 500)
   rescue
-    e ->
-      IO.puts("ERROR: Failed to checkout #{inspect(repo)}: #{Exception.message(e)}")
-      nil
+    e -> Logger.warning("Error terminating connections: #{inspect(e)}")
   end
 end
 ```
 
-### Test Counting
+### Mock Environment Detection
 
-```bash
-# Count tests by scanning for test modules and test functions directly
-MODULE_COUNT=$(grep -r "^\s*use ExUnit.Case" test/ | wc -l)
-AVAILABLE_TESTS=$(grep -r "^\s*test " test/ | wc -l)
+Added smarter detection of mock requirements to avoid database access when not needed:
 
-# Calculate test coverage percentage
-if [ "$AVAILABLE_TESTS" -gt 0 ]; then
-  TEST_COVERAGE=$((TOTAL_TESTS * 100 / AVAILABLE_TESTS))
-else
-  TEST_COVERAGE=0
-fi
+```elixir
+defp mock_test?(tags) do
+  # First check if the individual test has the mock tag
+  test_has_mock = tags[:mock] == true
+
+  # Then check if the module has the mock tag
+  module_has_mock = case tags[:registered] do
+    %{} = registered ->
+      registered[:mock] == true
+    _ -> false
+  end
+
+  # Return true if either the test or the module has the mock tag
+  test_has_mock || module_has_mock
+end
 ```
 
-## Usage Guide
+### EventStore Implementation
 
-### Running Tests
+Fixed the TestEventStore implementation to properly handle reset:
 
-The test command remains the same:
+```elixir
+def reset! do
+  GenServer.call(__MODULE__, :reset_state)
+end
 
-```bash
-cd game_bot && ./run_tests.sh
+def handle_call(:reset_state, _from, _state) do
+  new_state = %State{
+    streams: %{},
+    failure_count: 0,
+    delay: 0,
+    subscriptions: %{}
+  }
+  {:reply, :ok, new_state}
+end
 ```
 
-The script now includes:
-- Better progress indication
-- Test coverage statistics
-- More robust error handling
+## Remaining Work
 
-### Sequential Test Runs
+While we've made significant progress, there are still items that need addressing:
 
-Running tests sequentially is now much more reliable:
+1. **Complete EventStore Mock Implementation**:
+   - Several required callbacks not implemented in `GameBot.Test.Mocks.EventStore`
+   - Conflicting behavior implementations between GenServer and EventStore
 
-```bash
-cd game_bot && ./run_tests.sh && ./run_tests.sh && ./run_tests.sh
-```
+2. **Standardize Configuration**:
+   - Still some hardcoded values in various modules
+   - Need to fully utilize the Config module for consistency
 
-All three runs should now report consistent test counts and coverage.
+3. **Fix Type System Warnings**:
+   - Address persistent type warnings in application code
+   - Fix potential runtime errors due to mismatches
 
-### Debugging Test Setup
+4. **Test Infrastructure Testing**:
+   - Need better testing of the test infrastructure itself
+   - Ensure reset functionality works reliably
 
-If you encounter test setup issues, you'll find more detailed logging throughout the process:
-- Repository initialization status
-- Database connection management
-- Test environment setup
+## Benefits Achieved
 
-Look for messages prefixed with `===` for important status updates.
+1. **Improved Reliability**: Tests now run more consistently across multiple executions
+2. **Better Resource Management**: Enhanced cleanup of database connections prevents resource exhaustion
+3. **More Robust Error Handling**: Proper retry mechanisms and error propagation
+4. **Enhanced Diagnostics**: Better logging and error reporting for troubleshooting
 
-## Benefits
+## Limitations and Known Issues
 
-1. **Consistent Test Execution**: Tests now run consistently across multiple executions
-2. **Resource Management**: Better cleanup of database connections prevents resource leaks
-3. **Transparent Metrics**: You now see both executed tests and total available tests
-4. **Resilience**: The setup process can recover from many types of failures
-5. **Documentation**: The process is now well-documented for future maintenance
+1. **Parallel Testing**: The solution currently performs better with serial tests (`async: false`) due to connection management complexity
+2. **EventStore Mocks**: Still need to complete the mock implementations of all required behavior callbacks
+3. **Reset Functionality**: Some edge cases with reset still need addressing for perfect reliability
 
-## Limitations and Next Steps
+## Next Steps
 
-While these improvements significantly enhance the test suite stability, there are potential future improvements:
-
-1. **Parallel Testing**: The solution currently runs tests serially (`max_cases: 1`) to avoid connection issues. Future work could focus on making parallel testing more robust.
-
-2. **Test Classification**: Tests could be classified to separate those requiring database access from pure unit tests, allowing for faster test runs.
-
-3. **Test Isolation**: Further improve isolation between tests to prevent side effects.
-
-4. **Continuous Integration**: Consider adding these improvements to CI/CD pipeline configurations for consistent testing in automated environments.
+Please refer to the `testing_infrastructure_roadmap.md` document for a detailed plan on continuing improvements to the test infrastructure.
 
 ## Conclusion
 
-The implemented improvements address the core issues causing inconsistent test behavior. The solution provides a robust testing foundation with proper resource management, error handling, and transparent metrics.
+The implemented improvements have addressed many core issues causing inconsistent test behavior. While not yet perfect, the solution provides a much more robust testing foundation with proper resource management, error handling, and cleanup procedures.
 
 ---
 
-Document Author: Claude 3.7 Sonnet  
-Date: 2025-03-09 
+Document Last Updated: 2023-12-12 

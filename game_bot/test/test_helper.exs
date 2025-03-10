@@ -18,7 +18,7 @@ ExUnit.configure(
 ExUnit.start()
 
 # Initialize test environment using centralized DatabaseHelper
-case GameBot.Test.DatabaseHelper.initialize_test_environment() do
+case GameBot.Test.DatabaseHelper.initialize() do
   :ok ->
     IO.puts("\n=== Test Environment Initialized Successfully ===\n")
   {:error, reason} ->
@@ -30,7 +30,10 @@ end
 # Register cleanup for after the test suite
 ExUnit.after_suite(fn _ ->
   IO.puts("\n=== Cleaning up after test suite ===")
-  GameBot.Test.DatabaseHelper.cleanup_connections()
+  # Use the new graceful shutdown function first
+  GameBot.Test.DatabaseConnectionManager.graceful_shutdown()
+  # Then call the existing cleanup function
+  GameBot.Test.DatabaseHelper.cleanup()
   IO.puts("=== Test suite cleanup complete ===\n")
 end)
 
@@ -323,18 +326,3 @@ end
 
 # Configure the application for testing
 GameBot.Test.Setup.initialize()
-
-# Store test result
-result = ExUnit.run()
-
-# Add clear visual separator
-IO.puts("\n" <> String.duplicate("=", 80))
-IO.puts("TEST EXECUTION COMPLETED")
-IO.puts(String.duplicate("=", 80) <> "\n")
-
-# Cleanup with reduced output
-IO.puts("Starting cleanup process...")
-Logger.configure(level: :error)
-
-# Exit with proper status code
-if !result, do: System.halt(1)

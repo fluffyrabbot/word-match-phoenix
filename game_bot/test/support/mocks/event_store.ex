@@ -1,386 +1,236 @@
 defmodule GameBot.Test.Mocks.EventStore do
   @moduledoc """
-  Mock implementation of the EventStore behaviour for testing.
+  Mock implementation of EventStore for testing.
+
+  This module provides a mock that simulates an event store
+  without requiring a database connection. It's used for unit tests
+  that need to verify event store interactions.
+
+  This module delegates to GameBot.Test.Mocks.EventStoreCore for state management,
+  avoiding conflicts between GenServer and EventStore behaviors.
   """
 
   @behaviour GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  # Also implement the EventStore behavior
   @behaviour EventStore
 
-  use GenServer
-  alias GameBot.Infrastructure.Persistence.Error
+  require Logger
+  alias GameBot.Test.Mocks.EventStoreCore
 
   # Client API
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  @doc """
+  Starts the mock event store server.
+  """
+  @impl EventStore
+  def start_link(opts) do
+    # We'll delegate to the Core implementation
+    case EventStoreCore.start_link(opts) do
+      {:ok, pid} ->
+        # Register with the module name for backward compatibility
+        if not Process.whereis(__MODULE__) do
+          Process.register(pid, __MODULE__)
+        end
+        {:ok, pid}
+      other -> other
+    end
   end
 
-  def set_failure_count(count) do
-    GenServer.call(__MODULE__, {:set_failure_count, count})
-  end
-
-  def get_failure_count do
-    GenServer.call(__MODULE__, :get_failure_count)
-  end
-
-  def set_delay(milliseconds) do
-    GenServer.call(__MODULE__, {:set_delay, milliseconds})
-  end
-
+  @doc """
+  Reset the state of the mock event store.
+  """
   def reset_state do
-    GenServer.call(__MODULE__, :reset_state)
+    EventStoreCore.reset_state()
   end
 
-  # For compatibility with other test utilities
-  def reset! do
-    reset_state()
+  @doc """
+  Setup fake events for a stream.
+  """
+  def setup_events(stream_id, events, version \\ 0) do
+    EventStoreCore.setup_events(stream_id, events, version)
   end
 
-  # For testing retry mechanism
-  def set_track_retries(enable) do
-    GenServer.call(__MODULE__, {:set_track_retries, enable})
+  @doc """
+  Configure the mock to return an error for certain operations.
+  """
+  def setup_error(operation, error) do
+    EventStoreCore.setup_error(operation, error)
   end
 
-  def get_retry_delays do
-    GenServer.call(__MODULE__, :get_retry_delays)
+  # EventStore.Adapter.Behaviour callbacks
+
+  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
+  def append_to_stream(stream_id, expected_version, events, opts) do
+    EventStoreCore.append_events(stream_id, expected_version, events, opts)
   end
 
-  # EventStore Behavior Implementation
+  # Version without opts - delegates to the main implementation
+  def append_to_stream(stream_id, expected_version, events) do
+    append_to_stream(stream_id, expected_version, events, [])
+  end
+
+  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
+  def read_stream_forward(stream_id, start_version, count, opts) do
+    EventStoreCore.read_events_forward(stream_id, start_version, count, opts)
+  end
+
+  # Version without opts - delegates to the main implementation
+  def read_stream_forward(stream_id, start_version, count) do
+    read_stream_forward(stream_id, start_version, count, [])
+  end
+
+  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
+  def stream_version(stream_id, opts) do
+    EventStoreCore.get_stream_version(stream_id, opts)
+  end
+
+  # Version without opts - delegates to the main implementation
+  def stream_version(stream_id) do
+    stream_version(stream_id, [])
+  end
+
+  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
+  def subscribe_to_stream(stream_id, subscription_name, subscriber, opts) do
+    EventStoreCore.subscribe_to_stream(stream_id, subscription_name, subscriber, opts)
+  end
+
+  # Version without opts - delegates to the main implementation
+  def subscribe_to_stream(stream_id, subscription_name, subscriber) do
+    subscribe_to_stream(stream_id, subscription_name, subscriber, [])
+  end
+
+  # EventStore callbacks
+
+  @impl EventStore
+  def ack(subscription, event_number) do
+    EventStoreCore.ack(subscription, event_number)
+  end
 
   @impl EventStore
   def config do
-    Application.get_env(:game_bot, __MODULE__, [])
+    %{adapter: __MODULE__}
+  end
+
+  # Additional required EventStore callbacks with proper @impl
+
+  @impl EventStore
+  def delete_stream(stream_id, expected_version, opts) do
+    EventStoreCore.delete_stream(stream_id, expected_version, opts)
+  end
+
+  # Version without opts - delegates to the main implementation
+  def delete_stream(stream_id, expected_version) do
+    delete_stream(stream_id, expected_version, [])
   end
 
   @impl EventStore
-  def init(config) do
-    {:ok, config}
+  def link_to_stream(source_stream_id, target_stream_id, event_ids, opts) do
+    EventStoreCore.link_to_stream(source_stream_id, target_stream_id, event_ids, opts)
+  end
+
+  # Version without opts - delegates to the main implementation
+  def link_to_stream(source_stream_id, target_stream_id, event_ids) do
+    link_to_stream(source_stream_id, target_stream_id, event_ids, [])
   end
 
   @impl EventStore
-  def stop(_server, _timeout \\ :infinity) do
-    :ok
+  def read_all_streams_forward(start_event_number, count) do
+    {:ok, [], nil, nil}
   end
 
   @impl EventStore
-  def subscribe(_subscriber, _subscription_options) do
+  def read_all_streams_backward(start_event_number, count) do
+    {:ok, [], nil, nil}
+  end
+
+  @impl EventStore
+  def read_stream_backward(stream_id, start_event_number, count) do
+    EventStoreCore.read_events_backward(stream_id, start_event_number, count)
+  end
+
+  @impl EventStore
+  def subscribe_to_all_streams(subscription_name, subscriber, opts) do
+    EventStoreCore.subscribe_to_all_streams(subscription_name, subscriber, opts)
+  end
+
+  # Version without opts - delegates to the main implementation
+  def subscribe_to_all_streams(subscription_name, subscriber) do
+    subscribe_to_all_streams(subscription_name, subscriber, [])
+  end
+
+  @impl EventStore
+  def unsubscribe_from_all_streams(subscription) do
+    EventStoreCore.unsubscribe_from_all_streams(subscription)
+  end
+
+  @impl EventStore
+  def unsubscribe_from_stream(subscription) do
+    EventStoreCore.unsubscribe_from_stream(subscription)
+  end
+
+  @impl EventStore
+  def delete_subscription(subscription_name, stream_uuid) do
+    EventStoreCore.delete_subscription(subscription_name, stream_uuid)
+  end
+
+  @impl EventStore
+  def delete_all_streams_subscription(subscription_name) do
+    EventStoreCore.delete_all_streams_subscription(subscription_name)
+  end
+
+  @impl EventStore
+  def read_snapshot(source_uuid) do
+    EventStoreCore.read_snapshot(source_uuid)
+  end
+
+  @impl EventStore
+  def record_snapshot(snapshot) do
+    EventStoreCore.record_snapshot(snapshot)
+  end
+
+  @impl EventStore
+  def delete_snapshot(source_uuid) do
+    EventStoreCore.delete_snapshot(source_uuid)
+  end
+
+  # Additional EventStore Callbacks (Not fully implemented)
+
+  @impl EventStore
+  def stream_all_forward(_from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def stream_all_backward(_from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def stream_forward(_stream_id, _from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def stream_backward(_stream_id, _from_event_number) do
+    {:ok, []}
+  end
+
+  @impl EventStore
+  def subscribe(_subscriber) do
     {:ok, make_ref()}
   end
 
   @impl EventStore
-  def subscribe_to_all_streams(_name, _subscriber, _subscription_options) do
-    {:ok, make_ref()}
+  def stop(server, timeout) do
+    GenServer.stop(server, :normal, timeout)
   end
 
   @impl EventStore
-  def unsubscribe_from_all_streams(_subscription, _opts \\ []) do
-    :ok
+  def stream_info(_stream_id) do
+    {:ok, nil}
   end
 
   @impl EventStore
-  def ack(_subscription, _events) do
-    :ok
-  end
-
-  @impl EventStore
-  def unsubscribe_from_stream(_stream_id, _subscription, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def delete_subscription(_stream_id, _subscription_name, _opts) do
-    :ok
-  end
-
-  @impl EventStore
-  def delete_all_streams_subscription(_subscription_name, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def stream_forward(stream_id, start_version \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def stream_backward(stream_id, start_version \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def stream_all_forward(start_from \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def stream_all_backward(start_from \\ 0, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def read_stream_backward(stream_id, start_version, count, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def read_all_streams_forward(start_from, count, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def read_all_streams_backward(start_from, count, _opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def stream_info(stream_id, _opts \\ []) do
-    {:ok, %{stream_version: 0}}
-  end
-
-  @impl EventStore
-  def paginate_streams(_opts \\ []) do
-    {:ok, []}
-  end
-
-  @impl EventStore
-  def read_snapshot(source_uuid, _opts \\ []) do
-    {:error, :snapshot_not_found}
-  end
-
-  @impl EventStore
-  def record_snapshot(snapshot, _opts \\ []) do
-    :ok
-  end
-
-  @impl EventStore
-  def delete_snapshot(source_uuid, _opts \\ []) do
-    :ok
-  end
-
-  # Adapter Behaviour Implementation
-
-  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  def append_to_stream(stream_id, version, events, opts \\ []) do
-    GenServer.call(__MODULE__, {:append, stream_id, version, events, opts})
-  end
-
-  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  def read_stream_forward(stream_id, start_version \\ 0, count \\ 1000, opts \\ []) do
-    GenServer.call(__MODULE__, {:read, stream_id, start_version, count, opts})
-  end
-
-  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  def subscribe_to_stream(stream_id, subscriber, subscription_options \\ [], opts \\ []) do
-    GenServer.call(__MODULE__, {:subscribe, stream_id, subscriber, subscription_options, opts})
-  end
-
-  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  def stream_version(stream_id, opts \\ []) do
-    GenServer.call(__MODULE__, {:version, stream_id})
-  end
-
-  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  def delete_stream(stream_id, _expected_version, _opts \\ []) do
-    GenServer.call(__MODULE__, {:delete_stream, stream_id})
-  end
-
-  @impl GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  def link_to_stream(source_stream_id, target_stream_id, _opts \\ []) do
-    GenServer.call(__MODULE__, {:link_stream, source_stream_id, target_stream_id})
-  end
-
-  # Server Implementation
-
-  @impl GenServer
-  def init(_opts) do
-    {:ok, %{
-      streams: %{},
-      failure_count: 0,
-      delay: 0,
-      track_retries: false,
-      retry_delays: [],
-      subscriptions: %{},
-      last_attempt_time: System.monotonic_time(:millisecond)
-    }}
-  end
-
-  @impl GenServer
-  def handle_call({:set_failure_count, count}, _from, state) do
-    {:reply, :ok, %{state | failure_count: count}}
-  end
-
-  @impl GenServer
-  def handle_call(:get_failure_count, _from, state) do
-    {:reply, state.failure_count, state}
-  end
-
-  @impl GenServer
-  def handle_call({:set_delay, delay}, _from, state) do
-    {:reply, :ok, %{state | delay: delay}}
-  end
-
-  @impl GenServer
-  def handle_call(:reset_state, _from, _state) do
-    {:reply, :ok, %{
-      streams: %{},
-      failure_count: 0,
-      delay: 0,
-      track_retries: false,
-      retry_delays: [],
-      subscriptions: %{},
-      last_attempt_time: System.monotonic_time(:millisecond)
-    }}
-  end
-
-  @impl GenServer
-  def handle_call({:set_track_retries, enable}, _from, state) do
-    {:reply, :ok, %{state |
-      track_retries: enable,
-      retry_delays: [],
-      last_attempt_time: System.monotonic_time(:millisecond)
-    }}
-  end
-
-  @impl GenServer
-  def handle_call(:get_retry_delays, _from, state) do
-    {:reply, state.retry_delays, state}
-  end
-
-  # Enhanced for handling retry tracking
-  @impl GenServer
-  def handle_call({:append, stream_id, version, events, _opts}, _from,
-                 %{failure_count: failure_count, track_retries: true} = state) when failure_count > 0 do
-    # Record the delay and then process normally
-    now = System.monotonic_time(:millisecond)
-    last_time = Map.get(state, :last_attempt_time, now)
-    delay = now - last_time
-
-    retry_delays = [delay | state.retry_delays]
-    state = %{state |
-      failure_count: failure_count - 1,
-      retry_delays: retry_delays,
-      last_attempt_time: now
-    }
-
-    # Return connection error
-    {:reply, {:error, connection_error()}, state}
-  end
-
-  @impl GenServer
-  def handle_call({:append, stream_id, version, events, _opts}, _from, state) do
-    if state.failure_count > 0 do
-      {:reply, {:error, connection_error()}, %{state | failure_count: state.failure_count - 1}}
-    else
-      if state.delay > 0, do: Process.sleep(state.delay)
-
-      stream = Map.get(state.streams, stream_id, [])
-      current_version = length(stream)
-
-      cond do
-        version != current_version ->
-          {:reply, {:error, concurrency_error(version, current_version)}, state}
-        true ->
-          new_stream = stream ++ events
-          new_state = put_in(state.streams[stream_id], new_stream)
-          notify_subscribers(stream_id, events, state.subscriptions)
-          {:reply, {:ok, length(new_stream)}, new_state}
-      end
-    end
-  end
-
-  @impl GenServer
-  def handle_call({:read, stream_id, start_version, count, _opts}, _from, state) do
-    if state.delay > 0, do: Process.sleep(state.delay)
-
-    case Map.get(state.streams, stream_id) do
-      nil ->
-        {:reply, {:error, not_found_error(stream_id)}, state}
-      events ->
-        result = events
-        |> Enum.drop(start_version)
-        |> Enum.take(count)
-        {:reply, {:ok, result}, state}
-    end
-  end
-
-  @impl GenServer
-  def handle_call({:subscribe, stream_id, subscriber, _options, _opts}, _from, state) do
-    ref = make_ref()
-    new_subscriptions = Map.update(
-      state.subscriptions,
-      stream_id,
-      %{ref => subscriber},
-      &Map.put(&1, ref, subscriber)
-    )
-    {:reply, {:ok, ref}, %{state | subscriptions: new_subscriptions}}
-  end
-
-  @impl GenServer
-  def handle_call({:version, stream_id}, _from, state) do
-    case Map.get(state.streams, stream_id) do
-      nil -> {:reply, {:ok, 0}, state}
-      events -> {:reply, {:ok, length(events)}, state}
-    end
-  end
-
-  @impl GenServer
-  def handle_call({:delete_stream, stream_id}, _from, state) do
-    # Remove the stream
-    new_streams = Map.delete(state.streams, stream_id)
-    {:reply, :ok, %{state | streams: new_streams}}
-  end
-
-  @impl GenServer
-  def handle_call({:link_stream, source_stream_id, target_stream_id}, _from, state) do
-    # Simple implementation - just copy events from source to target
-    case Map.get(state.streams, source_stream_id) do
-      nil ->
-        {:reply, {:error, not_found_error(source_stream_id)}, state}
-      source_events ->
-        target_events = Map.get(state.streams, target_stream_id, [])
-        new_target_events = target_events ++ source_events
-        new_streams = Map.put(state.streams, target_stream_id, new_target_events)
-        {:reply, :ok, %{state | streams: new_streams}}
-    end
-  end
-
-  # Private Functions
-
-  defp notify_subscribers(stream_id, events, subscriptions) do
-    case Map.get(subscriptions, stream_id) do
-      nil -> :ok
-      subscribers ->
-        Enum.each(subscribers, fn {_ref, pid} ->
-          send(pid, {:events, events})
-        end)
-    end
-  end
-
-  defp connection_error do
-    %Error{
-      type: :connection,
-      context: __MODULE__,
-      message: "Simulated connection error",
-      details: %{retryable: true}
-    }
-  end
-
-  defp concurrency_error(expected, actual) do
-    %Error{
-      type: :concurrency,
-      context: __MODULE__,
-      message: "Wrong expected version",
-      details: %{expected: expected, actual: actual}
-    }
-  end
-
-  defp not_found_error(stream_id) do
-    %Error{
-      type: :not_found,
-      context: __MODULE__,
-      message: "Stream not found",
-      details: %{stream_id: stream_id}
-    }
+  def paginate_streams() do
+    {:ok, [], nil}
   end
 end
