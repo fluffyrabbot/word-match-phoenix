@@ -78,6 +78,7 @@ defmodule GameBot.Domain.Events.GuessEvents do
     @doc """
     Returns the string type identifier for this event.
     """
+    @impl true
     def event_type(), do: "guess_processed"
 
     @impl true
@@ -180,6 +181,7 @@ defmodule GameBot.Domain.Events.GuessEvents do
     @doc """
     Returns the string type identifier for this event.
     """
+    @impl true
     def event_type(), do: "guess_started"
 
     @impl true
@@ -271,6 +273,7 @@ defmodule GameBot.Domain.Events.GuessEvents do
     @doc """
     Returns the string type identifier for this event.
     """
+    @impl true
     def event_type(), do: "guess_abandoned"
 
     @impl true

@@ -7,14 +7,10 @@ defmodule GameBot.GameSessions.Session do
   require Logger
 
   alias GameBot.Bot.CommandHandler
-  alias GameBot.Domain.{GameState, WordService, Events}
-  alias GameBot.Domain.Events.{
-    GameEvents,
-    ErrorEvents
-  }
+  alias GameBot.Domain.{GameState, WordService}
+  alias GameBot.Domain.Events.GameEvents
   alias GameBot.Infrastructure.Persistence.EventStore
-  alias GameBot.Domain.Events.{EventRegistry, Metadata}
-  alias GameBot.Domain.Events.GameEvents.{GameCompleted, GuessProcessed}
+  alias GameBot.Domain.Events.GameEvents.GameCompleted
   alias GameBot.Domain.Events.ErrorEvents.{GuessError, GuessPairError, RoundCheckError}
 
   # Constants for timeouts
@@ -182,14 +178,19 @@ defmodule GameBot.GameSessions.Session do
         # Create the game completed event
         final_scores = compute_final_scores(state)
         game_duration = DateTime.diff(DateTime.utc_now(), state.started_at)
+        now = DateTime.utc_now()
 
         game_completed = GameCompleted.new(
           state.game_id,
           state.guild_id,
           state.mode,
+          1,  # round_number (default)
           winners,
           final_scores,
-          game_duration
+          game_duration,
+          1,  # total_rounds (default)
+          now,  # timestamp
+          now   # finished_at
         )
 
         # Persist events
@@ -335,7 +336,7 @@ defmodule GameBot.GameSessions.Session do
     :ok
   end
 
-  defp handle_guess_pair(word1, word2, team_id, state, previous_events) do
+  defp handle_guess_pair(word1, word2, team_id, state, _previous_events) do
     case state.mode.process_guess_pair(state.mode_state, team_id, {word1, word2}) do
       {:ok, new_mode_state, events} ->
         # Persist all events

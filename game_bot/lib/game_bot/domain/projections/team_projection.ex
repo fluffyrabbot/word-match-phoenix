@@ -6,10 +6,8 @@ defmodule GameBot.Domain.Projections.TeamProjection do
   alias GameBot.Domain.Events.TeamEvents.{
     TeamCreated,
     TeamMemberAdded,
-    TeamMemberRemoved,
     TeamInvitationCreated,
     TeamInvitationAccepted,
-    TeamInvitationDeclined,
     TeamUpdated
   }
 
@@ -147,7 +145,7 @@ defmodule GameBot.Domain.Projections.TeamProjection do
 
   # Query functions
 
-  def get_pending_invitation(invitee_id, guild_id) do
+  def get_pending_invitation(_invitee_id, _guild_id) do
     # Filter by both invitee_id and guild_id
     # This is a placeholder - actual implementation would depend on your storage
     {:error, :not_implemented}
@@ -249,7 +247,7 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     end
   end
 
-  def get_team(team_id, guild_id) do
+  def get_team(_team_id, _guild_id) do
     # Filter by both team_id and guild_id
     {:error, :not_implemented}
   end
@@ -259,12 +257,12 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     {:error, :not_implemented}
   end
 
-  def find_team_by_player(player_id, guild_id) do
+  def find_team_by_player(_player_id, _guild_id) do
     # Filter by both player_id and guild_id
     {:error, :not_implemented}
   end
 
-  def get_team_name_history(team_id, opts \\ []) do
+  def get_team_name_history(_team_id, _opts \\ []) do
     # To be implemented with actual storage
     # opts can include:
     # - from: DateTime.t() - start of time range

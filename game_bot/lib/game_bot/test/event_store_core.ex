@@ -328,10 +328,10 @@ defmodule GameBot.Test.EventStoreCore do
     end
   end
 
-  defp process_request({:link_to_stream, source_stream_id, target_stream_id, event_ids, _opts}, _from, state) do
+  defp process_request({:link_to_stream, source_stream_id, target_stream_id, _event_ids, _opts}, _from, state) do
     # Get source and target streams
     source_stream = Map.get(state.streams, source_stream_id)
-    target_stream = Map.get(state.streams, target_stream_id, %{events: [], version: 0})
+    _target_stream = Map.get(state.streams, target_stream_id, %{events: [], version: 0})
 
     cond do
       source_stream == nil ->

@@ -1,10 +1,12 @@
 defmodule GameBot.Domain.Events.EventSerializerMapImpl do
   @moduledoc """
-  Implementation of the EventSerializer protocol for Map type.
-  This allows maps to be used with the from_map/1 function, which is useful for tests.
+  Implementation of event serialization using plain maps.
+  Useful for testing and simple event handling.
   """
 
-  alias GameBot.Domain.Events.{EventSerializer, EventStructure}
+  alias GameBot.Domain.Events.EventSerializer
+
+  @behaviour EventSerializer
 
   # Implement EventSerializer for Map
   defimpl EventSerializer, for: Map do

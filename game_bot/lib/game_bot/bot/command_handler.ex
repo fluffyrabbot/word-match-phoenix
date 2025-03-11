@@ -57,8 +57,12 @@ defmodule GameBot.Bot.CommandHandler do
 
   def handle_message(_message), do: :ok
 
-  def handle_interaction(interaction) do
-    # Stub for testing
+  @doc """
+  Handles a Discord interaction.
+  This is a placeholder for future implementation.
+  """
+  def handle_interaction(_interaction) do
+    # Placeholder for future implementation
     :ok
   end
 
@@ -77,7 +81,7 @@ defmodule GameBot.Bot.CommandHandler do
     cond do
       # Prefix command (e.g., !stats)
       String.starts_with?(content, "!") ->
-        command = String.slice(content, 1..-1) |> String.trim()
+        command = String.slice(content, 1..-1//1) |> String.trim()
         {:ok, %{type: :prefix, content: command, message: message}}
 
       # Direct message guess
@@ -162,6 +166,20 @@ defmodule GameBot.Bot.CommandHandler do
       interaction_id: interaction.id,
       user_id: interaction.user.id
     }
+
+    # If a parent_event was provided, use its correlation_id to maintain the chain
+    metadata = if Map.has_key?(params, :parent_event) do
+      parent_event = params.parent_event
+      correlation_id = parent_event.metadata.correlation_id
+      # Use parent's correlation_id if available
+      if correlation_id do
+        Map.put(metadata, :correlation_id, correlation_id) |> Map.put(:causation_id, correlation_id)
+      else
+        Map.put(metadata, :causation_id, metadata.correlation_id)
+      end
+    else
+      Map.put(metadata, :causation_id, metadata.correlation_id)
+    end
 
     # Create team created event
     {:ok, event} = GameBot.Domain.Events.TeamEvents.TeamCreated.new(

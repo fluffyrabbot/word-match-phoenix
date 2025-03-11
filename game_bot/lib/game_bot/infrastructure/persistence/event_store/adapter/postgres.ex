@@ -21,10 +21,6 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
   alias GameBot.Infrastructure.Error
   alias GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
 
-  @typep conn :: DBConnection.conn()
-  @typep query :: Postgrex.Query.t()
-  @typep stream_version :: non_neg_integer()
-
   # Fixed operational parameters
   @table_prefix "event_store"
   @max_batch_size 100

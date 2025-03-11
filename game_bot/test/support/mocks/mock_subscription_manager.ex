@@ -1,111 +1,96 @@
-defmodule GameBot.Test.Mocks.MockSubscriptionManager do
+defmodule MockSubscriptionManager do
   @moduledoc """
   Mock implementation of the subscription manager for testing.
 
-  This module simulates the behavior of a subscription manager without
-  requiring actual event store connections. It allows tests to control
-  the subscription behavior and verify the expected calls.
+  This module provides a simple GenServer-based mock that can be used in tests
+  to simulate the behavior of event subscriptions without requiring a real event store.
   """
 
   use GenServer
-  require Logger
 
-  # Define our State struct for consistency
   defmodule State do
     @moduledoc false
-    defstruct subscriptions: %{},    # Map of subscription_id to subscription details
-              handlers: %{},         # Map of subscription_id to handler function
-              errors: %{},           # Map of function name to error
-              call_history: []       # List of function calls for verification
+    defstruct subscriptions: %{},
+              handlers: %{},
+              call_history: []
   end
 
   # Client API
 
   @doc """
-  Starts the mock subscription manager.
+  Starts the mock subscription manager server.
   """
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
-
-    # Check if process is already running
-    case Process.whereis(name) do
-      nil ->
-        GenServer.start_link(__MODULE__, %State{}, name: name)
-      pid ->
-        if Process.alive?(pid) do
-          {:ok, pid}
-        else
-          # Process is dead but still registered
-          Process.unregister(name)
-          GenServer.start_link(__MODULE__, %State{}, name: name)
-        end
-    end
+    GenServer.start_link(__MODULE__, %State{}, name: name)
   end
 
   @doc """
-  Resets the mock state.
+  Resets the mock state to initial empty state.
   """
   def reset_state(server \\ __MODULE__) do
     GenServer.call(server, :reset_state)
   end
 
   @doc """
-  Sets up a subscription for testing.
-  """
-  def setup_subscription(server \\ __MODULE__, subscription_id, details) do
-    GenServer.call(server, {:setup_subscription, subscription_id, details})
-  end
-
-  @doc """
-  Sets up a handler for a subscription.
-  """
-  def setup_handler(server \\ __MODULE__, subscription_id, handler_fn) do
-    GenServer.call(server, {:setup_handler, subscription_id, handler_fn})
-  end
-
-  @doc """
-  Configures an error for a specific function.
-  """
-  def setup_error(server \\ __MODULE__, function, error) do
-    GenServer.call(server, {:setup_error, function, error})
-  end
-
-  @doc """
-  Gets the call history for verification.
+  Get the call history for verification in tests.
   """
   def get_call_history(server \\ __MODULE__) do
     GenServer.call(server, :get_call_history)
   end
 
   @doc """
-  Simulates an event occurring for a subscription.
-  """
-  def simulate_event(server \\ __MODULE__, subscription_id, event) do
-    GenServer.cast(server, {:simulate_event, subscription_id, event})
-  end
+  Subscribe to a stream with a handler function.
 
-  # Mock API functions (customize these to match the actual API you're mocking)
-
-  @doc """
-  Subscribes to a stream.
+  Args:
+    - stream_id: The ID of the stream to subscribe to
+    - handler: The handler function or module to call when events occur
+    - opts: Additional subscription options
   """
-  def subscribe_to_stream(stream_id, handler_module, opts \\ []) do
-    GenServer.call(__MODULE__, {:subscribe_to_stream, stream_id, handler_module, opts})
+  def subscribe(stream_id, handler, opts \\ []) do
+    GenServer.call(__MODULE__, {:subscribe, stream_id, handler, opts})
   end
 
   @doc """
-  Unsubscribes from a stream.
+  Unsubscribe from a stream.
+
+  Args:
+    - subscription_id: The ID of the subscription to cancel
   """
   def unsubscribe(subscription_id) do
     GenServer.call(__MODULE__, {:unsubscribe, subscription_id})
   end
 
   @doc """
-  Gets the current subscriptions.
+  Manually trigger events for a stream (test helper method).
+
+  Args:
+    - stream_id: The ID of the stream to simulate events for
+    - events: The list of events to simulate
   """
-  def get_subscriptions do
-    GenServer.call(__MODULE__, :get_subscriptions)
+  def simulate_events(stream_id, events) do
+    GenServer.call(__MODULE__, {:simulate_events, stream_id, events})
   end
+
+  @doc """
+  Mock implementation of subscribe_to_event_type.
+  Always returns :ok for testing.
+  """
+  def subscribe_to_event_type(event_type) do
+    # Just log the subscription for testing purposes
+    IO.puts("MockSubscriptionManager: Subscribed to #{event_type}")
+    :ok
+  end
+
+  @doc """
+  Mock implementation of unsubscribe.
+  Always returns :ok for testing.
+  """
+#  def unsubscribe(subscription_id) do
+#    # Just log the unsubscription for testing purposes
+#    IO.puts("MockSubscriptionManager: Unsubscribed from #{subscription_id}")
+#    :ok
+#  end
 
   # GenServer Callbacks
 
@@ -119,30 +104,8 @@ defmodule GameBot.Test.Mocks.MockSubscriptionManager do
     new_state = %State{
       subscriptions: %{},
       handlers: %{},
-      errors: %{},
       call_history: []
     }
-    {:reply, :ok, new_state}
-  end
-
-  @impl GenServer
-  def handle_call({:setup_subscription, subscription_id, details}, _from, state) do
-    subscriptions = Map.put(state.subscriptions, subscription_id, details)
-    new_state = %{state | subscriptions: subscriptions}
-    {:reply, :ok, new_state}
-  end
-
-  @impl GenServer
-  def handle_call({:setup_handler, subscription_id, handler_fn}, _from, state) do
-    handlers = Map.put(state.handlers, subscription_id, handler_fn)
-    new_state = %{state | handlers: handlers}
-    {:reply, :ok, new_state}
-  end
-
-  @impl GenServer
-  def handle_call({:setup_error, function, error}, _from, state) do
-    errors = Map.put(state.errors, function, error)
-    new_state = %{state | errors: errors}
     {:reply, :ok, new_state}
   end
 
@@ -152,86 +115,69 @@ defmodule GameBot.Test.Mocks.MockSubscriptionManager do
   end
 
   @impl GenServer
-  def handle_call({:subscribe_to_stream, stream_id, handler_module, opts}, _from, state) do
-    # Record the call
-    call_history = [{:subscribe_to_stream, stream_id, handler_module, opts} | state.call_history]
-    new_state = %{state | call_history: call_history}
+  def handle_call({:subscribe, stream_id, handler, opts}, _from, state) do
+    subscription_id = System.unique_integer([:positive]) |> to_string()
 
-    # Check if we should return an error
-    case Map.get(state.errors, :subscribe_to_stream) do
-      nil ->
-        # Generate a new subscription ID
-        subscription_id = "subscription-#{:erlang.unique_integer([:positive])}"
+    subscriptions = Map.put(state.subscriptions, subscription_id, %{
+      stream_id: stream_id,
+      opts: opts
+    })
 
-        # Create subscription details
-        subscription = %{
-          id: subscription_id,
-          stream_id: stream_id,
-          handler: handler_module,
-          opts: opts
-        }
+    handlers = Map.put(state.handlers, subscription_id, handler)
 
-        # Add to subscriptions
-        subscriptions = Map.put(new_state.subscriptions, subscription_id, subscription)
-        final_state = %{new_state | subscriptions: subscriptions}
+    call_history = [{:subscribe, stream_id, handler, opts} | state.call_history]
 
-        {:reply, {:ok, subscription_id}, final_state}
-      error ->
-        {:reply, {:error, error}, new_state}
-    end
+    new_state = %{state |
+      subscriptions: subscriptions,
+      handlers: handlers,
+      call_history: call_history
+    }
+
+    {:reply, {:ok, subscription_id}, new_state}
   end
 
   @impl GenServer
   def handle_call({:unsubscribe, subscription_id}, _from, state) do
-    # Record the call
+    subscriptions = Map.delete(state.subscriptions, subscription_id)
+    handlers = Map.delete(state.handlers, subscription_id)
+
     call_history = [{:unsubscribe, subscription_id} | state.call_history]
-    new_state = %{state | call_history: call_history}
 
-    # Check if we should return an error
-    case Map.get(state.errors, :unsubscribe) do
-      nil ->
-        # Remove from subscriptions and handlers
-        subscriptions = Map.delete(new_state.subscriptions, subscription_id)
-        handlers = Map.delete(new_state.handlers, subscription_id)
-        final_state = %{new_state | subscriptions: subscriptions, handlers: handlers}
+    new_state = %{state |
+      subscriptions: subscriptions,
+      handlers: handlers,
+      call_history: call_history
+    }
 
-        {:reply, :ok, final_state}
-      error ->
-        {:reply, {:error, error}, new_state}
-    end
+    {:reply, :ok, new_state}
   end
 
   @impl GenServer
-  def handle_call(:get_subscriptions, _from, state) do
-    # Record the call
-    call_history = [:get_subscriptions | state.call_history]
+  def handle_call({:simulate_events, stream_id, events}, _from, state) do
+    # Find all subscriptions for this stream
+    matching_subscriptions = Enum.filter(state.subscriptions, fn {_id, sub} ->
+      sub.stream_id == stream_id
+    end)
+
+    # Call each handler with the events
+    Enum.each(matching_subscriptions, fn {sub_id, _sub} ->
+      handler = Map.get(state.handlers, sub_id)
+
+      cond do
+        is_function(handler, 1) ->
+          handler.(events)
+        is_atom(handler) and function_exported?(handler, :handle_events, 1) ->
+          handler.handle_events(events)
+        true ->
+          # No-op for unhandled cases
+          :ok
+      end
+    end)
+
+    call_history = [{:simulate_events, stream_id, events} | state.call_history]
+
     new_state = %{state | call_history: call_history}
 
-    # Check if we should return an error
-    case Map.get(state.errors, :get_subscriptions) do
-      nil ->
-        # Return all subscriptions
-        {:reply, {:ok, Map.values(state.subscriptions)}, new_state}
-      error ->
-        {:reply, {:error, error}, new_state}
-    end
-  end
-
-  @impl GenServer
-  def handle_cast({:simulate_event, subscription_id, event}, state) do
-    # Look up the handler for this subscription
-    case Map.get(state.handlers, subscription_id) do
-      nil ->
-        Logger.warning("No handler found for subscription #{subscription_id}")
-        {:noreply, state}
-      handler_fn when is_function(handler_fn) ->
-        # Call the handler function
-        try do
-          handler_fn.(event)
-        rescue
-          e -> Logger.error("Error in subscription handler: #{inspect(e)}")
-        end
-        {:noreply, state}
-    end
+    {:reply, :ok, new_state}
   end
 end

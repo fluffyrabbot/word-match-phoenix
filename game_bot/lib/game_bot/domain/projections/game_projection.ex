@@ -70,6 +70,21 @@ defmodule GameBot.Domain.Projections.GameProjection do
     {:ok, {:game_created, game}}
   end
 
+  def handle_event(%RoundStarted{} = event) do
+    round = %RoundView{
+      game_id: event.game_id,
+      round_number: event.round_number,
+      guild_id: event.guild_id,
+      started_at: DateTime.utc_now(),
+      finished_at: nil,
+      winner_team_id: nil,
+      round_score: nil,
+      round_stats: nil
+    }
+
+    {:ok, {:round_started, round}}
+  end
+
   def handle_event(%GameStarted{} = event, %{game: game}) do
     updated_game = %GameSummaryView{game |
       status: :active,
@@ -89,21 +104,6 @@ defmodule GameBot.Domain.Projections.GameProjection do
     }
 
     {:ok, {:game_completed, updated_game}}
-  end
-
-  def handle_event(%RoundStarted{} = event) do
-    round = %RoundView{
-      game_id: event.game_id,
-      round_number: event.round_number,
-      guild_id: event.guild_id,
-      started_at: DateTime.utc_now(),
-      finished_at: nil,
-      winner_team_id: nil,
-      round_score: nil,
-      round_stats: nil
-    }
-
-    {:ok, {:round_started, round}}
   end
 
   def handle_event(%GuessProcessed{} = event, %{round: round}) do

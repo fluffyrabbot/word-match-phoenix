@@ -1,13 +1,13 @@
 defmodule GameBot.Domain.Events.BaseEvent do
   @moduledoc """
-  Base module for all events in the system.
-  Provides common functionality and ensures consistent event structure.
+  Base module for all domain events.
+  Provides common functionality and type definitions.
   """
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias GameBot.Domain.Events.{EventSerializer, EventValidator, Metadata}
+  @type validation_error :: {:error, {:validation, String.t()}}
 
   # Define base fields as a module attribute for reuse
   @base_fields [
@@ -40,7 +40,7 @@ defmodule GameBot.Domain.Events.BaseEvent do
     field :metadata, :map
   end
 
-  @type t :: %__MODULE__{
+  @type base_event :: %__MODULE__{
     id: Ecto.UUID.t(),
     game_id: String.t(),
     guild_id: String.t(),

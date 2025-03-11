@@ -35,7 +35,6 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
 
   @behaviour GameBot.Domain.GameModes.BaseMode
 
-  alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{GuessProcessed, GuessAbandoned}
 
   # Configuration
@@ -200,7 +199,7 @@ defmodule GameBot.Domain.GameModes.TwoPlayerMode do
   """
   @impl true
   @spec check_round_end(state()) :: :continue
-  def check_round_end(state) do
+  def check_round_end(_state) do
     :continue
   end
 

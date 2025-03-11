@@ -15,7 +15,6 @@ defmodule Mix.Tasks.GameBot.ResetTestDb do
   """
 
   use Mix.Task
-  import Mix.Ecto, only: [parse_repo: 1]
 
   # Maximum number of retries for database operations
   @max_retries 5  # Increased from 3 to 5
@@ -40,7 +39,7 @@ defmodule Mix.Tasks.GameBot.ResetTestDb do
 
     # Get repo config
     repo_config = Application.get_env(:game_bot, GameBot.Infrastructure.Persistence.Repo)
-    eventstore_config = Application.get_env(:game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres)
+    _eventstore_config = Application.get_env(:game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres)
 
     # Extract connection info without database name and with longer timeouts
     repo_conn_info = repo_config
@@ -196,7 +195,7 @@ defmodule Mix.Tasks.GameBot.ResetTestDb do
       {:ok, %{rows: [[version]]}} ->
         # Limit output to avoid scrolling
         short_version = String.slice(version, 0, 60)
-        if String.length(version) > 60, do: short_version = short_version <> "..."
+        short_version = if String.length(version) > 60, do: short_version <> "...", else: short_version
         IO.puts("PostgreSQL Version: #{short_version}")
       {:error, error} ->
         IO.puts("Error checking PostgreSQL version: #{inspect(error)}")

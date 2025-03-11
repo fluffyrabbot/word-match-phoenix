@@ -1,14 +1,10 @@
 defmodule GameBot.Infrastructure.Persistence.EventStore do
   @moduledoc """
-  Event store implementation for GameBot.
-
-  This module provides the main entry point for the event store functionality,
-  implementing the EventStore behavior and delegating to the configured adapter.
+  EventStore implementation for the application.
+  Provides event storage and retrieval capabilities.
   """
 
   use EventStore, otp_app: :game_bot
-
-  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
 
   @doc """
   Initializes the event store with the given configuration.
@@ -19,4 +15,6 @@ defmodule GameBot.Infrastructure.Persistence.EventStore do
     # You can modify config here if needed
     {:ok, config}
   end
+
+  # Additional functions can be added here to extend EventStore functionality
 end

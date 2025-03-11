@@ -1,19 +1,21 @@
 defmodule GameBot.Domain.Commands.StatsCommands do
   @moduledoc """
-  Defines commands and queries for game statistics and analytics.
+  Commands for retrieving game and player statistics.
   """
 
-  alias GameBot.Infrastructure.Persistence.EventStore.Adapter, as: EventStore
+  alias GameBot.Domain.Events.Metadata
 
   defmodule FetchPlayerStats do
     @moduledoc "Command to fetch player statistics"
 
-    @enforce_keys [:player_id, :guild_id]
-    defstruct [:player_id, :guild_id]
+    @enforce_keys [:user_id, :guild_id, :requester_id]
+    defstruct [:user_id, :guild_id, :requester_id, :time_period]
 
     @type t :: %__MODULE__{
-      player_id: String.t(),
-      guild_id: String.t()
+      user_id: String.t(),
+      guild_id: String.t(),
+      requester_id: String.t(),
+      time_period: String.t() | nil
     }
 
     def execute(%__MODULE__{} = command) do
@@ -61,9 +63,61 @@ defmodule GameBot.Domain.Commands.StatsCommands do
       options: map()
     }
 
-    def execute(%__MODULE__{} = command) do
+    def execute(%__MODULE__{} = _command) do
       # TODO: Implement actual leaderboard aggregation from events
       {:ok, []}
     end
+  end
+
+  # Handle player stats command from interaction
+  def handle_player_stats(interaction, options) do
+    # Create metadata for tracking
+    _metadata = create_metadata(interaction)
+
+    # Process options
+    user_id = options[:user_id] || interaction.user.id
+    guild_id = interaction.guild_id
+    time_period = options[:time_period] || "all"
+
+    # Return command for execution
+    %FetchPlayerStats{
+      user_id: user_id,
+      guild_id: guild_id,
+      time_period: time_period,
+      requester_id: interaction.user.id
+    }
+  end
+
+  # Handle player stats command from message
+  def handle_player_stats_message(message, args) do
+    # Create metadata for tracking
+    _metadata = Metadata.from_discord_message(message)
+
+    # Parse arguments
+    {user_id, time_period} = parse_player_stats_args(args, message.author.id)
+    guild_id = message.guild_id
+
+    # Return command for execution
+    %FetchPlayerStats{
+      user_id: user_id,
+      guild_id: guild_id,
+      time_period: time_period,
+      requester_id: message.author.id
+    }
+  end
+
+  # Helper function to create metadata from interaction
+  defp create_metadata(interaction) do
+    %{
+      guild_id: interaction.guild_id,
+      user_id: interaction.user.id,
+      timestamp: DateTime.utc_now()
+    }
+  end
+
+  # Helper function to parse player stats arguments
+  defp parse_player_stats_args(_args, default_user_id) do
+    # Default implementation - can be expanded
+    {default_user_id, "all"}
   end
 end

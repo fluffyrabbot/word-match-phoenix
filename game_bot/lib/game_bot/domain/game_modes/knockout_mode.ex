@@ -41,10 +41,8 @@ defmodule GameBot.Domain.GameModes.KnockoutMode do
 
   alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{
-    GuessProcessed,
     GuessAbandoned,
-    TeamEliminated,
-    KnockoutRoundCompleted
+    TeamEliminated
   }
 
   # Configuration

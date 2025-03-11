@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Running tests..."
+echo "Running only failing tests..."
 
 # Define color codes for output formatting
 RED='\033[0;31m'
@@ -61,24 +61,26 @@ if ! PGPASSWORD=csstarahid pg_isready -h localhost -U postgres > /dev/null 2>&1;
   handle_error "PostgreSQL is not running. Please start PostgreSQL before running tests."
 fi
 
-# Check if database setup has been done
-if ! grep -q "game_bot_test_" config/test.exs || ! grep -q "game_bot_eventstore_test_" config/test.exs; then
-  echo -e "${YELLOW}Database configuration not found. Running database setup first...${NC}"
-  ./setup_test_db.sh || handle_error "Failed to set up test databases"
-fi
-
-# Set up event store schema and tables
-echo -e "${BLUE}Setting up event store schema and tables...${NC}"
-db_name=$(grep -o 'event_db_name = "[^"]*' config/test.exs | sed 's/event_db_name = "//')
-echo -e "${BLUE}Cleaning up previous event store schema...${NC}"
-PGPASSWORD=csstarahid psql -h localhost -U postgres -d "$db_name" -c "DROP SCHEMA IF EXISTS event_store CASCADE; CREATE SCHEMA event_store;" || handle_error "Failed to create event store schema"
-
-# Run the tests with optimized settings and longer timeouts
-echo -e "${YELLOW}Running tests...${NC}"
-echo "Event store setup complete!"
-mix test || handle_error "Tests failed"
+# List of failing test files and patterns
+echo -e "${YELLOW}Running only failing tests...${NC}"
+mix test \
+  test/game_bot/bot/command_handler_test.exs:103 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:55 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:62 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:72 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:81 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:95 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:110 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:116 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:129 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:134 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:143 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:157 \
+  test/game_bot/infrastructure/persistence/event_store/postgres_test.exs:165 \
+  test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:23 \
+  --trace || handle_error "Tests failed"
 
 # Display success message
-echo -e "${GREEN}All tests passed successfully!${NC}"
+echo -e "${GREEN}All tests ran (still may have failures)!${NC}"
 cleanup_all_resources
 echo -e "${GREEN}Cleanup complete.${NC}" 

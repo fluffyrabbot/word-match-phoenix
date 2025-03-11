@@ -204,6 +204,11 @@ defmodule GameBot.Test.DatabaseConnectionManager do
               Logger.debug("Killing Postgrex.Connection process: #{inspect(pid)}")
               Process.exit(pid, :kill)
 
+            # Handle DBConnection.Connection processes
+            match?({DBConnection.Connection, :init, _}, initial_call) ->
+              Logger.debug("Killing DBConnection.Connection process: #{inspect(pid)}")
+              Process.exit(pid, :kill)
+
             true ->
               :ok
           end
@@ -213,8 +218,23 @@ defmodule GameBot.Test.DatabaseConnectionManager do
       end
     end)
 
+    # Clear any unexpected messages in the mailbox that might cause errors
+    # This specifically handles the {:db_connection, ...} checkout messages
+    clear_mailbox_of_db_messages()
+
     # Small delay to allow processes to terminate
     Process.sleep(100)
+  end
+
+  # Clear unexpected database checkout messages from the mailbox
+  defp clear_mailbox_of_db_messages do
+    receive do
+      {:db_connection, _, {:checkout, _, _, _}} ->
+        Logger.debug("Cleared unexpected db_connection checkout message from mailbox")
+        clear_mailbox_of_db_messages()
+      after
+        0 -> :ok
+    end
   end
 
   defp terminate_remaining_connections do

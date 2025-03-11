@@ -35,6 +35,13 @@ defmodule GameBot.EventStoreCase do
 
     # Register cleanup callback
     on_exit(fn ->
+      # Delay slightly to ensure any in-flight operations complete
+      Process.sleep(50)
+
+      # Clear mailbox of any unexpected db_connection messages
+      clear_test_mailbox()
+
+      # Then proceed with normal cleanup
       GameBot.Test.DatabaseHelper.cleanup()
     end)
 
@@ -240,6 +247,56 @@ defmodule GameBot.EventStoreCase do
         # Log and continue
         IO.puts("Warning: Exception in clean_database: #{inspect(e)}")
         :ok
+    end
+  end
+
+  # Helper Functions
+
+  # Clean up any open transactions
+  defp cleanup_open_transactions do
+    try do
+      # Force rollback of any open transaction
+      GameBot.Infrastructure.Persistence.Repo.rollback_all()
+    rescue
+      _ -> :ok
+    end
+  end
+
+  # Ensure connection pool is properly shut down
+  defp ensure_pool_shutdown(repo) do
+    try do
+      # Get pool size so we know how many connections to expect
+      pool_size = Keyword.get(repo.config(), :pool_size, 10)
+
+      # Force close connections in pool
+      for _ <- 1..pool_size do
+        try do
+          DBConnection.disconnect_all(repo.config()[:pool], timeout: 500)
+        rescue
+          _ -> :ok
+        catch
+          _, _ -> :ok
+        end
+      end
+
+      # Wait a bit before allowing supervisor shutdown
+      Process.sleep(100)
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+  end
+
+  # Helper function to clear test process mailbox of problematic messages
+  defp clear_test_mailbox() do
+    receive do
+      {:db_connection, _, {:checkout, _, _, _}} = msg ->
+        # Log that we're clearing a potentially problematic message
+        Logger.debug("Cleared unexpected db_connection message from test process mailbox: #{inspect(msg)}")
+        clear_test_mailbox()
+      after
+        0 -> :ok
     end
   end
 end

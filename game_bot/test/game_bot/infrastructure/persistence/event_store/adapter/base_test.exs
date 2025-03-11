@@ -94,14 +94,20 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
       :telemetry.detach(id)
     end)
 
-    # Attach new handler
+    # Define a module for telemetry handler to avoid using local functions
+    defmodule TelemetryHandler do
+      def handle_event(name, measurements, metadata, config) do
+        test_pid = config
+        send(test_pid, {:telemetry, name, measurements, metadata})
+      end
+    end
+
+    # Attach new handler using the module function
     :telemetry.attach(
       "test-handler-#{inspect(self())}",
       [:game_bot, :event_store, :append],
-      fn name, measurements, metadata, _ ->
-        send(test_pid, {:telemetry, name, measurements, metadata})
-      end,
-      nil
+      &TelemetryHandler.handle_event/4,
+      test_pid
     )
 
     on_exit(fn ->

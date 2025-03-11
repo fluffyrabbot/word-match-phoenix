@@ -45,6 +45,21 @@ defmodule GameBotWeb.ConnCase do
       GameBot.Test.DatabaseHelper.cleanup_connections()
     end)
 
+    # Initialize ETS tables that might be needed for tests
+    ets_tables_to_ensure = [
+      # Add your ETS table names here
+      :game_bot_cache,
+      :game_bot_session_cache,
+      :game_bot_metrics
+    ]
+
+    # Ensure each table exists
+    Enum.each(ets_tables_to_ensure, fn table_name ->
+      unless :ets.info(table_name) != :undefined do
+        :ets.new(table_name, [:named_table, :public, :set])
+      end
+    end)
+
     # Return connection
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end

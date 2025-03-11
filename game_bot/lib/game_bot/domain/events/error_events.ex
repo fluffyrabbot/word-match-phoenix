@@ -44,9 +44,12 @@ defmodule GameBot.Domain.Events.ErrorEvents do
     @doc """
     Returns the string type identifier for this event.
     """
+    @impl true
     def event_type(), do: "guess_error"
 
     @impl true
+    def event_version(), do: 1
+
     def validate_attrs(attrs) do
       with {:ok, base_attrs} <- super(attrs),
            :ok <- validate_required_field(attrs, :team_id),
@@ -164,9 +167,12 @@ defmodule GameBot.Domain.Events.ErrorEvents do
     @doc """
     Returns the string type identifier for this event.
     """
+    @impl true
     def event_type(), do: "guess_pair_error"
 
     @impl true
+    def event_version(), do: 1
+
     def validate_attrs(attrs) do
       with {:ok, base_attrs} <- super(attrs),
            :ok <- validate_required_field(attrs, :team_id),
@@ -284,9 +290,12 @@ defmodule GameBot.Domain.Events.ErrorEvents do
     @doc """
     Returns the string type identifier for this event.
     """
+    @impl true
     def event_type(), do: "game_error"
 
     @impl true
+    def event_version(), do: 1
+
     def validate_attrs(attrs) do
       with {:ok, base_attrs} <- super(attrs),
            :ok <- validate_required_field(attrs, :reason),
@@ -358,9 +367,12 @@ defmodule GameBot.Domain.Events.ErrorEvents do
     @doc """
     Returns the string type identifier for this event.
     """
+    @impl true
     def event_type(), do: "round_check_error"
 
     @impl true
+    def event_version(), do: 1
+
     def validate_attrs(attrs) do
       with {:ok, base_attrs} <- super(attrs),
            :ok <- validate_required_field(attrs, :reason) do

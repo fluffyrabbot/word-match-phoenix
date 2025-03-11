@@ -127,6 +127,18 @@ defmodule GameBot.Domain.GameModes.State do
     update_in(state.teams[team_id].guess_count, &(&1 + 1))  # Increment for next attempt
   end
 
+  @doc """
+  Builds metadata for game events.
+  """
+  def build_metadata(_state, opts \\ []) do
+    %{
+      timestamp: DateTime.utc_now(),
+      correlation_id: Keyword.get(opts, :correlation_id, generate_correlation_id()),
+      causation_id: Keyword.get(opts, :causation_id),
+      source: Keyword.get(opts, :source, :game_mode)
+    }
+  end
+
   # Private helpers
 
   defp initialize_teams(teams) do
@@ -159,5 +171,9 @@ defmodule GameBot.Domain.GameModes.State do
     Enum.find_value(state.teams, fn {team_id, team} ->
       if player_id in team.player_ids, do: team_id, else: nil
     end)
+  end
+
+  defp generate_correlation_id do
+    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
   end
 end

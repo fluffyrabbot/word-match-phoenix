@@ -1,4 +1,13 @@
-defmodule GameBot.Replay.GameCompletionHandlerTest do
+defmodule GameBot.Replay.GameCompletionHandlerTest.Deprecated do
+  @moduledoc """
+  DEPRECATED: This test module uses complex mocking that is difficult to maintain.
+  Please use GameCompletionHandlerSimplifiedTest instead, which offers the same
+  coverage with a more straightforward approach.
+  """
+  use ExUnit.Case, async: false
+
+  @moduletag :skip
+
   use GameBot.RepositoryCase, async: false
 
   alias GameBot.Replay.{
@@ -10,6 +19,10 @@ defmodule GameBot.Replay.GameCompletionHandlerTest do
     Utils.NameGenerator,
     Utils.StatsCalculator
   }
+
+  # Add alias for the test mock modules
+  alias GameBot.Test.Mocks.MockEventStoreAccess
+  alias GameBot.Test.Mocks.MockSubscriptionManager
 
   import Mox
 

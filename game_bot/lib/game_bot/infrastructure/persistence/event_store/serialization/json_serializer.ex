@@ -17,7 +17,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerial
 
   alias GameBot.Infrastructure.Error
   alias GameBot.Infrastructure.ErrorHelpers
-  alias GameBot.Domain.Events.{EventRegistry, BaseEvent, EventStructure}
+  alias GameBot.Domain.Events.EventRegistry
 
   @current_version 1
   require Logger
@@ -127,6 +127,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerial
       # Support for plain maps with event_type and event_version keys
       is_map(event) and not is_struct(event) and Map.has_key?(event, :event_type) and Map.has_key?(event, :event_version) ->
         :ok
+      # Add support for string keys (primarily for tests)
+      is_map(event) and not is_struct(event) and (
+        (Map.has_key?(event, "type") and Map.has_key?(event, "version")) or
+        (Map.has_key?(event, "event_type") and Map.has_key?(event, "event_version"))
+      ) ->
+        :ok
       # Original struct validation
       is_struct(event) ->
         if is_nil(get_event_type_if_available(event)) or is_nil(get_event_version_if_available(event)) do
@@ -147,6 +153,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerial
       # For plain maps with event_type
       is_map(event) and not is_struct(event) and Map.has_key?(event, :event_type) ->
         Map.get(event, :event_type)
+      # For plain maps with string keys (test events)
+      is_map(event) and not is_struct(event) and Map.has_key?(event, "type") ->
+        Map.get(event, "type")
+      # For plain maps with string event_type
+      is_map(event) and not is_struct(event) and Map.has_key?(event, "event_type") ->
+        Map.get(event, "event_type")
       # For structs with event_type/0 function
       function_exported?(event.__struct__, :event_type, 0) ->
         event.__struct__.event_type()
@@ -166,6 +178,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerial
       # For plain maps with event_version
       is_map(event) and not is_struct(event) and Map.has_key?(event, :event_version) ->
         Map.get(event, :event_version)
+      # For plain maps with string keys (test events)
+      is_map(event) and not is_struct(event) and Map.has_key?(event, "version") ->
+        Map.get(event, "version")
+      # For plain maps with string event_version
+      is_map(event) and not is_struct(event) and Map.has_key?(event, "event_version") ->
+        Map.get(event, "event_version")
       # For structs with event_version/0 function
       function_exported?(event.__struct__, :event_version, 0) ->
         event.__struct__.event_version()

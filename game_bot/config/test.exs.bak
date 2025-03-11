@@ -2,8 +2,8 @@ import Config
 
 # Generate unique database names for each test run to avoid connection conflicts
 unique_suffix = System.get_env("MIX_TEST_PARTITION") || "#{System.system_time(:second)}"
-main_db_name = "game_bot_test_1741648768"
-event_db_name = "game_bot_eventstore_test_1741648768"
+main_db_name = "game_bot_test_#{unique_suffix}"
+event_db_name = "game_bot_eventstore_test_#{unique_suffix}"
 
 # Configure the main repositories
 config :game_bot, ecto_repos: [

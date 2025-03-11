@@ -7,8 +7,6 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Postgres do
     otp_app: :game_bot,
     adapter: Ecto.Adapters.Postgres
 
-  import Ecto.Query, only: [from: 2]
-  alias Ecto.Multi
   alias GameBot.Infrastructure.Persistence.Error, as: PersistenceError
 
   # Maximum number of retries for database operations
@@ -264,10 +262,10 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Postgres do
       end
     end)
   rescue
-    e in Ecto.StaleEntryError ->
+    _e in Ecto.StaleEntryError ->
       {:error, %PersistenceError{type: :concurrency, message: "Stale entry", context: __MODULE__}}
-    e ->
-      {:error, %PersistenceError{type: :system, message: "Unexpected error: #{inspect(e)}", context: __MODULE__}}
+    _e ->
+      {:error, %PersistenceError{type: :system, message: "Unexpected error", context: __MODULE__}}
   end
 
   defp try_delete(struct, opts) do
@@ -278,10 +276,10 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Postgres do
       end
     end)
   rescue
-    e in Ecto.StaleEntryError ->
+    _e in Ecto.StaleEntryError ->
       {:error, %PersistenceError{type: :concurrency, message: "Stale entry", context: __MODULE__}}
-    e ->
-      {:error, %PersistenceError{type: :system, message: "Unexpected error: #{inspect(e)}", context: __MODULE__}}
+    _e ->
+      {:error, %PersistenceError{type: :system, message: "Unexpected error", context: __MODULE__}}
   end
 
   defp handle_changeset_error(changeset) do

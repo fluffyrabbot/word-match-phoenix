@@ -36,6 +36,8 @@ defmodule GameBot.Domain.Projections.UserProjection do
     defstruct [:user_id, :guild_id, :notification_settings, :ui_preferences, :updated_at]
   end
 
+  # Event handlers - grouped by arity
+
   def handle_event(%UserRegistered{} = event) do
     user = %UserView{
       user_id: event.user_id,
@@ -50,16 +52,7 @@ defmodule GameBot.Domain.Projections.UserProjection do
     {:ok, {:user_registered, user}}
   end
 
-  def handle_event(%UserProfileUpdated{} = event, %{user: user}) do
-    updated_user = %UserView{user |
-      display_name: event.display_name || user.display_name,
-      updated_at: event.updated_at
-    }
-
-    {:ok, {:user_updated, updated_user}}
-  end
-
-  def handle_event(%UserPreferencesChanged{} = event) do
+  def handle_event(%UserPreferencesChanged{} = event, %{user: _user}) do
     preferences = %UserPreferences{
       user_id: event.user_id,
       guild_id: event.guild_id,
@@ -71,23 +64,31 @@ defmodule GameBot.Domain.Projections.UserProjection do
     {:ok, {:preferences_changed, preferences}}
   end
 
+  def handle_event(%UserProfileUpdated{} = event, %{user: user}) do
+    updated_user = %UserView{user |
+      display_name: event.display_name || user.display_name,
+      updated_at: event.updated_at
+    }
+
+    {:ok, {:user_updated, updated_user}}
+  end
+
   def handle_event(_, state), do: {:ok, state}
 
   # Query functions - all filter by guild_id for data segregation
 
-  def get_user(user_id, guild_id) do
-    # Filter by both user_id and guild_id
-    # This is a placeholder - actual implementation would depend on your storage
-    {:error, :not_implemented}
-  end
-
-  def get_preferences(user_id, guild_id) do
+  def get_user(_user_id, _guild_id) do
     # Filter by both user_id and guild_id
     {:error, :not_implemented}
   end
 
-  def list_active_users(guild_id, time_period \\ nil) do
-    # Filter by guild_id and optionally by activity time period
+  def get_preferences(_user_id, _guild_id) do
+    # Filter by both user_id and guild_id
+    {:error, :not_implemented}
+  end
+
+  def list_active_users(_guild_id, _time_period \\ nil) do
+    # Filter by guild_id and optionally by time period
     {:error, :not_implemented}
   end
 
@@ -95,8 +96,8 @@ defmodule GameBot.Domain.Projections.UserProjection do
   Special case for cross-guild user data where explicitly needed.
   This should be used very sparingly and only for legitimate cross-guild needs.
   """
-  def get_user_cross_guild(user_id) do
-    # No guild filtering - only use for legitimate cross-guild needs
+  def get_user_cross_guild(_user_id) do
+    # Get user data across all guilds
     {:error, :not_implemented}
   end
 end

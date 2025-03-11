@@ -3,8 +3,6 @@ defmodule GameBot.Domain.Events.TestEvents do
   Test event implementations for use in tests.
   """
 
-  alias GameBot.Domain.Events.{EventSerializer, EventStructure, EventValidator}
-
   defmodule TestEvent do
     @moduledoc "Test event struct for serialization tests"
     defstruct [

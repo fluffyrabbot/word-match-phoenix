@@ -1,13 +1,13 @@
 defmodule GameBot.Bot.Commands.TeamCommands do
   @moduledoc """
-  Handles Discord team-related commands by translating them to domain commands.
+  Handles team-related commands from Discord.
   """
 
+  alias Nostrum.Struct.{Interaction, User}
   alias GameBot.Domain.Commands.TeamCommands
+  alias GameBot.Domain.Commands.TeamCommands.{CreateTeam, CreateTeamInvitation, AcceptInvitation, RenameTeam}
   alias GameBot.Domain.Projections.TeamProjection
   alias GameBot.Domain.Events.Metadata
-  alias Nostrum.Api.Message
-  alias Nostrum.Struct.Interaction
 
   @doc """
   Main command handler for team-related commands.

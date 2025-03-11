@@ -3,11 +3,12 @@ defmodule GameBot.GameSessions.Cleanup do
   Handles cleanup of completed or abandoned game sessions.
   """
   use GenServer
+  require Logger
 
-  alias GameBot.GameSessions.{Session, Supervisor}
+  alias GameBot.GameSessions.Session
 
   @cleanup_interval :timer.minutes(5)  # Check every 5 minutes
-  @session_timeout :timer.hours(24)    # Max session age
+  @session_timeout_seconds :timer.hours(24) |> div(1000)  # Max session age in seconds
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -32,20 +33,26 @@ defmodule GameBot.GameSessions.Cleanup do
     Process.send_after(self(), :cleanup, @cleanup_interval)
   end
 
-  defp cleanup_old_sessions do
-    cutoff = DateTime.add(DateTime.utc_now(), -@session_timeout, :millisecond)
+  @doc """
+  Cleans up old game sessions that have been inactive for too long.
+  """
+  def cleanup_old_sessions do
+    # Get all active sessions
+    active_sessions = Registry.select(GameBot.GameSessions.Registry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
 
-    Registry.select(GameBot.GameRegistry, [{
-      {:"$1", :"$2", :_},
-      [],
-      [{{:"$1", :"$2"}}]
-    }])
-    |> Enum.each(fn {game_id, pid} ->
-      case Session.get_state(game_id) do
-        {:ok, %{started_at: started_at}} when started_at < cutoff ->
-          Supervisor.stop_game(game_id)
+    # For each session, check if it's too old and terminate it
+    active_sessions
+    |> Enum.each(fn {game_id, _pid} ->
+      case Session.get_last_activity(game_id) do
+        {:ok, last_activity} ->
+          if DateTime.diff(DateTime.utc_now(), last_activity, :second) > @session_timeout_seconds do
+            Logger.info("Cleaning up inactive session for game #{game_id}")
+            Session.terminate(game_id, :inactivity_timeout)
+          end
         _ ->
-          :ok
+          # If we can't get last activity, assume it's stale
+          Logger.info("Cleaning up session with unknown activity for game #{game_id}")
+          Session.terminate(game_id, :unknown_activity)
       end
     end)
   end

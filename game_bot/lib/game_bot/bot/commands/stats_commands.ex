@@ -84,8 +84,9 @@ defmodule GameBot.Bot.Commands.StatsCommands do
     metadata = create_metadata(interaction)
 
     command = %StatsCommands.FetchPlayerStats{
-      player_id: player_id,
-      guild_id: guild_id
+      user_id: player_id,
+      guild_id: guild_id,
+      requester_id: interaction.user.id
     }
 
     try do
@@ -173,8 +174,9 @@ defmodule GameBot.Bot.Commands.StatsCommands do
     metadata = Metadata.from_discord_message(message)
 
     command = %StatsCommands.FetchPlayerStats{
-      player_id: player_id,
-      guild_id: guild_id
+      user_id: player_id,
+      guild_id: guild_id,
+      requester_id: message.author.id
     }
 
     try do

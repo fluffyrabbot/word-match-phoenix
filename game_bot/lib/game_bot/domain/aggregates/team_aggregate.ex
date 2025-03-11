@@ -19,19 +19,24 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
   end
 
   def execute(%State{} = state, %CreateTeamInvitation{} = cmd) do
-    case CreateTeamInvitation.validate(cmd) do
+    case check_existing_invitation(state, cmd) do
       :ok ->
-        invitation_id = generate_invitation_id(cmd.inviter_id, cmd.invitee_id)
-        expires_at = DateTime.add(DateTime.utc_now(), 300) # 5 minutes
+        case CreateTeamInvitation.validate(cmd) do
+          :ok ->
+            invitation_id = generate_invitation_id(cmd.inviter_id, cmd.invitee_id)
+            expires_at = DateTime.add(DateTime.utc_now(), 300) # 5 minutes
 
-        %TeamInvitationCreated{
-          invitation_id: invitation_id,
-          inviter_id: cmd.inviter_id,
-          invitee_id: cmd.invitee_id,
-          proposed_name: cmd.name,
-          created_at: DateTime.utc_now(),
-          expires_at: expires_at
-        }
+            %TeamInvitationCreated{
+              invitation_id: invitation_id,
+              inviter_id: cmd.inviter_id,
+              invitee_id: cmd.invitee_id,
+              proposed_name: cmd.name,
+              created_at: DateTime.utc_now(),
+              expires_at: expires_at,
+              guild_id: cmd.guild_id
+            }
+          error -> error
+        end
       error -> error
     end
   end
@@ -106,6 +111,8 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
     %State{state | pending_invitation: nil}
   end
 
+  # When a team is created, we're creating a completely new state from the event data
+  # We don't use the previous state because we're initializing a brand new team
   def apply(%State{} = _state, %TeamCreated{} = event) do
     %State{
       team_id: event.team_id,
@@ -151,5 +158,21 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
   defp generate_invitation_id(inviter_id, invitee_id) do
     [p1, p2] = Enum.sort([inviter_id, invitee_id])
     "inv-#{p1}-#{p2}-#{System.system_time(:second)}"
+  end
+
+  defp check_existing_invitation(%State{pending_invitation: nil}, _cmd), do: :ok
+  defp check_existing_invitation(%State{pending_invitation: invitation}, cmd) do
+    # Check if this is the same inviter/invitee combination
+    if (invitation.inviter_id == cmd.inviter_id && invitation.invitee_id == cmd.invitee_id) ||
+       (invitation.inviter_id == cmd.invitee_id && invitation.invitee_id == cmd.inviter_id) do
+      {:error, :invitation_already_exists}
+    else
+      # Check if the invitation is expired
+      if DateTime.compare(DateTime.utc_now(), invitation.expires_at) == :gt do
+        :ok  # Expired invitation can be replaced
+      else
+        {:error, :another_invitation_pending}
+      end
+    end
   end
 end

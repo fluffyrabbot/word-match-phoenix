@@ -80,7 +80,7 @@ defmodule Mix.Tasks.GameBot.Migrate do
           {:ok, :initialized}
       end
     rescue
-      e ->
+      _e ->
         IO.puts("The EventStore database has already been initialized.")
         {:ok, :already_initialized}
     end
@@ -95,7 +95,7 @@ defmodule Mix.Tasks.GameBot.Migrate do
     exit({:shutdown, 1})
   end
 
-  defp ensure_migrations_path(repo) do
+  defp ensure_migrations_path(_repo) do
     migrations_path = Path.join([Application.app_dir(:game_bot), "priv", "postgres", "migrations"])
     File.mkdir_p!(migrations_path)
   end

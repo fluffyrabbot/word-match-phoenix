@@ -36,7 +36,6 @@ defmodule GameBot.GameSessions.Recovery do
 
   require Logger
 
-  alias GameBot.Domain.Events.{GameEvents, TeamEvents}
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base, as: EventStore
   alias GameBot.Infrastructure.Error
   alias GameBot.Domain.GameState
@@ -44,8 +43,6 @@ defmodule GameBot.GameSessions.Recovery do
     GameStarted,
     GameCompleted,
     GuessProcessed,
-    GuessAbandoned,
-    RoundStarted,
     RoundCompleted,
     TeamEliminated,
     KnockoutRoundCompleted,
@@ -57,7 +54,6 @@ defmodule GameBot.GameSessions.Recovery do
   @default_timeout :timer.seconds(30)
   @max_retries 3
   @max_events 10_000
-  @retry_base_delay 50  # Base delay in ms for exponential backoff
 
   @type validation_error ::
     :no_events |

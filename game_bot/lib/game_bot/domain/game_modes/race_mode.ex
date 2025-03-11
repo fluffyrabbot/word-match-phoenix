@@ -41,9 +41,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
 
   @behaviour GameBot.Domain.GameModes.BaseMode
 
-  alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{
-    GuessProcessed,
     GuessAbandoned,
     RaceModeTimeExpired,
     RoundRestarted
@@ -237,7 +235,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   """
   @impl true
   @spec check_round_end(state()) :: :continue
-  def check_round_end(state) do
+  def check_round_end(_state) do
     :continue
   end
 

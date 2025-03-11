@@ -304,14 +304,9 @@ defmodule GameBot.Domain.WordService do
 
   defp find_variations_file([]), do: {:error, :enoent}
   defp find_variations_file([path | rest]) do
-    case File.exists?(path) do
-      true ->
-        case File.read(path) do
-          {:ok, content} -> {:ok, path, content}
-          {:error, reason} -> find_variations_file(rest)
-        end
-      false ->
-        find_variations_file(rest)
+    case File.read(path) do
+      {:ok, content} -> {:ok, content, path}
+      {:error, _reason} -> find_variations_file(rest)
     end
   end
 
@@ -426,7 +421,7 @@ defmodule GameBot.Domain.WordService do
     end
   end
 
-  defp add_regional_variations(variations, word) do
+  defp add_regional_variations(variations) do
     variations ++ Enum.flat_map(variations, fn w ->
       cond do
         String.contains?(w, "or") ->
@@ -500,7 +495,7 @@ defmodule GameBot.Domain.WordService do
     }])
   end
 
-  # Move existing variation computation to separate function
+  # Compute variations for a word
   defp compute_variations(word, state) do
     # Get variations from file
     file_variations = Map.get(state.variations, word, [])
@@ -510,7 +505,7 @@ defmodule GameBot.Domain.WordService do
       [word]
       |> add_plural_variations()
       |> add_verb_variations(word)
-      |> add_regional_variations(word)
+      |> add_regional_variations()
       |> MapSet.new()
       |> MapSet.delete(word)  # Remove the original word
       |> MapSet.to_list()

@@ -24,23 +24,15 @@ defmodule GameBot.Domain.GameModes.Events do
   end
 
   @doc """
-  Builds event metadata.
+  Builds metadata for game events.
   """
-  def build_metadata(state, opts \\ []) do
-    base = %{
-      client_version: Application.spec(:game_bot, :vsn),
-      server_version: System.version(),
-      correlation_id: opts[:correlation_id] || generate_correlation_id(),
-      timestamp: DateTime.utc_now()
+  def build_metadata(_state, opts \\ []) do
+    %{
+      timestamp: DateTime.utc_now(),
+      correlation_id: Keyword.get(opts, :correlation_id, generate_correlation_id()),
+      causation_id: Keyword.get(opts, :causation_id),
+      source: Keyword.get(opts, :source, :game_mode)
     }
-
-    # Add optional fields if provided
-    Enum.reduce(opts, base, fn
-      {:causation_id, id}, acc -> Map.put(acc, :causation_id, id)
-      {:user_agent, ua}, acc -> Map.put(acc, :user_agent, ua)
-      {:ip_address, ip}, acc -> Map.put(acc, :ip_address, ip)
-      _, acc -> acc
-    end)
   end
 
   @doc """

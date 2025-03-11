@@ -132,12 +132,9 @@ defmodule GameBot.Domain.Commands.ReplayCommands do
       end
     end
 
-    # Helper to check if a game exists
-    # This is a simplified implementation that can be enhanced later
-    defp game_exists?(game_id, guild_id) do
-      # In a real implementation, this would check the event store
-      # For now, assume the game exists (to avoid breaking existing functionality)
-      # This could be improved to actually check the event store
+    # Placeholder implementation - replace with actual game existence check
+    defp game_exists?(_game_id, _guild_id) do
+      # In a real implementation, check if the game exists in the repository
       true
     end
 
@@ -196,21 +193,17 @@ defmodule GameBot.Domain.Commands.ReplayCommands do
     # In a real implementation, we would scan the events for the user's participation
     # For now, this is a simplified check that could be enhanced
 
-    # Extract all participant IDs from the events (specific implementation depends on event schema)
-    participant_ids = extract_participant_ids(game_events)
+    # Placeholder implementation - replace with actual participant extraction
+    extract_participant_ids(game_events)
 
     # Check if the user_id is in the list of participants
-    Enum.member?(participant_ids, user_id)
+    Enum.member?(extract_participant_ids(game_events), user_id)
   end
 
-  # Helper to extract participant IDs from game events
-  defp extract_participant_ids(game_events) do
-    # This implementation depends on your event schema
-    # For now, return a list with the user_id to allow access (keep existing behavior)
-    # In a real implementation, this would extract player IDs from events
-
-    # As a fallback to maintain existing behavior, assume all access is granted
-    ["*"]
+  # Placeholder implementation - replace with actual participant extraction
+  defp extract_participant_ids(_game_events) do
+    # In a real implementation, extract participant IDs from game events
+    []
   end
 
   # Helper to check if a user has admin rights

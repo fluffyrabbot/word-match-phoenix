@@ -104,8 +104,16 @@ defmodule GameBot.TestEventStore do
   end
 
   @impl EventStore
-  def append_to_stream(server, stream_id, expected_version, events, opts \\ []) do
+  def append_to_stream(server, stream_id, expected_version, events, _opts \\ []) do
     EventStoreCore.append_to_stream(server, stream_id, expected_version, events)
+  end
+
+  @doc """
+  Backward compatibility version of append_to_stream that takes 3 arguments.
+  This overload helps tests that are using the 3-parameter version.
+  """
+  def append_to_stream(stream_id, expected_version, events) do
+    append_to_stream(__MODULE__, stream_id, expected_version, events)
   end
 
   @impl EventStore

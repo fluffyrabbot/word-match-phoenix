@@ -6,7 +6,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.PostgresTest do
   """
 
   use ExUnit.Case, async: true
-  use GameBot.Test.EventStoreCase
+  # No imports needed anymore as we'll implement the functions directly
 
   alias GameBot.Infrastructure.{Error, ErrorHelpers}
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
@@ -23,6 +23,15 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.PostgresTest do
     # Clean up test database before each test
     Postgres.query!("TRUNCATE event_store.streams, event_store.events, event_store.subscriptions CASCADE", [])
     :ok
+  end
+
+  # Implementation of unique_stream_id functions
+  defp unique_stream_id do
+    "stream-#{System.unique_integer([:positive, :monotonic])}"
+  end
+
+  defp unique_stream_id(prefix) do
+    "#{prefix}-#{System.unique_integer([:positive, :monotonic])}"
   end
 
   # Create forwarding functions to make the tests work with the correct module
@@ -170,6 +179,22 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.PostgresTest do
   end
 
   # Helper Functions
+
+  # Create a test event with the given ID - completely local implementation
+  defp create_test_event(id) do
+    %{
+      event_type: "test_event",
+      version: 1,
+      data: %{
+        "id" => "test-#{id}"
+      },
+      metadata: %{
+        correlation_id: UUID.uuid4(),
+        causation_id: UUID.uuid4(),
+        user_id: "test_user"
+      }
+    }
+  end
 
   defp create_test_event_local(id) do
     %TestEvent{

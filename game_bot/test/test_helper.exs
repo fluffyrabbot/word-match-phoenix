@@ -7,7 +7,7 @@ Code.compiler_options(ignore_module_conflict: true)
 
 # Configure ExUnit with appropriate settings
 ExUnit.configure(
-  exclude: [:skip_db],
+  exclude: [:skip_db, :skip_in_ci],
   timeout: 60_000,
   trace: false,
   seed: 0,
@@ -17,8 +17,14 @@ ExUnit.configure(
 # Start ExUnit
 ExUnit.start()
 
-# Initialize test environment using centralized DatabaseHelper
-case GameBot.Test.DatabaseHelper.initialize() do
+# Note: For improved test database setup, use the new mix task:
+#   mix game_bot.test
+#
+# This task handles database setup, test execution, and cleanup automatically.
+# See README_TEST_INFRASTRUCTURE.md for details.
+
+# Initialize test environment using centralized DatabaseManager
+case GameBot.Test.DatabaseManager.initialize() do
   :ok ->
     IO.puts("\n=== Test Environment Initialized Successfully ===\n")
   {:error, reason} ->
@@ -30,10 +36,7 @@ end
 # Register cleanup for after the test suite
 ExUnit.after_suite(fn _ ->
   IO.puts("\n=== Cleaning up after test suite ===")
-  # Use the new graceful shutdown function first
-  GameBot.Test.DatabaseConnectionManager.graceful_shutdown()
-  # Then call the existing cleanup function
-  GameBot.Test.DatabaseHelper.cleanup()
+  GameBot.Test.DatabaseManager.cleanup()
   IO.puts("=== Test suite cleanup complete ===\n")
 end)
 
