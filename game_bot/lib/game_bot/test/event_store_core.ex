@@ -9,13 +9,17 @@ defmodule GameBot.Test.EventStoreCore do
   use GenServer
   require Logger
 
+  # Add timeout configuration
+  @default_timeout 5000
+
   # Define our State struct for consistency
   defmodule State do
     @moduledoc false
     defstruct streams: %{},
               subscriptions: %{},
               failure_count: 0,
-              delay: 0
+              delay: 0,
+              operation_timeouts: %{}  # New field for per-operation timeouts
   end
 
   # Public API for Core functionality
@@ -51,13 +55,22 @@ defmodule GameBot.Test.EventStoreCore do
     GenServer.call(server, {:set_delay, delay})
   end
 
+  @doc """
+  Sets a timeout for a specific operation type.
+  """
+  def set_operation_timeout(server \\ __MODULE__, operation, timeout) when is_integer(timeout) and timeout > 0 do
+    GenServer.call(server, {:set_operation_timeout, operation, timeout})
+  end
+
   # Handle requests from the API module
 
   @doc """
   Appends events to a stream with concurrency control via expected_version.
   """
   def append_to_stream(server \\ __MODULE__, stream_id, expected_version, events) do
-    GenServer.call(server, {:append_to_stream, stream_id, expected_version, events, []})
+    # Get the configured timeout or use default
+    timeout = get_operation_timeout(server, :append_to_stream)
+    GenServer.call(server, {:append_to_stream, stream_id, expected_version, events, []}, timeout)
   end
 
   @doc """
@@ -128,8 +141,25 @@ defmodule GameBot.Test.EventStoreCore do
 
   @impl GenServer
   def init(_) do
-    # Initialize with an empty State struct
-    {:ok, %State{}}
+    # Initialize with an empty State struct and default timeouts
+    {:ok, %State{
+      streams: %{},
+      subscriptions: %{},
+      failure_count: 0,
+      delay: 0,
+      operation_timeouts: %{
+        append_to_stream: @default_timeout,
+        read_stream_forward: @default_timeout,
+        read_stream_backward: @default_timeout,
+        subscribe_to_stream: @default_timeout,
+        subscribe_to_all: @default_timeout,
+        unsubscribe: @default_timeout,
+        unsubscribe_all: @default_timeout,
+        stream_version: @default_timeout,
+        delete_stream: @default_timeout,
+        link_to_stream: @default_timeout
+      }
+    }}
   end
 
   @impl GenServer
@@ -155,9 +185,16 @@ defmodule GameBot.Test.EventStoreCore do
   end
 
   @impl GenServer
+  def handle_call({:set_operation_timeout, operation, timeout}, _from, state) do
+    new_timeouts = Map.put(state.operation_timeouts, operation, timeout)
+    {:reply, :ok, %{state | operation_timeouts: new_timeouts}}
+  end
+
+  @impl GenServer
   def handle_call(request, from, %{failure_count: failure_count, delay: delay} = state) do
-    # Apply artificial delay if configured
-    if delay > 0 do
+    # Only apply delay if specifically configured for this operation
+    operation = elem(request, 0)
+    if should_apply_delay?(operation, delay) do
       Process.sleep(delay)
     end
 
@@ -375,4 +412,23 @@ defmodule GameBot.Test.EventStoreCore do
   defp check_version(%{version: current}, expected) do
     {:error, {:wrong_expected_version, expected: expected, current: current}}
   end
+
+  # Private Helpers
+
+  defp get_operation_timeout(server, operation) do
+    try do
+      case GenServer.call(server, {:get_operation_timeout, operation}) do
+        {:ok, timeout} -> timeout
+        _ -> @default_timeout
+      end
+    rescue
+      _ -> @default_timeout
+    end
+  end
+
+  # Only apply delays to specific operations that need them
+  defp should_apply_delay?(:append_to_stream, delay) when delay > 0, do: true
+  defp should_apply_delay?(:read_stream_forward, delay) when delay > 0, do: true
+  defp should_apply_delay?(:read_stream_backward, delay) when delay > 0, do: true
+  defp should_apply_delay?(_, _), do: false
 end

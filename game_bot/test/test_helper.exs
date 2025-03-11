@@ -11,7 +11,8 @@ ExUnit.configure(
   timeout: 60_000,
   trace: false,
   seed: 0,
-  formatters: [ExUnit.CLIFormatter]
+  formatters: [ExUnit.CLIFormatter],
+  max_cases: System.schedulers_online() * 2
 )
 
 # Start ExUnit
@@ -329,3 +330,27 @@ end
 
 # Configure the application for testing
 GameBot.Test.Setup.initialize()
+
+defmodule GameBot.Test.Cleanup do
+  def cleanup_test_resources do
+    # Stop test event store
+    if Process.whereis(GameBot.Test.EventStoreCore) do
+      GameBot.Test.EventStoreCore.reset()
+    end
+
+    # Close database connections
+    GameBot.Test.DatabaseHelper.cleanup_connections()
+
+    # Clear ETS tables
+    for table <- [:game_bot_cache, :game_bot_session_cache, :game_bot_metrics] do
+      if :ets.info(table) != :undefined do
+        :ets.delete_all_objects(table)
+      end
+    end
+  end
+end
+
+# Register cleanup for after each test
+ExUnit.after_suite(fn _ ->
+  GameBot.Test.Cleanup.cleanup_test_resources()
+end)

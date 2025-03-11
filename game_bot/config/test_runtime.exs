@@ -22,7 +22,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
 config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
   column_data_type: "jsonb",
   serializer: GameBot.Infrastructure.Persistence.EventStore.JsonSerializer,
-  types: GameBot.PostgresTypes,
+  types: EventStore.PostgresTypes,
   username: "postgres",
   password: "csstarahid",
   hostname: "localhost",

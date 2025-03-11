@@ -204,7 +204,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Base do
         {:ok, prepared}
       end
 
-      defp prepare_events(_stream_id, events) do
+      defp prepare_events(_stream_id, events) when not is_list(events) do
         {:error, Error.validation_error(__MODULE__, "Events must be a list", events)}
       end
 

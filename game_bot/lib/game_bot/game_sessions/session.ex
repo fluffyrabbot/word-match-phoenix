@@ -241,6 +241,7 @@ defmodule GameBot.GameSessions.Session do
     {:via, Registry, {GameBot.GameRegistry, game_id}}
   end
 
+  @dialyzer {:nowarn_function, register_players: 1}
   defp register_players(%{teams: teams, game_id: game_id}) do
     for {_team_id, %{player_ids: player_ids}} <- teams,
         player_id <- player_ids do

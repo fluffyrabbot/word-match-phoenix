@@ -1,0 +1,9 @@
+Compiling 173 files (.ex)
+Generated game_bot app
+Setting up event store schema and tables...
+Cleaning up previous event store schema...
+Event store setup complete!
+
+=== Failed to Initialize Test Environment ===
+01:16:27.225 [error] Failed to create database game_bot_test_1741648768: %Postgrex.Error{message: nil, postgres: %{code: :duplicate_database, line: "1356", message: "database \"game_bot_test_1741648768\" already exists", file: "dbcommands.c", unknown: "ERROR", severity: "ERROR", pg_code: "42P04", routine: "createdb"}, connection_id: 127184, query: nil}
+Reason: %Postgrex.Error{message: nil, postgres: %{code: :duplicate_database, line: "1356", message: "database \"game_bot_test_1741648768\" already exists", file: "dbcommands.c", unknown: "ERROR", severity: "ERROR", pg_code: "42P04", routine: "createdb"}, connection_id: 127184, query: nil}

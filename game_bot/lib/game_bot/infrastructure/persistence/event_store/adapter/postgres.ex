@@ -9,6 +9,23 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
   - Subscription management
   - Error handling
   - Telemetry integration
+
+  ## Return Value Consistency
+
+  All functions in this module follow these return value conventions:
+  - Public API functions return values as specified in the `Behaviour` module
+  - Private implementation functions (`do_*`) return values compatible with the Base adapter:
+    - Success: `{:ok, result}`
+    - Failure: `{:error, Error.t()}`
+  - For `delete_stream/3`, the implementation returns `{:ok, :ok}` which is converted to `:ok` by the Base adapter
+
+  ## Error Handling
+
+  Error handling follows these patterns:
+  - Use `with` expressions for sequential operations that might fail
+  - Return structured error types from the `Error` module
+  - Include relevant context in error metadata
+  - Use consistent error types for similar error conditions
   """
 
   use GameBot.Infrastructure.Persistence.EventStore.Adapter.Base,
@@ -50,7 +67,8 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
         Logger.debug("Inside transaction for stream_id: #{inspect(stream_id)}")
         with {:ok, actual_version} <- get_stream_version(stream_id),
              _ = Logger.debug("Got stream version: #{inspect(actual_version)}"),
-             :ok <- validate_expected_version(actual_version, expected_version),
+             normalized_expected_version = normalize_expected_version(expected_version),
+             :ok <- validate_expected_version(actual_version, normalized_expected_version),
              _ = Logger.debug("Validated expected version"),
              {:ok, new_version} <- append_events(stream_id, actual_version, events) do
           Logger.debug("Successfully appended events, new version: #{inspect(new_version)}")
@@ -69,25 +87,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
 
   defp do_read_stream_forward(stream_id, start_version, count, opts) do
     count = min(count, @max_batch_size)
-    case get_stream_version(stream_id) do
-      {:ok, 0} ->
-        {:error, Error.not_found_error(__MODULE__, "Stream not found", stream_id)}
-      {:ok, _version} ->
-        query = """
-        SELECT event_id, event_type, event_data, event_metadata, event_version
-        FROM #{@events_table}
-        WHERE stream_id = $1 AND event_version >= $2
-        ORDER BY event_version ASC
-        LIMIT $3
-        """
-        case query(query, [stream_id, start_version, count], opts) do
-          {:ok, %{rows: rows}} ->
-            {:ok, Enum.map(rows, &(row_to_event(&1, stream_id)))}
-          {:error, %Postgrex.Error{postgres: %{code: :undefined_table}}} ->
-            {:error, Error.not_found_error(__MODULE__, "Stream not found", stream_id)}
-          {:error, error} ->
-            {:error, Error.system_error(__MODULE__, "Database error", error)}
-        end
+
+    with {:ok, version} <- get_stream_version(stream_id),
+         :ok <- validate_stream_exists(version),
+         {:ok, rows} <- execute_read_query(stream_id, start_version, count, opts) do
+      {:ok, Enum.map(rows, &(row_to_event(&1, stream_id)))}
     end
   end
 
@@ -127,38 +131,31 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
     end
   end
 
-  defp do_delete_stream(stream_id, expected_version, opts \\ []) do
+  defp do_delete_stream(stream_id, expected_version, _opts) do
     # The Base adapter's with_telemetry function expects either {:ok, result} or {:error, reason}
     # But the delete_stream function in the Behaviour expects :ok or {:error, reason}
     # So we need to handle this conversion carefully
 
-    # First check if the stream exists
-    case get_stream_version(stream_id, opts) do
-      # Stream doesn't exist
-      {:ok, 0} ->
-        # For non-existent streams, we should always return a not_found error
-        # This matches the test expectation
-        {:error, Error.not_found_error(__MODULE__, "Stream not found", stream_id)}
-
-      # Stream exists
-      {:ok, actual_version} ->
-        # Validate expected version
-        case validate_expected_version(actual_version, expected_version) do
-          :ok ->
-            # Delete the stream data
-            case delete_stream_data(stream_id, opts) do
-              :ok -> {:ok, :ok}  # Wrap :ok in {:ok, :ok} for the Base adapter
-              {:error, reason} -> {:error, reason}
-            end
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      # Error getting stream version
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, actual_version} <- get_stream_version(stream_id),
+         :ok <- validate_stream_exists_for_deletion(actual_version),
+         normalized_expected_version = normalize_expected_version(expected_version),
+         :ok <- validate_expected_version(actual_version, normalized_expected_version),
+         {:ok, :ok} <- delete_stream_data(stream_id) do
+      {:ok, :ok}  # Return {:ok, :ok} which will be converted to :ok by the Base adapter
     end
+  end
+
+  defp do_link_to_stream(source_stream_id, target_stream_id, _opts) do
+    # This is a placeholder implementation that should be properly implemented
+    # based on the specific requirements for linking streams in PostgreSQL.
+    # For now, we'll return a not implemented error to indicate this needs attention.
+
+    # NOTE: This function needs to be properly implemented according to the requirements
+    # for linking streams. The current implementation is just a placeholder.
+    {:error, Error.not_found_error(__MODULE__, "Stream linking not implemented", %{
+      source_stream_id: source_stream_id,
+      target_stream_id: target_stream_id
+    })}
   end
 
   # Helper functions
@@ -216,28 +213,20 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
     end
   end
 
-  defp validate_expected_version(actual_version, expected_version) do
-    # Convert tuple form to actual value if necessary
-    expected = case expected_version do
-      {:ok, version} when is_integer(version) -> version
-      _ -> expected_version
-    end
+  # Extract expected version from tuple form if necessary
+  defp normalize_expected_version({:ok, version}) when is_integer(version), do: version
+  defp normalize_expected_version(version), do: version
 
-    cond do
-      expected == :any ->
-        :ok
-      expected == :no_stream and actual_version == 0 ->
-        :ok
-      expected == :stream_exists and actual_version > 0 ->
-        :ok
-      expected == actual_version ->
-        :ok
-      true ->
-        {:error, Error.concurrency_error(__MODULE__, "Wrong expected version", %{
-          expected: expected,
-          actual: actual_version
-        })}
-    end
+  # Pattern matching for different expected version scenarios
+  defp validate_expected_version(_, :any), do: :ok
+  defp validate_expected_version(0, :no_stream), do: :ok
+  defp validate_expected_version(actual, :stream_exists) when actual > 0, do: :ok
+  defp validate_expected_version(actual, expected) when actual == expected, do: :ok
+  defp validate_expected_version(actual, expected) do
+    {:error, Error.concurrency_error(__MODULE__, "Wrong expected version", %{
+      expected: expected,
+      actual: actual
+    })}
   end
 
   defp append_events(stream_id, current_version, events) do
@@ -309,9 +298,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
           {:error, error} -> {:error, Error.system_error(__MODULE__, "Failed to delete events", error)}
         end
       end) do
-        {:ok, :ok} -> :ok
+        # Standardize return values to match what the Base adapter expects
+        {:ok, :ok} -> {:ok, :ok}  # Already in the correct format
         {:ok, {:error, reason}} -> {:error, reason}
-        :ok -> :ok
+        :ok -> {:ok, :ok}  # Convert :ok to {:ok, :ok} for the Base adapter
         {:error, reason} -> {:error, reason}
       end
     rescue
@@ -368,5 +358,41 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
 
     # Merge both maps to support both access patterns
     Map.merge(atom_map, string_map)
+  end
+
+  # Helper function for validating stream existence
+  defp validate_stream_exists(0) do
+    {:error, Error.not_found_error(__MODULE__, "Stream not found")}
+  end
+  defp validate_stream_exists(_version) do
+    :ok
+  end
+
+  # Helper function for executing the read query
+  defp execute_read_query(stream_id, start_version, count, opts) do
+    query = """
+    SELECT event_id, event_type, event_data, event_metadata, event_version
+    FROM #{@events_table}
+    WHERE stream_id = $1 AND event_version >= $2
+    ORDER BY event_version ASC
+    LIMIT $3
+    """
+
+    case query(query, [stream_id, start_version, count], opts) do
+      {:ok, %{rows: rows}} ->
+        {:ok, rows}
+      {:error, %Postgrex.Error{postgres: %{code: :undefined_table}}} ->
+        {:error, Error.not_found_error(__MODULE__, "Stream not found", stream_id)}
+      {:error, error} ->
+        {:error, Error.system_error(__MODULE__, "Database error", error)}
+    end
+  end
+
+  # Helper function for validating stream existence for deletion
+  defp validate_stream_exists_for_deletion(0) do
+    {:error, Error.not_found_error(__MODULE__, "Stream not found")}
+  end
+  defp validate_stream_exists_for_deletion(_version) do
+    :ok
   end
 end

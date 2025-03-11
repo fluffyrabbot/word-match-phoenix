@@ -403,27 +403,22 @@ defmodule GameBot.Test.DatabaseManager do
 
   # Actual database setup logic
   defp do_setup_databases(state) do
-    with {:ok, main_pid} <- create_main_db(state),
-         {:ok, event_pid} <- create_event_db(state) do
+    with {:ok, _} <- create_database(DatabaseConfig.main_test_db(), state),
+         {:ok, main_pid} <- start_repo(GameBot.Infrastructure.Persistence.Repo, DatabaseConfig.main_db_config()),
+         {:ok, _} <- create_database(DatabaseConfig.event_test_db(), state),
+         {:ok, event_pid} <- start_repo(GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, DatabaseConfig.event_db_config())
+    do
       {:ok, %State{state | main_db_pid: main_pid, event_db_pid: event_pid}}
     else
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp create_main_db(%{admin_conn: admin_conn}) do
-    main_db = DatabaseConfig.main_test_db()
-    # Implementation of creating main database
-    # This is a placeholder - actual implementation would create the database
-    Logger.debug("Creating main database: #{main_db}")
-    {:ok, make_ref()}
-  end
-
-  defp create_event_db(%{admin_conn: admin_conn}) do
-    event_db = DatabaseConfig.event_test_db()
-    # Implementation of creating event database
-    # This is a placeholder - actual implementation would create the database
-    Logger.debug("Creating event database: #{event_db}")
-    {:ok, make_ref()}
+  defp start_repo(repo, config) do
+    case repo.start_link(config) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      error -> error
+    end
   end
 end

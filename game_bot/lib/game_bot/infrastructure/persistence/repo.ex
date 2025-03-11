@@ -7,5 +7,7 @@ defmodule GameBot.Infrastructure.Persistence.Repo do
 
   use Ecto.Repo,
     otp_app: :game_bot,
-    adapter: Ecto.Adapters.Postgres
+    adapter: Ecto.Adapters.Postgres,
+    types: EventStore.PostgresTypes
+
 end

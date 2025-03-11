@@ -36,12 +36,12 @@ defmodule GameBot.Test.DatabaseConfig do
   @doc """
   Returns the standard name for the main test database.
   """
-  def main_test_db, do: @main_test_db
+  def main_test_db, do: Application.get_env(:game_bot, :test_databases)[:main_db]
 
   @doc """
   Returns the standard name for the event store test database.
   """
-  def event_test_db, do: @event_test_db
+  def event_test_db, do: Application.get_env(:game_bot, :test_databases)[:event_db]
 
   @doc """
   Returns the base configuration for database connections.
