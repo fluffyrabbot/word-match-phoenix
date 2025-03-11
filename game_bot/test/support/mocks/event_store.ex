@@ -269,17 +269,14 @@ defmodule GameBot.Test.Mocks.EventStore do
     {:ok, []}
   end
 
-  @impl EventStore
   def stream_forward(_stream_id, _from_event_number) do
     {:ok, []}
   end
 
-  @impl EventStore
   def stream_backward(_stream_id, _from_event_number) do
     {:ok, []}
   end
 
-  @impl EventStore
   def subscribe(_subscriber) do
     {:ok, make_ref()}
   end
@@ -289,12 +286,10 @@ defmodule GameBot.Test.Mocks.EventStore do
     GenServer.stop(server, :normal, timeout)
   end
 
-  @impl EventStore
   def stream_info(_stream_id) do
     {:ok, nil}
   end
 
-  @impl EventStore
   def paginate_streams() do
     {:ok, [], nil}
   end

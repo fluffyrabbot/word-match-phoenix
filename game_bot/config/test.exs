@@ -5,6 +5,9 @@ unique_suffix = System.get_env("MIX_TEST_PARTITION") || "#{System.system_time(:s
 main_db_name = "game_bot_test_1741648768"
 event_db_name = "game_bot_eventstore_test_1741648768"
 
+# Get the pool size from environment or use default
+pool_size = String.to_integer(System.get_env("ECTO_POOL_SIZE") || "10")
+
 # Configure the main repositories
 config :game_bot, ecto_repos: [
   GameBot.Infrastructure.Persistence.Repo,
@@ -25,7 +28,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo,
   database: main_db_name,
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 5,
+  pool_size: pool_size,
   ownership_timeout: 60_000,
   queue_target: 200,
   queue_interval: 1000,
@@ -43,7 +46,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   port: 5432,
   types: EventStore.PostgresTypes,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 5,
+  pool_size: pool_size,
   ownership_timeout: 60_000,
   queue_target: 200,
   queue_interval: 1000,
@@ -64,7 +67,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
   column_data_type: "jsonb",
   types: EventStore.PostgresTypes,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 5,
+  pool_size: pool_size,
   timeout: 30_000,
   connect_timeout: 30_000
 
@@ -76,7 +79,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,
   database: main_db_name,
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 5,
+  pool_size: pool_size,
   ownership_timeout: 60_000,
   queue_target: 200,
   queue_interval: 1000,

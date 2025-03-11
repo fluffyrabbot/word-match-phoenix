@@ -1,5 +1,5 @@
 defmodule GameBotWeb.ErrorJSONTest do
-  use GameBotWeb.ConnCase, async: true
+  use GameBotWeb.ConnCase, async: false
 
   test "renders 404" do
     assert GameBotWeb.ErrorJSON.render("404.json", %{}) == %{errors: %{detail: "Not Found"}}

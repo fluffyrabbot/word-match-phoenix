@@ -1,9 +1,10 @@
 defmodule GameBot.Infrastructure.Persistence.EventStore.SerializerTest do
-  use GameBot.RepositoryCase, async: true
+  use GameBot.RepositoryCase, async: false
   use ExUnitProperties
 
   alias GameBot.Infrastructure.Persistence.EventStore.Serializer
   alias GameBot.Infrastructure.Persistence.Error
+  alias GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
 
   describe "serialize/1" do
     test "successfully serializes valid event" do
@@ -78,4 +79,65 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.SerializerTest do
     end
   end
 
+  # Define TestEvent for serialization testing
+  defmodule TestEvent do
+    defstruct [:stream_id, :event_type, :data, :metadata, :type, :version]
+
+    # Add these functions to make the event compatible with JsonSerializer
+    def event_type, do: "test_event"
+    def event_version, do: 1
+
+    # Add to_map function for serialization
+    def to_map(event) do
+      event.data
+    end
+  end
+
+  describe "JsonSerializer" do
+    test "serializes and deserializes TestEvent correctly" do
+      # Create a test event with all required fields
+      event = %TestEvent{
+        stream_id: "test-stream-1",
+        event_type: "test_event",
+        data: %{value: "test-value"},
+        metadata: %{guild_id: "test-guild"},
+        type: "test_event",
+        version: 1
+      }
+
+      # Serialize the event
+      {:ok, serialized} = JsonSerializer.serialize(event)
+
+      # Verify serialized data structure
+      assert is_map(serialized)
+      assert serialized["type"] == "test_event"
+      assert serialized["version"] == 1
+      assert serialized["data"] == %{"value" => "test-value"}
+      assert serialized["metadata"] == %{"guild_id" => "test-guild"}
+
+      # Deserialize back to an event
+      {:ok, deserialized} = JsonSerializer.deserialize(serialized, TestEvent)
+
+      # Verify the deserialized event
+      assert deserialized.__struct__ == TestEvent
+      assert deserialized.data == %{"value" => "test-value"}
+      assert deserialized.metadata == %{"guild_id" => "test-guild"}
+      assert deserialized.type == "test_event"
+      assert deserialized.version == 1
+    end
+
+    test "handles missing type or version fields" do
+      # Create an event missing required fields
+      event = %TestEvent{
+        stream_id: "test-stream-1",
+        event_type: "test_event",
+        data: %{value: "test-value"},
+        metadata: %{guild_id: "test-guild"}
+        # Missing type and version
+      }
+
+      # Serialization should fail
+      assert {:error, _} = JsonSerializer.serialize(event)
+    end
+  end
 end

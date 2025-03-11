@@ -17,7 +17,6 @@ defmodule GameBot.TestEventStore do
   @behaviour EventStore
 
   # Define child_spec for supervisor compatibility
-  @impl EventStore
   def child_spec(_opts) do
     %{
       id: __MODULE__,
@@ -235,17 +234,15 @@ defmodule GameBot.TestEventStore do
     :ok
   end
 
-  @impl EventStore
   def link_to_stream(server, source_stream_id, target_stream_id, event_ids, opts) do
     EventStoreCore.link_to_stream(server, source_stream_id, target_stream_id, event_ids, opts)
   end
 
-  # Version without opts for compatibility
+  @impl EventStore
   def link_to_stream(server, source_stream_id, target_stream_id, event_ids) do
     link_to_stream(server, source_stream_id, target_stream_id, event_ids, [])
   end
 
-  @impl EventStore
   def paginate_streams(_server) do
     {:ok, [], nil}
   end
@@ -273,7 +270,6 @@ defmodule GameBot.TestEventStore do
   - `{:ok, 0}` for non-existent streams
   - `{:error, reason}` for failures
   """
-  @impl EventStore
   def stream_version(server, stream_id, opts \\ []) do
     EventStoreCore.get_stream_version(server, stream_id, opts)
   end

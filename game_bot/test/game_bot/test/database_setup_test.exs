@@ -1,8 +1,13 @@
 defmodule GameBot.Test.DatabaseSetupTest do
   use ExUnit.Case, async: false
 
-  alias GameBot.Test.DatabaseSetup
+setup tags do
+  GameBot.Test.DatabaseManager.setup_sandbox(tags)
+  :ok
+end
 
+
+  
   # Skip these tests in CI environments or when explicitly excluded
   @moduletag :database_setup
   @moduletag :skip_in_ci

@@ -5,7 +5,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.PostgresTest do
   expect a direct PostgresTest module.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false # Changed to false since the sandbox is not properly set up for async
   # No imports needed anymore as we'll implement the functions directly
 
   alias GameBot.Infrastructure.{Error, ErrorHelpers}
@@ -19,7 +19,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.PostgresTest do
     defstruct [:stream_id, :event_type, :data, :metadata]
   end
 
-  setup do
+  setup tags do
+    # Properly set up the database sandbox
+    :ok = GameBot.Test.DatabaseManager.setup_sandbox(tags)
+
     # Clean up test database before each test
     Postgres.query!("TRUNCATE event_store.streams, event_store.events, event_store.subscriptions CASCADE", [])
     :ok

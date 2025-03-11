@@ -1,5 +1,5 @@
 defmodule GameBotWeb.ErrorHTMLTest do
-  use GameBotWeb.ConnCase, async: true
+  use GameBotWeb.ConnCase, async: false
 
   # Bring render_to_string/4 for testing custom views
   import Phoenix.Template

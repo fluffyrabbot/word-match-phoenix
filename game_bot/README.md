@@ -226,6 +226,39 @@ The WordService module provides core functionality for the all game modes:
 - Format code with `mix format`
 - Run static analysis with `mix credo`
 
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+mix test
+
+# Run specific test file
+mix test test/path/to/file_test.exs
+
+# Run tests with tags
+mix test --only integration
+```
+
+### Asynchronous Testing Strategy
+
+Most tests in this project are configured with `async: false` to ensure database stability and prevent connection ownership issues. This approach prioritizes test reliability over execution speed.
+
+For more information on our future plans for asynchronous testing, see the [Async Test Strategy](docs/async_test_strategy.md) document.
+
+Key points about the current testing approach:
+
+1. Database-intensive tests use `async: false` to prevent connection conflicts
+2. Tests that create or modify database schemas must be non-async
+3. The test suite uses `Ecto.Adapters.SQL.Sandbox` for proper isolation
+4. Database connections are managed through `GameBot.Test.DatabaseManager`
+
+When running tests, be aware that:
+- Flakey tests may indicate database connection issues
+- If you see `DBConnection.OwnershipError`, the test likely needs to be non-async
+- Always call `DatabaseManager.setup_sandbox(tags)` in your test setup
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

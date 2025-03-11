@@ -1,6 +1,12 @@
 defmodule GameBot.ExampleRepositoryTest do
   use ExUnit.Case, async: false
 
+setup tags do
+  GameBot.Test.DatabaseManager.setup_sandbox(tags)
+  :ok
+end
+
+
   # Alias our Repository interface
   alias GameBot.Infrastructure.Repository
   alias GameBot.Infrastructure.Persistence.Repo.MockRepo

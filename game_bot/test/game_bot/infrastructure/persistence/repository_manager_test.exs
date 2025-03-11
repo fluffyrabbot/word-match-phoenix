@@ -1,6 +1,12 @@
 defmodule GameBot.Infrastructure.Persistence.RepositoryManagerTest do
   use ExUnit.Case, async: false
 
+setup tags do
+  GameBot.Test.DatabaseManager.setup_sandbox(tags)
+  :ok
+end
+
+
   alias GameBot.Infrastructure.Persistence.RepositoryManager
   alias GameBot.Infrastructure.Persistence.Repo
   alias GameBot.Infrastructure.Persistence.Repo.Postgres

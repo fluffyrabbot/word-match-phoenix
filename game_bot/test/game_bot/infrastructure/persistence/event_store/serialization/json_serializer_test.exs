@@ -1,5 +1,5 @@
 defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   # This test doesn't require database access, so we can run it in isolation
   @moduletag :skip_db

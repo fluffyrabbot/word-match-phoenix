@@ -27,6 +27,7 @@ defmodule GameBot.Test.DatabaseManager do
   require Logger
   alias GameBot.Test.DatabaseConfig
   alias Ecto.Adapters.SQL.Sandbox
+  alias GameBot.Infrastructure.Persistence.Repo
 
   # GenServer state structure
   defmodule State do
@@ -123,6 +124,14 @@ defmodule GameBot.Test.DatabaseManager do
   end
 
   @impl true
+  def handle_call(:setup_databases, {pid, _}, state) do
+    case do_setup_databases(state) do
+      {:ok, new_state} -> {:reply, :ok, new_state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  @impl true
   def handle_call({:checkout, repo, pid}, _from, state) do
     case checkout_connection_for_process(repo, pid, state) do
       {:ok, conn, new_state} -> {:reply, {:ok, conn}, new_state}
@@ -190,54 +199,70 @@ defmodule GameBot.Test.DatabaseManager do
   end
 
   defp setup_sandbox_mode(tags, test_pid, state) do
-    if tags[:async] do
-      setup_async_sandbox(test_pid, state)
-    else
-      setup_sync_sandbox(test_pid, state)
+    try do
+      # Get timeout from tags or use default
+      timeout = Map.get(tags, :timeout, 60_000)
+
+      # Determine sandbox mode based on async flag
+      use_async = Map.get(tags, :async, false)
+
+      Logger.debug("Setting up sandbox mode - async: #{use_async}, timeout: #{timeout}")
+
+      # Set up repositories with appropriate sandbox mode
+      result = Enum.reduce(@repos, {:ok, state}, fn repo, acc ->
+        case acc do
+          {:ok, current_state} ->
+            case setup_repo_sandbox(repo, use_async, test_pid, timeout) do
+              :ok -> {:ok, current_state}
+              {:error, reason} -> {:error, reason}
+            end
+          error -> error
+        end
+      end)
+
+      # Return result
+      result
+    catch
+      kind, reason ->
+        stacktrace = Process.info(self(), :current_stacktrace)
+        Logger.error("Failed to setup sandbox: #{inspect(reason)}, trace: #{inspect(stacktrace)}")
+        {:error, {kind, reason, stacktrace}}
     end
   end
 
-  defp setup_async_sandbox(test_pid, state) do
+  # Helper function to set up a repository's sandbox mode
+  defp setup_repo_sandbox(repo, async?, test_pid, timeout) do
     try do
-      # Start a transaction for each repo
-      with {:ok, main_conn} <- checkout_connection_for_process(GameBot.Infrastructure.Persistence.Repo, test_pid, state),
-           {:ok, event_conn} <- checkout_connection_for_process(GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, test_pid, state) do
+      if not Process.whereis(repo) do
+        Logger.error("Repository #{inspect(repo)} is not running")
+        {:error, :repository_not_running}
+      else
+        # Configure sandbox mode based on async flag
+        if async? do
+          # For async tests, use shared mode with the test process
+          # This mode allows the test process to share its connection with other processes
+          Sandbox.mode(repo, {:shared, test_pid})
+        else
+          # For non-async tests, use manual mode
+          # This mode requires explicit checkout but provides better isolation
+          Sandbox.mode(repo, :manual)
+        end
 
-        # Monitor the test process
-        ref = Process.monitor(test_pid)
+        # Always checkout a connection with appropriate timeout
+        Sandbox.checkout(repo, ownership_timeout: timeout)
 
-        # Update state with new test process
-        new_state = %{state |
-          test_processes: Map.put(state.test_processes, test_pid, %{
-            ref: ref,
-            connections: [main_conn, event_conn]
-          })
-        }
+        # If it's an async test, we're done
+        # For non-async tests, allow the test process to access the repo
+        if not async? do
+          Sandbox.allow(repo, test_pid, self())
+        end
 
-        {:ok, new_state}
+        :ok
       end
-    catch
-      kind, reason ->
-        Logger.error("Failed to setup async sandbox: #{inspect(reason)}")
-        {:error, {kind, reason}}
-    end
-  end
-
-  defp setup_sync_sandbox(test_pid, state) do
-    try do
-      # Put both repos in shared mode
-      Sandbox.mode(GameBot.Infrastructure.Persistence.Repo, :shared)
-      Sandbox.mode(GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, :shared)
-
-      # Allow the test process to access the repos
-      Sandbox.allow(GameBot.Infrastructure.Persistence.Repo, test_pid, self())
-      Sandbox.allow(GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, test_pid, self())
-
-      {:ok, state}
-    catch
-      kind, reason ->
-        Logger.error("Failed to setup sync sandbox: #{inspect(reason)}")
-        {:error, {kind, reason}}
+    rescue
+      e ->
+        Logger.error("Error setting up sandbox for #{inspect(repo)}: #{inspect(e)}")
+        {:error, e}
     end
   end
 
@@ -374,5 +399,31 @@ defmodule GameBot.Test.DatabaseManager do
         Logger.error("Failed to create database #{db_name}: #{inspect(reason)}")
         error
     end
+  end
+
+  # Actual database setup logic
+  defp do_setup_databases(state) do
+    with {:ok, main_pid} <- create_main_db(state),
+         {:ok, event_pid} <- create_event_db(state) do
+      {:ok, %State{state | main_db_pid: main_pid, event_db_pid: event_pid}}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp create_main_db(%{admin_conn: admin_conn}) do
+    main_db = DatabaseConfig.main_test_db()
+    # Implementation of creating main database
+    # This is a placeholder - actual implementation would create the database
+    Logger.debug("Creating main database: #{main_db}")
+    {:ok, make_ref()}
+  end
+
+  defp create_event_db(%{admin_conn: admin_conn}) do
+    event_db = DatabaseConfig.event_test_db()
+    # Implementation of creating event database
+    # This is a placeholder - actual implementation would create the database
+    Logger.debug("Creating event database: #{event_db}")
+    {:ok, make_ref()}
   end
 end

@@ -1,5 +1,5 @@
 defmodule GameBot.Domain.Events.HandlerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias GameBot.Domain.Events.GameEvents.ExampleEvent
 

@@ -1,5 +1,5 @@
 defmodule GameBot.Infrastructure.Persistence.Repo.PostgresTest do
-  use GameBot.RepositoryCase, async: true
+  use GameBot.RepositoryCase, async: false
 
   alias GameBot.Infrastructure.Persistence.Repo.Postgres
   alias GameBot.Infrastructure.Persistence.Error

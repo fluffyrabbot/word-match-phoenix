@@ -26,7 +26,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerial
   @type event_version :: pos_integer()
 
   @impl true
-  def serialize(event, opts \\ []) do
+  def serialize(event, _opts \\ []) do
     ErrorHelpers.wrap_error(
       fn ->
         with :ok <- validate_event(event),

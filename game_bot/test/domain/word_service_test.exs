@@ -1,5 +1,5 @@
 defmodule GameBot.Domain.WordServiceTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias GameBot.Domain.WordService
 

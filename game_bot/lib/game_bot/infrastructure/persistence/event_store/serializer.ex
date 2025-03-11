@@ -9,9 +9,6 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   providing a simplified API for event serialization.
   """
 
-  alias GameBot.Infrastructure.Error
-  alias GameBot.Infrastructure.ErrorHelpers
-  alias GameBot.Domain.Events.{EventRegistry, EventStructure}
   alias GameBot.Infrastructure.Persistence.Error, as: PersistenceError
 
   @doc """
@@ -191,7 +188,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
     |> Map.drop([:metadata, :__struct__])
   end
 
-  defp lookup_event_module(data) do
+  defp lookup_event_module(_data) do
     # In a real implementation, we would look up the module from a registry
     # For tests, we just return a success
     {:ok, nil}

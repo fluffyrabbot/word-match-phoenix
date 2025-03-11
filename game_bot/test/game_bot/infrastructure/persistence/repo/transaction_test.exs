@@ -1,9 +1,11 @@
 defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
-  use GameBot.RepositoryCase, async: true
+  use GameBot.RepositoryCase, async: false
   import ExUnit.CaptureLog
 
+  alias GameBot.Infrastructure.Persistence.Repo
   alias GameBot.Infrastructure.Persistence.Repo.Postgres
   alias GameBot.Infrastructure.Persistence.Error
+  alias Ecto.Changeset
 
   # Test schema for transaction testing
   defmodule TestSchema do

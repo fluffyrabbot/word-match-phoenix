@@ -115,6 +115,10 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Base do
             initial_delay: @initial_delay
           )
         end)
+        |> case do
+          {:ok, :ok} -> :ok  # Convert {:ok, :ok} to :ok for the Behaviour
+          other -> other     # Pass through other return values
+        end
       end
 
       @impl Behaviour
