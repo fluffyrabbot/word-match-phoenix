@@ -54,14 +54,8 @@ defmodule GameBot.Domain.GameModes.Events do
   def build_guess_processed(state, team_id, guess_pair, result) do
     build_base_event(state, GameEvents.GuessProcessed, %{
       team_id: team_id,
-      player1_info: %{
-        player_id: guess_pair.player1_id,
-        team_id: team_id
-      },
-      player2_info: %{
-        player_id: guess_pair.player2_id,
-        team_id: team_id
-      },
+      player1_info: {guess_pair.player1_id, get_in(state, [:players, guess_pair.player1_id, :name]), get_in(state, [:players, guess_pair.player1_id, :nickname])},
+      player2_info: {guess_pair.player2_id, get_in(state, [:players, guess_pair.player2_id, :name]), get_in(state, [:players, guess_pair.player2_id, :nickname])},
       player1_word: guess_pair.player1_word,
       player2_word: guess_pair.player2_word,
       guess_successful: result.match?,

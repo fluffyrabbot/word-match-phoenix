@@ -3,12 +3,14 @@ defmodule GameBot.Domain.Events.Pipeline do
   Processes events through a series of steps:
   1. Validation
   2. Enrichment
-  3. Persistence
-  4. Caching
-  5. Broadcasting
+  3. Optimization (metadata and compression)
+  4. Persistence
+  5. Caching
+  6. Broadcasting
   """
 
- alias GameBot.Domain.Events.{Cache, Telemetry}
+ alias GameBot.Domain.Events.{Cache, Telemetry, MetadataOptimizer}
+ alias GameBot.Infrastructure.Persistence.EventStore.Compressor
 
    @doc """
    Processes an event through the pipeline.
@@ -22,6 +24,7 @@ defmodule GameBot.Domain.Events.Pipeline do
     event
     |> validate()
     |> enrich()
+    |> optimize()
     |> persist()
     |> cache()
     |> broadcast()
@@ -55,6 +58,49 @@ defmodule GameBot.Domain.Events.Pipeline do
   def enrich(error), do: error
 
   @doc """
+  Optimizes an event for storage efficiency.
+  Applies metadata optimization and compression based on event type.
+  """
+  @spec optimize({:ok, struct()} | {:error, term()}) :: {:ok, struct()} | {:error, term()}
+  def optimize({:ok, event}) do
+    # Get configuration for optimization
+    optimize_config = Application.get_env(:game_bot, :event_optimization, [])
+    optimize_enabled = Keyword.get(optimize_config, :enabled, true)
+    compress_enabled = Keyword.get(optimize_config, :compression_enabled, true)
+
+    if optimize_enabled do
+      # Get event type for optimization decisions
+      event_type = event.__struct__.event_type()
+
+      # Optimize metadata based on event type
+      optimized_metadata = MetadataOptimizer.optimize_metadata(event_type, event.metadata)
+      optimized_event = Map.put(event, :metadata, optimized_metadata)
+
+      # Apply compression if enabled
+      if compress_enabled do
+        # Convert to map for compression
+        event_map = event.__struct__.to_map(optimized_event)
+
+        # Compress the event
+        compressed = Compressor.compress(event_map)
+
+        # Store compression info in the event struct for later reference
+        # This doesn't affect serialization but helps with debugging
+        {:ok, Map.put(optimized_event, :_compression_info, %{
+          compressed: true,
+          metadata_optimized: true
+        })}
+      else
+        {:ok, optimized_event}
+      end
+    else
+      # Skip optimization
+      {:ok, event}
+    end
+  end
+  def optimize(error), do: error
+
+  @doc """
   Persists an event to the event store.
   """
   @spec persist({:ok, struct()} | {:error, term()}) :: {:ok, struct()} | {:error, term()}
@@ -63,10 +109,30 @@ defmodule GameBot.Domain.Events.Pipeline do
       # Use the configured EventStore
       event_store = Application.get_env(:game_bot, :event_store_adapter, GameBot.Infrastructure.Persistence.EventStore)
 
+      # Get compression configuration
+      optimize_config = Application.get_env(:game_bot, :event_optimization, [])
+      compress_enabled = Keyword.get(optimize_config, :compression_enabled, true)
+
+      # Prepare event for storage
+      storage_event =
+        if compress_enabled and Map.get(event, :_compression_info, %{}) |> Map.get(:compressed, false) do
+          # Event is already optimized, use to_map to get serializable form
+          event.__struct__.to_map(event)
+        else
+          # Convert to map and maybe compress
+          event_map = event.__struct__.to_map(event)
+
+          if compress_enabled do
+            Compressor.compress(event_map)
+          else
+            event_map
+          end
+        end
+
       event_store.append_to_stream(
         event.game_id,
         :any,  # expected version
-        [event]
+        [storage_event]
       )
     end)
     result

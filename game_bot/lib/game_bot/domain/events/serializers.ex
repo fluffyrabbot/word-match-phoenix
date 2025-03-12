@@ -25,6 +25,8 @@ defmodule GameBot.Domain.Events.Serializers do
         "round_guess_count" => event.round_guess_count,
         "total_guesses" => event.total_guesses,
         "guess_duration" => event.guess_duration,
+        "player1_duration" => event.player1_duration,
+        "player2_duration" => event.player2_duration,
         "timestamp" => DateTime.to_iso8601(event.timestamp),
         "metadata" => event.metadata || %{}
       }
@@ -47,6 +49,8 @@ defmodule GameBot.Domain.Events.Serializers do
         round_guess_count: data["round_guess_count"],
         total_guesses: data["total_guesses"],
         guess_duration: data["guess_duration"],
+        player1_duration: data["player1_duration"],
+        player2_duration: data["player2_duration"],
         timestamp: GameEvents.parse_timestamp(data["timestamp"]),
         metadata: data["metadata"] || %{}
       }

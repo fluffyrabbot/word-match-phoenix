@@ -45,6 +45,9 @@ config :nostrum,
 config :game_bot, :event_system,
   use_enhanced_pubsub: false  # Start with this disabled, enable after testing
 
+# Import event optimization configuration
+import_config "event_optimization.exs"
+
 # Configures the endpoint
 config :game_bot, GameBotWeb.Endpoint,
   url: [host: "localhost"],

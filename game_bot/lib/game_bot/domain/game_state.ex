@@ -97,6 +97,33 @@ defmodule GameBot.Domain.GameState do
     :start_time
   ]
 
+  # Implement Access behaviour functions directly in the module
+  # This allows the struct to be used with get_in, put_in, update_in
+
+  @doc """
+  Implements the Access behaviour's fetch function.
+  Allows using the struct with get_in, put_in, update_in.
+  """
+  def fetch(%__MODULE__{} = state, key) do
+    Map.fetch(state, key)
+  end
+
+  @doc """
+  Implements the Access behaviour's get_and_update function.
+  Allows using the struct with get_in, put_in, update_in.
+  """
+  def get_and_update(%__MODULE__{} = state, key, fun) do
+    Map.get_and_update(state, key, fun)
+  end
+
+  @doc """
+  Implements the Access behaviour's pop function.
+  Allows using the struct with pop_in.
+  """
+  def pop(%__MODULE__{} = state, key) do
+    Map.pop(state, key)
+  end
+
   @doc """
   Creates a new game state for the given mode and teams in a specific guild.
 

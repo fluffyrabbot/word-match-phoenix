@@ -356,8 +356,8 @@ defmodule GameBot.Domain.GameModes.RaceMode do
     # Get player info from state
     player1_id = guess_pair.player1_id
     player2_id = guess_pair.player2_id
-    player1_info = %{id: player1_id, name: get_in(state, [:players, player1_id, :name])}
-    player2_info = %{id: player2_id, name: get_in(state, [:players, player2_id, :name])}
+    player1_info = {player1_id, get_in(state, [:players, player1_id, :name]), get_in(state, [:players, player1_id, :nickname])}
+    player2_info = {player2_id, get_in(state, [:players, player2_id, :name]), get_in(state, [:players, player2_id, :nickname])}
 
     # Calculate durations based on actual submission times
     # When a player gives up, we record their actual submission time

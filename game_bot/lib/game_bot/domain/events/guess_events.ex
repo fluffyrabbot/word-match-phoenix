@@ -6,6 +6,7 @@ defmodule GameBot.Domain.Events.GuessEvents do
   alias GameBot.Domain.Events.Metadata
 
   @type metadata :: Metadata.t()
+  @type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
 
   defmodule GuessProcessed do
     @moduledoc """
@@ -24,8 +25,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
 
     Event-specific fields:
     - team_id: ID of the team that made the guess
-    - player1_info: Information about the first player
-    - player2_info: Information about the second player
+    - player1_info: {discord_id, username, nickname} tuple for the first player
+    - player2_info: {discord_id, username, nickname} tuple for the second player
     - player1_word: Word submitted by the first player
     - player2_word: Word submitted by the second player
     - guess_successful: Whether the guess resulted in a match
@@ -44,11 +45,11 @@ defmodule GameBot.Domain.Events.GuessEvents do
       game_id: String.t(),
       guild_id: String.t(),
       timestamp: DateTime.t(),
-      metadata: metadata(),
+      metadata: GameBot.Domain.Events.GuessEvents.metadata(),
       # Event-specific fields
       team_id: String.t(),
-      player1_info: map(),
-      player2_info: map(),
+      player1_info: GameBot.Domain.Events.GuessEvents.player_info(),
+      player2_info: GameBot.Domain.Events.GuessEvents.player_info(),
       player1_word: String.t(),
       player2_word: String.t(),
       guess_successful: boolean(),
@@ -107,8 +108,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
            :ok <- validate_string_field(attrs, :team_id),
            :ok <- validate_string_field(attrs, :player1_word),
            :ok <- validate_string_field(attrs, :player2_word),
-           :ok <- validate_map_field(attrs, :player1_info),
-           :ok <- validate_map_field(attrs, :player2_info),
+           :ok <- validate_player_info_tuple(attrs, :player1_info),
+           :ok <- validate_player_info_tuple(attrs, :player2_info),
            :ok <- validate_boolean_field(attrs, :guess_successful),
            :ok <- validate_non_negative_integer_field(attrs, :guess_count),
            :ok <- validate_non_negative_integer_field(attrs, :round_guess_count),
@@ -118,6 +119,17 @@ defmodule GameBot.Domain.Events.GuessEvents do
            :ok <- validate_non_negative_integer_field(attrs, :player2_duration),
            :ok <- validate_match_score(attrs) do
         {:ok, base_attrs}
+      end
+    end
+
+    defp validate_player_info_tuple(attrs, field) do
+      case Map.get(attrs, field) do
+        nil ->
+          {:error, {:validation, "#{field} is required"}}
+        {discord_id, username, nickname} when is_integer(discord_id) and is_binary(username) and (is_binary(nickname) or is_nil(nickname)) ->
+          :ok
+        _ ->
+          {:error, {:validation, "#{field} must be a tuple {discord_id, username, nickname} where discord_id is an integer, username is a string, and nickname is a string or nil"}}
       end
     end
 

@@ -695,10 +695,10 @@ defmodule GameBot.Domain.Events.GameEvents do
 
       # Ensure player info is properly set with default values if missing
       player1_info = Map.get(guess_data, :player1_info) || Map.get(guess_data, "player1_info") ||
-                    %{"player_id" => "unknown", "name" => "Unknown Player"}
+                    {0, "Unknown Player", nil}  # {discord_id, username, nickname}
 
       player2_info = Map.get(guess_data, :player2_info) || Map.get(guess_data, "player2_info") ||
-                    %{"player_id" => "unknown", "name" => "Unknown Player"}
+                    {0, "Unknown Player", nil}  # {discord_id, username, nickname}
 
       event = %__MODULE__{
         game_id: game_id,

@@ -53,8 +53,8 @@ defmodule GameBot.Domain.Events.GameEventsTest do
       mode: Keyword.get(opts, :mode, :two_player),
       round_number: Keyword.get(opts, :round_number, 1),
       team_id: Keyword.get(opts, :team_id, "team1"),
-      player1_info: %{player_id: "player1", team_id: "team1"},
-      player2_info: %{player_id: "player2", team_id: "team1"},
+      player1_info: {123456789, "player1", "Player One"},
+      player2_info: {987654321, "player2", "Player Two"},
       player1_word: "word1",
       player2_word: "word2",
       guess_successful: Keyword.get(opts, :guess_successful, true),
@@ -63,6 +63,8 @@ defmodule GameBot.Domain.Events.GameEventsTest do
       round_guess_count: Keyword.get(opts, :round_guess_count, 1),
       total_guesses: Keyword.get(opts, :total_guesses, 1),
       guess_duration: Keyword.get(opts, :guess_duration, 1000),
+      player1_duration: Keyword.get(opts, :player1_duration, 800),
+      player2_duration: Keyword.get(opts, :player2_duration, 900),
       timestamp: DateTime.utc_now(),
       metadata: create_test_metadata(opts)
     }
@@ -194,8 +196,8 @@ defmodule GameBot.Domain.Events.GameEventsTest do
 
     test "serializes and deserializes correctly" do
       original = create_guess_processed()
-      serialized = EventSerializer.to_map(original)
-      reconstructed = EventSerializer.from_map(serialized)
+      serialized = GuessProcessed.to_map(original)
+      reconstructed = GuessProcessed.from_map(serialized)
 
       assert reconstructed.game_id == original.game_id
       assert reconstructed.guild_id == original.guild_id
@@ -212,6 +214,8 @@ defmodule GameBot.Domain.Events.GameEventsTest do
       assert reconstructed.round_guess_count == original.round_guess_count
       assert reconstructed.total_guesses == original.total_guesses
       assert reconstructed.guess_duration == original.guess_duration
+      assert reconstructed.player1_duration == original.player1_duration
+      assert reconstructed.player2_duration == original.player2_duration
       assert DateTime.compare(reconstructed.timestamp, original.timestamp) == :eq
       assert reconstructed.metadata == original.metadata
     end

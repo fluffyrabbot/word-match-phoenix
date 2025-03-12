@@ -6,12 +6,7 @@ This document centralizes type specifications for all events in the system to en
 
 ```elixir
 @type metadata :: %{String.t() => term()}
-@type player_info :: %{
-  player_id: String.t(),
-  team_id: String.t(),
-  name: String.t() | nil,
-  role: atom() | nil
-}
+@type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
 @type team_info :: %{
   team_id: String.t(),
   player_ids: [String.t()],

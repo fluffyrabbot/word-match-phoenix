@@ -54,8 +54,8 @@ defmodule GameBot.Domain.Events.TestEvents do
       teams: Keyword.get(opts, :teams, %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]}),
       team_ids: Keyword.get(opts, :team_ids, ["team1", "team2"]),
       player_ids: Keyword.get(opts, :player_ids, ["player1", "player2", "player3", "player4"]),
-      player1_info: Keyword.get(opts, :player1_info, %{player_id: "player1", team_id: "team1"}),
-      player2_info: Keyword.get(opts, :player2_info, %{player_id: "player2", team_id: "team1"}),
+      player1_info: Keyword.get(opts, :player1_info, {123456789, "player1", "Player One"}),
+      player2_info: Keyword.get(opts, :player2_info, {987654321, "player2", "Player Two"}),
       player1_word: Keyword.get(opts, :player1_word, "word1"),
       player2_word: Keyword.get(opts, :player2_word, "word2"),
       guess_successful: Keyword.get(opts, :guess_successful, true),
@@ -168,10 +168,12 @@ defimpl GameBot.Domain.Events.EventValidator, for: GameBot.Domain.Events.TestEve
 
   defp validate_player_info(event) do
     cond do
-      !is_map(event.player1_info) -> {:error, "player1_info must be a map"}
-      !is_map(event.player2_info) -> {:error, "player2_info must be a map"}
-      is_nil(event.player1_info[:player_id]) -> {:error, "player1_info must contain player_id"}
-      is_nil(event.player2_info[:player_id]) -> {:error, "player2_info must contain player_id"}
+      !match?({_, _, _}, event.player1_info) -> {:error, "player1_info must be a tuple {discord_id, username, nickname}"}
+      !match?({_, _, _}, event.player2_info) -> {:error, "player2_info must be a tuple {discord_id, username, nickname}"}
+      !is_integer(elem(event.player1_info, 0)) -> {:error, "player1_info discord_id must be an integer"}
+      !is_integer(elem(event.player2_info, 0)) -> {:error, "player2_info discord_id must be an integer"}
+      !is_binary(elem(event.player1_info, 1)) -> {:error, "player1_info username must be a string"}
+      !is_binary(elem(event.player2_info, 1)) -> {:error, "player2_info username must be a string"}
       true -> :ok
     end
   end

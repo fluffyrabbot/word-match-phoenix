@@ -17,6 +17,11 @@ defmodule GameBot.Domain.Events.Metadata do
     optional(:ip_address) => String.t()         # IP address (for security)
   }
 
+  @type minimal_t :: %{
+    required(:source_id) => String.t(),         # Source identifier (message/interaction ID)
+    required(:correlation_id) => String.t()     # For tracking related events
+  }
+
   @type validation_error :: {:error, String.t()}
 
   @doc """
@@ -50,6 +55,49 @@ defmodule GameBot.Domain.Events.Metadata do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  @doc """
+  Creates minimal metadata for high-frequency game events.
+  Only includes the essential fields needed for correlation and tracing.
+
+  ## Parameters
+  - source_id: Identifier for the event source
+  - correlation_id: Optional correlation ID (generated if not provided)
+  - causation_id: Optional ID of the event that caused this one
+
+  ## Returns
+  - `{:ok, metadata}` with only essential fields
+  - `{:error, reason}` on validation failure
+  """
+  @spec minimal(String.t(), String.t() | nil, String.t() | nil) :: {:ok, minimal_t()} | validation_error()
+  def minimal(source_id, correlation_id \\ nil, causation_id \\ nil) do
+    metadata = %{
+      source_id: source_id,
+      correlation_id: correlation_id || generate_correlation_id()
+    }
+
+    # Add causation_id only if provided
+    metadata = if causation_id, do: Map.put(metadata, :causation_id, causation_id), else: metadata
+
+    # Validate minimal requirements
+    case validate_minimal(metadata) do
+      :ok -> {:ok, metadata}
+      error -> error
+    end
+  end
+
+  @doc """
+  Validates minimal metadata requirements (source_id and correlation_id only).
+  """
+  @spec validate_minimal(map()) :: :ok | validation_error()
+  def validate_minimal(metadata) when is_map(metadata) do
+    with :ok <- validate_source_id(metadata),
+         :ok <- validate_correlation_id(metadata) do
+      :ok
+    end
+  end
+
+  def validate_minimal(_), do: {:error, "metadata must be a map"}
 
   @doc """
   Creates metadata from a Discord message interaction.
@@ -118,6 +166,23 @@ defmodule GameBot.Domain.Events.Metadata do
     }
 
     new(attrs, opts)
+  end
+
+  @doc """
+  Creates minimal metadata for a follow-up game event in the same context.
+  Only preserves correlation tracking from parent event.
+  """
+  @spec minimal_from_parent(t() | map(), keyword()) :: {:ok, minimal_t()} | validation_error()
+  def minimal_from_parent(parent_metadata, opts \\ []) do
+    # Extract correlation ID from parent
+    correlation_id = Map.get(parent_metadata, :correlation_id) ||
+                     Map.get(parent_metadata, "correlation_id") ||
+                     generate_correlation_id()
+
+    # Use parent's correlation ID as the causation ID
+    source_id = opts[:source_id] || generate_source_id()
+
+    minimal(source_id, correlation_id, correlation_id)
   end
 
   @doc """

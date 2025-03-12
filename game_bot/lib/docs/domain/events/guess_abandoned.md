@@ -24,11 +24,7 @@ Emitted when a guess attempt is abandoned before completion, either due to a tim
   metadata: metadata()           # Additional context information
 }
 
-@type player_info :: %{
-  player_id: String.t(),
-  team_id: String.t(),
-  role: atom()                   # :giver or :guesser
-}
+@type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
 ```
 
 ## Fields

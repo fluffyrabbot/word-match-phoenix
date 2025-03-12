@@ -322,8 +322,8 @@ The `EventStructure` module has been enhanced with:
        end
      end
      
-     defp validate_player_info(%{player_id: _id}) when is_map(_id), do: :ok
-     defp validate_player_info(_), do: {:error, "player_info must contain player_id"}
+     defp validate_player_info({discord_id, username, nickname}) when is_integer(discord_id) and is_binary(username) and (is_binary(nickname) or is_nil(nickname)), do: :ok
+     defp validate_player_info(_), do: {:error, "player_info must be a tuple {discord_id, username, nickname}"}
      
      # Constructor
      def new(game_id, guild_id, round_number, team_id, player1_info, player2_info, 

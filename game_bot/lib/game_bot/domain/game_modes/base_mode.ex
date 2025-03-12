@@ -271,14 +271,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
         guild_id: state.guild_id,
         mode: state.mode,
         team_id: team_id,
-        player1_info: %{
-          id: player1_id,
-          word: player1_word
-        },
-        player2_info: %{
-          id: player2_id,
-          word: player2_word
-        },
+        player1_info: {player1_id, get_in(state, [:players, player1_id, :name]), get_in(state, [:players, player1_id, :nickname])},
+        player2_info: {player2_id, get_in(state, [:players, player2_id, :name]), get_in(state, [:players, player2_id, :nickname])},
         guess_successful: guess_successful,
         guess_count: round_guess_count,
         round_number: state.current_round,

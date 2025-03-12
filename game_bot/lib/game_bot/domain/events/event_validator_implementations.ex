@@ -139,7 +139,7 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
                :ok <- validate_word(event.player1_word, "player1_word"),
                :ok <- validate_word(event.player2_word, "player2_word"),
                :ok <- validate_boolean(event.guess_successful, "guess_successful"),
-               :ok <- Helpers.validate_non_negative_integer(event.match_score, "match_score"),
+               :ok <- validate_match_score(event),
                :ok <- validate_positive_counts(event),
                :ok <- validate_non_negative_duration(event.guess_duration),
                :ok <- validate_player_duration(event.player1_duration, "player1_duration"),
@@ -156,15 +156,14 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
 
     # Validation helpers
 
-    defp validate_player_info(info, field_name) when is_map(info) do
-      required_keys = [:id, :name]
-
-      case Enum.find(required_keys, &(not Map.has_key?(info, &1))) do
-        nil -> :ok
-        missing_key -> {:error, "#{field_name}.#{missing_key} is required"}
+    defp validate_player_info(info, field_name) do
+      case info do
+        {discord_id, username, nickname} when is_integer(discord_id) and is_binary(username) and (is_binary(nickname) or is_nil(nickname)) ->
+          :ok
+        _ ->
+          {:error, "#{field_name} must be a tuple {discord_id, username, nickname} where discord_id is an integer, username is a string, and nickname is a string or nil"}
       end
     end
-    defp validate_player_info(_, field_name), do: {:error, "#{field_name} must be a map"}
 
     defp validate_word(word, field_name) when is_binary(word) and word != "", do: :ok
     defp validate_word(_, field_name), do: {:error, "#{field_name} must be a non-empty string"}
@@ -193,6 +192,16 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
     # Separate function for player durations to ensure correct handling
     defp validate_player_duration(duration, field_name) when is_integer(duration) and duration >= 0, do: :ok
     defp validate_player_duration(_, field_name), do: {:error, "#{field_name} must be a non-negative integer"}
+
+    # Validate match score based on guess_successful
+    defp validate_match_score(event) do
+      case {event.guess_successful, event.match_score} do
+        {true, score} when is_integer(score) and score > 0 -> :ok
+        {true, _} -> {:error, "match_score must be a positive integer when guess is successful"}
+        {false, nil} -> :ok
+        {false, _} -> {:error, "match_score must be nil when guess is not successful"}
+      end
+    end
   end
 
   defimpl EventValidator, for: RoundStarted do
