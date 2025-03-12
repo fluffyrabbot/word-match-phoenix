@@ -94,18 +94,22 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
     @doc """
     Validates a GuessProcessed event, ensuring it has:
     - All required base fields
-    - Valid round_number
-    - Valid team ID and player info
-    - Valid word data and guess results
-    - Valid counts and durations
+    - Valid round number
+    - Valid team ID
+    - Valid player info
+    - Valid words
+    - Valid guess metadata (successful, match score)
+    - Valid guess counts (positive integers)
+    - Valid guess duration (non-negative integer)
+    - Valid player durations (non-negative integers)
     """
     def validate(event) do
-      event.__struct__.validate(event)
+      with :ok <- Helpers.validate_base_fields(event),
+           :ok <- validate_fields(event) do
+        :ok
+      end
     end
 
-    @doc """
-    Validates the specific fields of a GuessProcessed event.
-    """
     def validate_fields(event) do
       required_fields = [
         :round_number,
@@ -119,7 +123,9 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
         :guess_count,
         :round_guess_count,
         :total_guesses,
-        :guess_duration
+        :guess_duration,
+        :player1_duration,
+        :player2_duration
       ]
 
       # First check for required fields
@@ -135,7 +141,9 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
                :ok <- validate_boolean(event.guess_successful, "guess_successful"),
                :ok <- Helpers.validate_non_negative_integer(event.match_score, "match_score"),
                :ok <- validate_positive_counts(event),
-               :ok <- validate_non_negative_duration(event.guess_duration) do
+               :ok <- validate_non_negative_duration(event.guess_duration),
+               :ok <- validate_player_duration(event.player1_duration, "player1_duration"),
+               :ok <- validate_player_duration(event.player2_duration, "player2_duration") do
             :ok
           end
 
@@ -178,8 +186,13 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
       end
     end
 
+    # Original function without field name (for backward compatibility)
     defp validate_non_negative_duration(duration) when is_integer(duration) and duration >= 0, do: :ok
     defp validate_non_negative_duration(_), do: {:error, "guess duration must be a non-negative integer"}
+
+    # Separate function for player durations to ensure correct handling
+    defp validate_player_duration(duration, field_name) when is_integer(duration) and duration >= 0, do: :ok
+    defp validate_player_duration(_, field_name), do: {:error, "#{field_name} must be a non-negative integer"}
   end
 
   defimpl EventValidator, for: RoundStarted do

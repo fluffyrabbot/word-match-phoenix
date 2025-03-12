@@ -244,6 +244,22 @@ defmodule GameBot.Domain.Events.EventValidatorHelpers do
   def validate_non_negative_integer(_, field_name), do: {:error, "#{field_name} must be a non-negative integer"}
 
   @doc """
+  Validates an optional non-negative integer field. If the field is nil, it's still valid.
+
+  ## Parameters
+  - value: The value to validate
+  - field_name: Name of the field for error messages
+
+  ## Returns
+  - :ok if the value is nil or a non-negative integer
+  - {:error, reason} if invalid
+  """
+  @spec validate_optional_non_negative_integer(integer() | nil, String.t()) :: :ok | {:error, String.t()}
+  def validate_optional_non_negative_integer(nil, _field_name), do: :ok
+  def validate_optional_non_negative_integer(value, field_name) when is_integer(value) and value >= 0, do: :ok
+  def validate_optional_non_negative_integer(_, field_name), do: {:error, "#{field_name} must be a non-negative integer or nil"}
+
+  @doc """
   Validates a float value.
 
   ## Parameters

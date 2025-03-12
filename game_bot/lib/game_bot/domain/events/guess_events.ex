@@ -34,6 +34,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
     - round_guess_count: Number of guesses made by this team in the current round
     - total_guesses: Number of guesses made by all teams in the game
     - guess_duration: Duration of the guess in milliseconds
+    - player1_duration: Time in milliseconds player1 took to submit their word
+    - player2_duration: Time in milliseconds player2 took to submit their word
     """
     use GameBot.Domain.Events.EventBuilderAdapter
 
@@ -54,7 +56,9 @@ defmodule GameBot.Domain.Events.GuessEvents do
       guess_count: non_neg_integer(),
       round_guess_count: non_neg_integer(),
       total_guesses: non_neg_integer(),
-      guess_duration: non_neg_integer()
+      guess_duration: non_neg_integer(),
+      player1_duration: non_neg_integer(),
+      player2_duration: non_neg_integer()
     }
 
     defstruct [
@@ -71,6 +75,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
       :round_guess_count,
       :total_guesses,
       :guess_duration,
+      :player1_duration,
+      :player2_duration,
       :timestamp,
       :metadata
     ]
@@ -96,6 +102,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
            :ok <- validate_required_field(attrs, :round_guess_count),
            :ok <- validate_required_field(attrs, :total_guesses),
            :ok <- validate_required_field(attrs, :guess_duration),
+           :ok <- validate_required_field(attrs, :player1_duration),
+           :ok <- validate_required_field(attrs, :player2_duration),
            :ok <- validate_string_field(attrs, :team_id),
            :ok <- validate_string_field(attrs, :player1_word),
            :ok <- validate_string_field(attrs, :player2_word),
@@ -106,6 +114,8 @@ defmodule GameBot.Domain.Events.GuessEvents do
            :ok <- validate_non_negative_integer_field(attrs, :round_guess_count),
            :ok <- validate_non_negative_integer_field(attrs, :total_guesses),
            :ok <- validate_non_negative_integer_field(attrs, :guess_duration),
+           :ok <- validate_non_negative_integer_field(attrs, :player1_duration),
+           :ok <- validate_non_negative_integer_field(attrs, :player2_duration),
            :ok <- validate_match_score(attrs) do
         {:ok, base_attrs}
       end

@@ -80,6 +80,9 @@ defmodule GameBot.GameSessions.Session do
     guild_id = Keyword.fetch!(opts, :guild_id)
     teams = Keyword.fetch!(opts, :teams)
 
+    # Capture the initial time as the round start time
+    start_time = DateTime.utc_now()
+
     # Initialize the game mode
     case apply(mode, :init, [game_id, teams, mode_config]) do
       {:ok, mode_state, events} ->
@@ -89,7 +92,8 @@ defmodule GameBot.GameSessions.Session do
           mode: mode,
           mode_state: mode_state,
           teams: teams,
-          started_at: DateTime.utc_now(),
+          started_at: start_time,
+          round_start_time: start_time, # Track when the current round started
           status: :initializing,
           round_timer_ref: nil,
           pending_events: events  # Track events that need to be persisted
@@ -284,6 +288,7 @@ defmodule GameBot.GameSessions.Session do
 
   defp record_guess(team_id, player_id, word, state) do
     team_state = get_in(state.mode_state.teams, [team_id])
+    now = DateTime.utc_now()
 
     case team_state.pending_guess do
       nil ->
@@ -292,19 +297,30 @@ defmodule GameBot.GameSessions.Session do
           put_in(state.mode_state.teams[team_id].pending_guess, %{
             player_id: player_id,
             word: word,
-            timestamp: DateTime.utc_now()
+            timestamp: now
           }),
           []  # No events for first guess
         }
 
       %{player_id: pending_player_id} = pending when pending_player_id != player_id ->
-        # Second guess - create complete pair
+        # Second guess - create complete pair with timing information
+        # Calculate durations from round start time for both players
+        player1_timestamp = pending.timestamp
+        player2_timestamp = now
+
+        player1_duration = DateTime.diff(player1_timestamp, state.round_start_time, :millisecond)
+        player2_duration = DateTime.diff(player2_timestamp, state.round_start_time, :millisecond)
+
         {:ok,
           put_in(state.mode_state.teams[team_id].pending_guess, %{
             player1_id: pending_player_id,
             player2_id: player_id,
             player1_word: pending.word,
-            player2_word: word
+            player2_word: word,
+            player1_timestamp: player1_timestamp,
+            player2_timestamp: player2_timestamp,
+            player1_duration: player1_duration,
+            player2_duration: player2_duration
           }),
           []  # Events will be generated when processing the complete pair
         }
@@ -338,7 +354,31 @@ defmodule GameBot.GameSessions.Session do
   end
 
   defp handle_guess_pair(word1, word2, team_id, state, _previous_events) do
-    case state.mode.process_guess_pair(state.mode_state, team_id, {word1, word2}) do
+    # Extract or create the guess pair with timing information
+    pending_guess = get_in(state.mode_state.teams, [team_id, :pending_guess])
+
+    guess_pair = %{
+      player1_id: pending_guess.player1_id,
+      player2_id: pending_guess.player2_id,
+      player1_word: word1,
+      player2_word: word2
+    }
+
+    # Add timing information if available
+    guess_pair = if Map.has_key?(pending_guess, :player1_duration) do
+      guess_pair
+      |> Map.put(:player1_duration, pending_guess.player1_duration)
+      |> Map.put(:player2_duration, pending_guess.player2_duration)
+    else
+      # Fallback to calculate from round start if not explicitly tracked
+      now = DateTime.utc_now()
+      duration = DateTime.diff(now, state.round_start_time, :millisecond)
+      guess_pair
+      |> Map.put(:player1_duration, duration)
+      |> Map.put(:player2_duration, duration)
+    end
+
+    case state.mode.process_guess_pair(state.mode_state, team_id, guess_pair) do
       {:ok, new_mode_state, events} ->
         # Persist all events
         :ok = persist_events(events, state)
@@ -372,7 +412,12 @@ defmodule GameBot.GameSessions.Session do
     case apply(state.mode, :start_new_round, [state.mode_state]) do
       {:ok, new_mode_state, events} ->
         ref = schedule_round_check()
-        {%{state | mode_state: new_mode_state, round_timer_ref: ref}, events}
+        now = DateTime.utc_now()
+        {%{state |
+          mode_state: new_mode_state,
+          round_timer_ref: ref,
+          round_start_time: now  # Reset round start time for new round
+        }, events}
     end
   end
 

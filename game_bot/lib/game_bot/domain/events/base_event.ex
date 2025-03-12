@@ -50,6 +50,13 @@ defmodule GameBot.Domain.Events.BaseEvent do
     metadata: map()
   }
 
+  # Define optional timing fields that some events might include
+  @timing_fields [
+    :guess_duration,
+    :player1_duration,
+    :player2_duration
+  ]
+
   # Public API for accessing base fields
   def base_fields, do: @base_fields
   def base_required_fields, do: @base_required_fields

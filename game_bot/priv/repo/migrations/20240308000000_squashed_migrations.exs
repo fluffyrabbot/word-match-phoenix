@@ -9,9 +9,9 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     execute "DROP TABLE IF EXISTS teams CASCADE"
     execute "DROP TABLE IF EXISTS users CASCADE"
     execute "DROP TABLE IF EXISTS game_configs CASCADE"
-    execute "DROP TABLE IF EXISTS game_roles CASCADE"
     execute "DROP TABLE IF EXISTS player_stats CASCADE"
     execute "DROP TABLE IF EXISTS round_stats CASCADE"
+    execute "DROP TABLE IF EXISTS guesses CASCADE"
     execute "DROP TABLE IF EXISTS team_invitations CASCADE"
     execute "DROP SCHEMA IF EXISTS event_store CASCADE"
 
@@ -105,20 +105,6 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     create index(:game_configs, [:guild_id])
     create unique_index(:game_configs, [:guild_id, :mode])
 
-    # Game roles
-    create table(:game_roles) do
-      add :guild_id, :string, null: false
-      add :role_id, :string, null: false
-      add :name, :string, null: false
-      add :permissions, {:array, :string}, default: []
-      add :created_by, :string
-      add :active, :boolean, default: true
-
-      timestamps()
-    end
-
-    create index(:game_roles, [:guild_id])
-    create unique_index(:game_roles, [:guild_id, :role_id])
 
     # Player stats
     create table(:player_stats) do
@@ -166,6 +152,36 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     create index(:round_stats, [:guild_id])
     create index(:round_stats, [:team_id])
     create unique_index(:round_stats, [:game_id, :round_number, :team_id])
+
+    # Guesses table to store individual guess events for replay functionality
+    create table(:guesses) do
+      add :game_id, references(:games, on_delete: :delete_all), null: false
+      add :round_id, references(:game_rounds, on_delete: :delete_all), null: false
+      add :guild_id, :string, null: false
+      add :team_id, references(:teams, on_delete: :nilify_all), null: false
+      add :player1_id, references(:users, on_delete: :nilify_all), null: false
+      add :player2_id, references(:users, on_delete: :nilify_all), null: false
+      add :player1_word, :string, null: false
+      add :player2_word, :string, null: false
+      add :successful, :boolean, null: false
+      add :match_score, :integer
+      add :guess_number, :integer, null: false  # Sequential number within game
+      add :round_guess_number, :integer, null: false  # Sequential number within round
+      add :guess_duration, :integer  # Time taken in milliseconds
+      add :player1_duration, :integer  # Time taken by player 1 in milliseconds
+      add :player2_duration, :integer  # Time taken by player 2 in milliseconds
+      add :event_id, :uuid  # Reference to the original event in event store
+
+      timestamps()
+    end
+
+    create index(:guesses, [:game_id])
+    create index(:guesses, [:round_id])
+    create index(:guesses, [:guild_id])
+    create index(:guesses, [:team_id])
+    create index(:guesses, [:player1_id, :player2_id])
+    create index(:guesses, [:successful])
+    create index(:guesses, [:event_id])
 
     # Team invitations
     create table(:team_invitations) do

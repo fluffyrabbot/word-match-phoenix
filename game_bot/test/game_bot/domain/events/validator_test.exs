@@ -193,7 +193,9 @@ defmodule GameBot.Domain.Events.ValidatorTest do
         guess_count: 1,
         round_guess_count: 1,
         total_guesses: 5,
-        guess_duration: 30
+        guess_duration: 30,
+        player1_duration: 25,
+        player2_duration: 30
       }
 
       assert :ok = EventValidator.validate(valid_event)
@@ -204,7 +206,7 @@ defmodule GameBot.Domain.Events.ValidatorTest do
       |> Map.drop([:player1_info])
 
       assert {:error, error_msg} = EventValidator.validate(event)
-      assert error_msg =~ "player1_info is required"
+      assert error_msg =~ "Missing required fields: player1_info"
     end
 
     test "validates positive counts" do
@@ -216,11 +218,31 @@ defmodule GameBot.Domain.Events.ValidatorTest do
     end
 
     test "validates non-negative duration" do
-      event = create_valid_guess_processed()
+      # Test with negative guess_duration
+      event1 = create_valid_guess_processed()
       |> Map.put(:guess_duration, -1)
 
-      assert {:error, error_msg} = EventValidator.validate(event)
-      assert error_msg =~ "guess duration must be a non-negative integer"
+      assert {:error, error_msg1} = EventValidator.validate(event1)
+      assert error_msg1 =~ "guess duration must be a non-negative integer"
+
+      # Test with negative player1_duration - adding debug
+      event2 = %{create_valid_guess_processed() | player1_duration: -1}
+
+      # Debug output
+      IO.puts("Event2 structure: #{inspect(event2)}")
+      IO.puts("player1_duration: #{inspect(event2.player1_duration)}")
+
+      result = EventValidator.validate(event2)
+      IO.puts("Validation result: #{inspect(result)}")
+
+      assert {:error, error_msg2} = result
+      assert error_msg2 =~ "player1_duration must be a non-negative integer"
+
+      # Test with negative player2_duration - fixing this test
+      event3 = %{create_valid_guess_processed() | player2_duration: -1}
+
+      assert {:error, error_msg3} = EventValidator.validate(event3)
+      assert error_msg3 =~ "player2_duration must be a non-negative integer"
     end
   end
 
@@ -268,7 +290,9 @@ defmodule GameBot.Domain.Events.ValidatorTest do
       guess_count: 1,
       round_guess_count: 1,
       total_guesses: 5,
-      guess_duration: 30
+      guess_duration: 30,
+      player1_duration: 25,
+      player2_duration: 30
     }
   end
 end

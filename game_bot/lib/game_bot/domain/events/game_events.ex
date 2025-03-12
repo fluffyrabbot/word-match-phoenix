@@ -446,7 +446,9 @@ defmodule GameBot.Domain.Events.GameEvents do
       guess_count: pos_integer(),
       round_guess_count: pos_integer(),
       total_guesses: pos_integer(),
-      guess_duration: non_neg_integer()
+      guess_duration: non_neg_integer(),
+      player1_duration: non_neg_integer(),
+      player2_duration: non_neg_integer()
     }
 
     defstruct [
@@ -465,6 +467,8 @@ defmodule GameBot.Domain.Events.GameEvents do
       :round_guess_count,
       :total_guesses,
       :guess_duration,
+      :player1_duration,
+      :player2_duration,
       :timestamp,
       :metadata
     ]
@@ -480,6 +484,8 @@ defmodule GameBot.Domain.Events.GameEvents do
       with :ok <- validate_required_fields(event),
            :ok <- validate_positive_counts(event),
            :ok <- validate_non_negative_duration(event),
+           :ok <- validate_player1_duration(event),
+           :ok <- validate_player2_duration(event),
            :ok <- validate_match_score(event) do
         :ok
       end
@@ -504,7 +510,9 @@ defmodule GameBot.Domain.Events.GameEvents do
         :guess_count,
         :round_guess_count,
         :total_guesses,
-        :guess_duration
+        :guess_duration,
+        :player1_duration,
+        :player2_duration
       ]
 
       case Enum.find(required_fields, &(is_nil(Map.get(event, &1)))) do
@@ -535,6 +543,22 @@ defmodule GameBot.Domain.Events.GameEvents do
       end
     end
 
+    defp validate_player1_duration(event) do
+      if is_integer(event.player1_duration) and event.player1_duration >= 0 do
+        :ok
+      else
+        {:error, "player1_duration must be a non-negative integer"}
+      end
+    end
+
+    defp validate_player2_duration(event) do
+      if is_integer(event.player2_duration) and event.player2_duration >= 0 do
+        :ok
+      else
+        {:error, "player2_duration must be a non-negative integer"}
+      end
+    end
+
     defp validate_match_score(event) do
       case {event.guess_successful, event.match_score} do
         {true, score} when is_integer(score) and score > 0 -> :ok
@@ -562,6 +586,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         "round_guess_count" => event.round_guess_count,
         "total_guesses" => event.total_guesses,
         "guess_duration" => event.guess_duration,
+        "player1_duration" => event.player1_duration,
+        "player2_duration" => event.player2_duration,
         "timestamp" => DateTime.to_iso8601(event.timestamp),
         "metadata" => event.metadata || %{}
       }
@@ -585,6 +611,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         round_guess_count: data["round_guess_count"],
         total_guesses: data["total_guesses"],
         guess_duration: data["guess_duration"],
+        player1_duration: data["player1_duration"],
+        player2_duration: data["player2_duration"],
         timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
         metadata: data["metadata"] || %{}
       }
@@ -688,6 +716,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         round_guess_count: Map.get(guess_data, :round_guess_count) || Map.get(guess_data, "round_guess_count", 1),
         total_guesses: Map.get(guess_data, :total_guesses) || Map.get(guess_data, "total_guesses", 1),
         guess_duration: Map.get(guess_data, :guess_duration) || Map.get(guess_data, "guess_duration", 0),
+        player1_duration: Map.get(guess_data, :player1_duration) || Map.get(guess_data, "player1_duration", 0),
+        player2_duration: Map.get(guess_data, :player2_duration) || Map.get(guess_data, "player2_duration", 0),
         timestamp: now,
         metadata: Map.get(guess_data, :metadata) || Map.get(guess_data, "metadata", %{})
       }

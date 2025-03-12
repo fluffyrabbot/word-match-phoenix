@@ -238,25 +238,32 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   """
   @spec process_guess_pair(GameState.t(), String.t(), guess_pair()) ::
     {:ok, GameState.t(), GuessProcessed.t()} | {:error, term()}
-  def process_guess_pair(state, team_id, %{
-    player1_id: player1_id,
-    player2_id: player2_id,
-    player1_word: player1_word,
-    player2_word: player2_word
-  } = guess_pair) do
-    with :ok <- validate_guess_pair(state, team_id, guess_pair) do
-      # Check if the words match
-      guess_successful = String.downcase(player1_word) == String.downcase(player2_word)
+  def process_guess_pair(state, team_id, guess_pair) when is_map(guess_pair) do
+    # Extract fields from guess_pair
+    player1_id = Map.get(guess_pair, :player1_id)
+    player2_id = Map.get(guess_pair, :player2_id)
+    player1_word = Map.get(guess_pair, :player1_word)
+    player2_word = Map.get(guess_pair, :player2_word)
+    player1_duration = Map.get(guess_pair, :player1_duration, 0)
+    player2_duration = Map.get(guess_pair, :player2_duration, 0)
 
-      # Get attempt counts
-      round_guess_count = state.teams[team_id].guess_count
-      total_guesses = Enum.sum(for {_id, team} <- state.teams, do: team.guess_count)
+    # Validate inputs
+    with {:ok, team} <- get_team(state, team_id),
+         :ok <- validate_guess_pair(state, team_id, guess_pair) do
+      # Get current round guess count
+      round_guess_count = team.guess_count + 1
 
-      # Calculate time taken for guess (if we have last activity time)
+      # Calculate total guesses across all teams
+      total_guesses = get_total_guesses(state) + 1
+
+      # Validate match
+      guess_successful = player1_word == player2_word and player1_word != "" and player2_word != ""
+
+      # Calculate the guess duration (use max time as the total duration)
+      guess_duration = max(player1_duration, player2_duration)
+
+      # Record times
       end_time = DateTime.utc_now()
-      guess_duration = if state.last_activity,
-        do: DateTime.diff(end_time, state.last_activity, :millisecond),
-        else: 0
 
       # Create the event
       event = %GuessProcessed{
@@ -278,6 +285,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
         round_guess_count: round_guess_count,
         total_guesses: total_guesses,
         guess_duration: guess_duration,
+        player1_duration: player1_duration,
+        player2_duration: player2_duration,
         match_score: if(guess_successful, do: 1, else: 0),
         timestamp: end_time,
         metadata: %{}
@@ -677,5 +686,40 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       true ->
         :ok
     end
+  end
+
+  @doc """
+  Gets a team from the state by team ID.
+
+  ## Parameters
+    * `state` - The current game state
+    * `team_id` - The ID of the team to retrieve
+
+  ## Returns
+    * `{:ok, team}` - Successfully retrieved team
+    * `{:error, :invalid_team}` - Team not found
+  """
+  @spec get_team(GameState.t(), String.t()) :: {:ok, map()} | {:error, :invalid_team}
+  def get_team(state, team_id) do
+    case Map.get(state.teams, team_id) do
+      nil -> {:error, :invalid_team}
+      team -> {:ok, team}
+    end
+  end
+
+  @doc """
+  Calculates the total number of guesses across all teams.
+
+  ## Parameters
+    * `state` - The current game state
+
+  ## Returns
+    * Total guess count as an integer
+  """
+  @spec get_total_guesses(GameState.t()) :: non_neg_integer()
+  def get_total_guesses(state) do
+    state.teams
+    |> Enum.map(fn {_team_id, team} -> Map.get(team, :guess_count, 0) end)
+    |> Enum.sum()
   end
 end

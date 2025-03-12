@@ -20,6 +20,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
         round_guess_count: 1,
         total_guesses: 1,
         guess_duration: 1000,
+        player1_duration: 800,
+        player2_duration: 1000,
         timestamp: DateTime.utc_now(),
         metadata: %{"guild_id" => "guild123"}
       }
@@ -46,6 +48,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
         round_guess_count: 1,
         total_guesses: 1,
         guess_duration: 1000,
+        player1_duration: 500,
+        player2_duration: 1000,
         timestamp: DateTime.utc_now(),
         metadata: %{"guild_id" => "guild123"}
       }
@@ -84,6 +88,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
         round_guess_count: 1,
         total_guesses: 1,
         guess_duration: 1000,
+        player1_duration: 750,
+        player2_duration: 1000,
         timestamp: DateTime.utc_now(),
         metadata: %{"guild_id" => "guild123"}
       }
@@ -103,6 +109,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
       assert reconstructed.round_guess_count == original.round_guess_count
       assert reconstructed.total_guesses == original.total_guesses
       assert reconstructed.guess_duration == original.guess_duration
+      assert reconstructed.player1_duration == original.player1_duration
+      assert reconstructed.player2_duration == original.player2_duration
       assert reconstructed.metadata == original.metadata
       assert DateTime.diff(reconstructed.timestamp, original.timestamp) == 0
     end

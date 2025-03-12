@@ -349,14 +349,65 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @doc false
   # Handles give up command from a player
   defp handle_give_up(state, team_id, guess_pair) do
+    # Create a guess processed event first to record the give-up in the standard guess flow
+    # This will ensure the give-up appears in replays alongside normal guesses
+    guess_count = get_in(state.teams, [team_id, :guess_count]) + 1
+
+    # Get player info from state
+    player1_id = guess_pair.player1_id
+    player2_id = guess_pair.player2_id
+    player1_info = %{id: player1_id, name: get_in(state, [:players, player1_id, :name])}
+    player2_info = %{id: player2_id, name: get_in(state, [:players, player2_id, :name])}
+
+    # Calculate durations based on actual submission times
+    # When a player gives up, we record their actual submission time
+    # For the example, we'll use a placeholder calculation based on round start time
+    now = DateTime.utc_now()
+    round_start_time = Map.get(state, :round_start_time, DateTime.add(now, -60, :second))
+    elapsed_ms = DateTime.diff(now, round_start_time, :millisecond)
+
+    {player1_duration, player2_duration} =
+      cond do
+        guess_pair.player1_word == @give_up_command ->
+          # Player 1 gave up, so their duration is the current elapsed time
+          # Player 2's submission is unknown, so we use nil
+          {elapsed_ms, nil}
+        guess_pair.player2_word == @give_up_command ->
+          # Player 2 gave up, so their duration is the current elapsed time
+          # Player 1's submission is unknown, so we use nil
+          {nil, elapsed_ms}
+        true ->
+          # Both gave up (unlikely) or some other edge case
+          {nil, nil}
+      end
+
+    guess_processed_event = %GameBot.Domain.Events.GuessEvents.GuessProcessed{
+      game_id: state.game_id,
+      guild_id: state.guild_id,
+      team_id: team_id,
+      player1_info: player1_info,
+      player2_info: player2_info,
+      player1_word: guess_pair.player1_word,
+      player2_word: guess_pair.player2_word,
+      guess_successful: false, # Give up is always unsuccessful
+      match_score: nil, # No match score for unsuccessful guesses
+      guess_count: guess_count,
+      round_guess_count: guess_count,
+      total_guesses: Map.get(state.total_guesses_by_team, team_id, 0) + 1,
+      guess_duration: elapsed_ms, # Use actual time from round start
+      player1_duration: player1_duration,
+      player2_duration: player2_duration,
+      timestamp: now
+    }
+
     # Create a round restart event with both players' information
-    event = %RoundRestarted{
+    round_restart_event = %RoundRestarted{
       game_id: state.game_id,
       guild_id: state.guild_id,
       team_id: team_id,
       giving_up_player: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player1_id, else: guess_pair.player2_id),
       teammate_word: if(guess_pair.player1_word == @give_up_command, do: guess_pair.player2_word, else: guess_pair.player1_word),
-      guess_count: get_in(state.teams, [team_id, :guess_count]) + 1, # Count this as a failed attempt
+      guess_count: guess_count,
       timestamp: DateTime.utc_now()
     }
 
@@ -373,7 +424,8 @@ defmodule GameBot.Domain.GameModes.RaceMode do
       }
     end)
 
-    {:ok, state, event}
+    # Return both events in a list, with GuessProcessed coming first
+    {:ok, state, [guess_processed_event, round_restart_event]}
   end
 
   @doc false
