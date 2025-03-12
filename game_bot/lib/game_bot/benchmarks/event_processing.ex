@@ -21,10 +21,6 @@ defmodule GameBot.Benchmarks.EventProcessing do
       },
       team_ids: ["team-789"],
       player_ids: ["player1", "player2"],
-      roles: %{
-        "player1" => :giver,
-        "player2" => :guesser
-      },
       config: %{
         round_limit: 10,
         time_limit: 300,

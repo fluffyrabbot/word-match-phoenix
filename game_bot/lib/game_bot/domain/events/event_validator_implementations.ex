@@ -22,7 +22,6 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
     - All required base fields
     - Valid round_number (must be 1)
     - Valid teams structure
-    - Valid player roles
     - Valid start time
     """
     def validate(event) do
@@ -35,13 +34,12 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
     def validate_fields(event) do
       required_fields = [
         :round_number, :teams, :team_ids, :player_ids,
-        :roles, :config, :started_at
+        :config, :started_at
       ]
 
       with :ok <- Helpers.validate_required(event, required_fields),
            :ok <- validate_round_number(event.round_number),
            :ok <- validate_teams(event),
-           :ok <- validate_roles(event),
            :ok <- validate_started_at(event.started_at) do
         :ok
       end
@@ -80,18 +78,6 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
           :ok
       end
     end
-
-    defp validate_roles(%{roles: roles, player_ids: player_ids}) when is_map(roles) do
-      cond do
-        !Enum.all?(Map.keys(roles), &(&1 in player_ids)) ->
-          {:error, "invalid player_id in roles"}
-        !Enum.all?(Map.values(roles), &is_atom/1) ->
-          {:error, "role must be an atom"}
-        true ->
-          :ok
-      end
-    end
-    defp validate_roles(_), do: {:error, "roles must be a map"}
 
     defp validate_started_at(%DateTime{} = started_at) do
       case DateTime.compare(started_at, DateTime.utc_now()) do

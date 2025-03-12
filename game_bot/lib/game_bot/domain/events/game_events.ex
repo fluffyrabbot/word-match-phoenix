@@ -93,8 +93,8 @@ defmodule GameBot.Domain.Events.GameEvents do
   # Game lifecycle events
   defmodule GameStarted do
     @moduledoc """
-    Emitted when a new game is started. Contains initial game state including team assignments,
-    player roles, and game configuration.
+    Emitted when a game is started. Contains information about teams, players,
+    and game configuration.
     """
     use GameBot.Domain.Events.EventStructure
 
@@ -111,7 +111,6 @@ defmodule GameBot.Domain.Events.GameEvents do
       teams: %{String.t() => [String.t()]},  # team_id => [player_ids]
       team_ids: [String.t()],                # Ordered list of team IDs
       player_ids: [String.t()],              # Ordered list of all player IDs
-      roles: %{String.t() => atom()},        # player_id => role mapping
       config: map(),                         # Mode-specific configuration
       started_at: DateTime.t()               # When the game actually started
     }
@@ -129,7 +128,6 @@ defmodule GameBot.Domain.Events.GameEvents do
       :teams,
       :team_ids,
       :player_ids,
-      :roles,
       :config,
       :started_at
     ]
@@ -145,7 +143,6 @@ defmodule GameBot.Domain.Events.GameEvents do
       with :ok <- EventStructure.validate(event),
            :ok <- validate_round_number(event.round_number),
            :ok <- validate_teams(event),
-           :ok <- validate_roles(event),
            :ok <- validate_started_at(event.started_at) do
         :ok
       end
@@ -161,7 +158,6 @@ defmodule GameBot.Domain.Events.GameEvents do
         "teams" => event.teams,
         "team_ids" => event.team_ids,
         "player_ids" => event.player_ids,
-        "roles" => Map.new(event.roles, fn {k, v} -> {k, Atom.to_string(v)} end),
         "config" => event.config,
         "started_at" => DateTime.to_iso8601(event.started_at),
         "timestamp" => DateTime.to_iso8601(event.timestamp),
@@ -179,7 +175,6 @@ defmodule GameBot.Domain.Events.GameEvents do
         teams: data["teams"],
         team_ids: data["team_ids"],
         player_ids: data["player_ids"],
-        roles: Map.new(data["roles"] || %{}, fn {k, v} -> {k, String.to_existing_atom(v)} end),
         config: data["config"],
         started_at: GameBot.Domain.Events.GameEvents.parse_timestamp(data["started_at"]),
         timestamp: GameBot.Domain.Events.GameEvents.parse_timestamp(data["timestamp"]),
@@ -228,15 +223,6 @@ defmodule GameBot.Domain.Events.GameEvents do
       {:error, "teams is required"}
     end
 
-    defp validate_roles(%__MODULE__{roles: roles, player_ids: player_ids}) when is_map(roles) do
-      cond do
-        !Enum.all?(Map.keys(roles), &(&1 in player_ids)) -> {:error, "invalid player_id in roles"}
-        !Enum.all?(Map.values(roles), &is_atom/1) -> {:error, "role must be an atom"}
-        true -> :ok
-      end
-    end
-    defp validate_roles(_), do: {:error, "roles must be a map"}
-
     defp validate_started_at(%DateTime{} = started_at) do
       case DateTime.compare(started_at, DateTime.utc_now()) do
         :gt -> {:error, "started_at cannot be in the future"}
@@ -246,12 +232,12 @@ defmodule GameBot.Domain.Events.GameEvents do
     defp validate_started_at(_), do: {:error, "started_at must be a DateTime"}
 
     @doc """
-    Creates a new GameStarted event with all parameters specified.
+    Creates a new GameStarted event.
 
     This is the most detailed version that allows specifying all parameters.
     """
-    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()], map(), map(), DateTime.t(), map()) :: t()
-    def new(game_id, guild_id, mode, teams, team_ids, player_ids, roles, config, started_at, metadata) do
+    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()], map(), DateTime.t(), map()) :: t()
+    def new(game_id, guild_id, mode, teams, team_ids, player_ids, config, started_at, metadata) do
       now = DateTime.utc_now()
       event = %__MODULE__{
         game_id: game_id,
@@ -261,7 +247,6 @@ defmodule GameBot.Domain.Events.GameEvents do
         teams: teams,
         team_ids: team_ids,
         player_ids: player_ids,
-        roles: roles,
         config: config,
         started_at: started_at || now,
         timestamp: now,
@@ -275,21 +260,12 @@ defmodule GameBot.Domain.Events.GameEvents do
       end
     end
 
-    # Helper functions for common cases with fewer parameters
     @doc """
-    Creates a new GameStarted event with default config and started_at.
-    """
-    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()], map(), map()) :: t()
-    def new(game_id, guild_id, mode, teams, team_ids, player_ids, roles, config) do
-      new(game_id, guild_id, mode, teams, team_ids, player_ids, roles, config, nil, %{})
-    end
-
-    @doc """
-    Creates a new GameStarted event with default roles, config and started_at.
+    Creates a new GameStarted event with default configuration and started_at.
     """
     @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()]) :: t()
     def new(game_id, guild_id, mode, teams, team_ids, player_ids) do
-      new(game_id, guild_id, mode, teams, team_ids, player_ids, %{}, %{}, nil, %{})
+      new(game_id, guild_id, mode, teams, team_ids, player_ids, %{}, nil, %{})
     end
   end
 

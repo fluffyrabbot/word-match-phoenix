@@ -34,7 +34,6 @@ defmodule GameBot.Domain.Events.GameEventsTest do
       }),
       team_ids: ["team1", "team2"],
       player_ids: ["player1", "player2", "player3", "player4"],
-      roles: %{},
       config: %{
         round_limit: 10,
         time_limit: 300,
@@ -134,7 +133,6 @@ defmodule GameBot.Domain.Events.GameEventsTest do
       assert reconstructed.teams == original.teams
       assert reconstructed.team_ids == original.team_ids
       assert reconstructed.player_ids == original.player_ids
-      assert reconstructed.roles == original.roles
       assert reconstructed.config == original.config
       assert DateTime.compare(reconstructed.started_at, original.started_at) == :eq
       assert DateTime.compare(reconstructed.timestamp, original.timestamp) == :eq

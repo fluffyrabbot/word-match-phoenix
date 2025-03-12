@@ -82,16 +82,23 @@ defmodule GameBot.Domain.Events.ValidatorTest do
       valid_event = %GameStarted{
         game_id: "game123",
         guild_id: "guild456",
-        mode: :standard,
-        timestamp: DateTime.utc_now(),
-        metadata: %{source_id: "src123", correlation_id: "corr123"},
+        mode: :word_match,
         round_number: 1,
-        teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+        teams: %{
+          "team1" => ["player1", "player2"],
+          "team2" => ["player3", "player4"]
+        },
         team_ids: ["team1", "team2"],
         player_ids: ["player1", "player2", "player3", "player4"],
-        roles: %{"player1" => :guesser, "player2" => :clue_giver, "player3" => :guesser, "player4" => :clue_giver},
         config: %{},
-        started_at: DateTime.utc_now()
+        started_at: DateTime.utc_now(),
+        timestamp: DateTime.utc_now(),
+        metadata: %{
+          source_id: "src123",
+          correlation_id: "corr123",
+          event_id: "ev456",
+          version: 1
+        }
       }
 
       assert :ok = EventValidator.validate(valid_event)
@@ -154,19 +161,6 @@ defmodule GameBot.Domain.Events.ValidatorTest do
           # Accept any validation failure for now
           assert true
       end
-    end
-
-    test "detects invalid roles" do
-      # Invalid player in roles
-      event1 = create_valid_game_started()
-      |> Map.put(:roles, %{"player1" => :guesser, "invalid_player" => :clue_giver})
-
-      # Invalid role value
-      event2 = create_valid_game_started()
-      |> Map.put(:roles, %{"player1" => "not_atom"})
-
-      assert {:error, _} = EventValidator.validate(event1)
-      assert {:error, _} = EventValidator.validate(event2)
     end
 
     test "detects future timestamps" do
@@ -236,16 +230,23 @@ defmodule GameBot.Domain.Events.ValidatorTest do
     %GameStarted{
       game_id: "game123",
       guild_id: "guild456",
-      mode: :standard,
-      timestamp: DateTime.utc_now(),
-      metadata: %{source_id: "src123", correlation_id: "corr123"},
+      mode: :word_match,
       round_number: 1,
-      teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+      teams: %{
+        "team1" => ["player1", "player2"],
+        "team2" => ["player3", "player4"]
+      },
       team_ids: ["team1", "team2"],
       player_ids: ["player1", "player2", "player3", "player4"],
-      roles: %{"player1" => :guesser, "player2" => :clue_giver, "player3" => :guesser, "player4" => :clue_giver},
       config: %{},
-      started_at: DateTime.utc_now()
+      started_at: DateTime.utc_now(),
+      timestamp: DateTime.utc_now(),
+      metadata: %{
+        source_id: "src123",
+        correlation_id: "corr123",
+        event_id: "ev456",
+        version: 1
+      }
     }
   end
 

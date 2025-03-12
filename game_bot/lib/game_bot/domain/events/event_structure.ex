@@ -50,8 +50,7 @@ defmodule GameBot.Domain.Events.EventStructure do
       @type player_info :: %{
         player_id: String.t(),
         team_id: String.t(),
-        name: String.t() | nil,
-        role: atom() | nil
+        name: String.t() | nil
       }
       @type team_info :: %{
         team_id: String.t(),
@@ -97,8 +96,7 @@ defmodule GameBot.Domain.Events.EventStructure do
   @type player_info :: %{
     player_id: String.t(),
     team_id: String.t(),
-    name: String.t() | nil,
-    role: atom() | nil
+    name: String.t() | nil
   }
 
   @typedoc """

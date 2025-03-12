@@ -82,7 +82,6 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
             teams: data["teams"],
             team_ids: data["team_ids"],
             player_ids: data["player_ids"],
-            roles: data["roles"],
             config: data["config"],
             started_at: parse_timestamp(data["started_at"]),
 

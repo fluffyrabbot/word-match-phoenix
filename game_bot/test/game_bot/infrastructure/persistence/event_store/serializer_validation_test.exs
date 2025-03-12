@@ -132,7 +132,6 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.SerializerValidationTest
       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
       team_ids: ["team1", "team2"],
       player_ids: ["player1", "player2", "player3", "player4"],
-      roles: %{"player1" => :guesser, "player2" => :clue_giver, "player3" => :guesser, "player4" => :clue_giver},
       config: %{},
       started_at: DateTime.utc_now()
     }
