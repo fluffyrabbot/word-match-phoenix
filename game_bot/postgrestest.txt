@@ -1,0 +1,73 @@
+Compiling 1 file (.ex)
+Compiling 1 file (.ex)
+Generated game_bot app
+Setting up event store schema and tables...
+Cleaning up previous event store schema...
+Event store setup complete!
+
+=== Test Environment Initialized Successfully ===
+
+Recompiled test events file: c:/Users/ktw30/apps/word match phoenix/game_bot/test/support/test_events.ex
+Protocol implementation module loaded: GameBot.Domain.Events.TestEvents.ValidatorTestEvent
+Protocol implementation module loaded: GameBot.Domain.Events.TestEvents.ValidatorOptionalFieldsEvent
+
+Working with databases: main=game_bot_test_1741760429, event=game_bot_eventstore_test_1741760429
+Starting required applications...
+Initializing repositories...
+Starting GameBot.Infrastructure.Persistence.Repo...
+Starting GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres...
+Running ExUnit with seed: 0, max_cases: 32
+Excluding tags: [:skip_db, :skip_in_ci]
+
+23:20:36.718 [warning] Event store is not running, cannot reset
+.23:20:36.722 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:36.956 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:37.523 [warning] Event store is not running, cannot reset
+.23:20:37.523 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:37.523 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:37.577 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :concurrency, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Wrong expected version", details: %{actual: 2, expected: 1}, source: nil}}
+23:20:38.098 [warning] Event store is not running, cannot reset
+.23:20:38.098 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:38.098 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:38.644 [warning] Event store is not running, cannot reset
+.23:20:38.645 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:38.645 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:39.485 [warning] Event store is not running, cannot reset
+.23:20:39.486 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:39.486 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:39.995 [warning] Event store is not running, cannot reset
+.23:20:39.995 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:39.995 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:40.363 [warning] Event store is not running, cannot reset
+.23:20:40.363 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:40.363 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:40.732 [warning] Event store is not running, cannot reset
+.23:20:40.732 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:40.732 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:41.425 [warning] Event store is not running, cannot reset
+.23:20:41.425 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:41.425 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:41.918 [warning] Event store is not running, cannot reset
+.23:20:41.918 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:41.919 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:42.335 [warning] Event store is not running, cannot reset
+.23:20:42.335 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:42.339 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:42.845 [warning] Event store is not running, cannot reset
+.23:20:42.845 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:42.846 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:43.371 [warning] Event store is not running, cannot reset
+.23:20:43.371 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:43.371 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:43.741 [warning] Event store is not running, cannot reset
+.23:20:43.741 [warning] Repository GameBot.Infrastructure.Persistence.Repo is not running, attempting to start it
+23:20:43.741 [warning] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, attempting to start it
+23:20:44.097 [warning] Event store is not running, cannot reset
+.
+Finished in 8.5 seconds (0.00s async, 8.5s sync)
+15 tests, 0 failures
+
+=== Cleaning up after test suite ===
+23:20:44.342 [warning] Event store is not running, cannot reset
+=== Test suite cleanup complete ===
+

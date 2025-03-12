@@ -1,12 +1,9 @@
 defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest do
-  use ExUnit.Case, async: false
-  # Remove the EventStoreCase since it's causing issues
-  # use GameBot.EventStoreCase
+  use GameBot.EventStoreCase, async: false
 
   alias GameBot.Infrastructure.{Error, ErrorHelpers}
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
-  alias GameBot.Infrastructure.Persistence.EventStore.JsonSerializer
-  alias GameBot.Infrastructure.Persistence.Repo
+  alias GameBot.Infrastructure.Persistence.EventStore.Serializer
   require Logger
 
   @moduletag :integration
@@ -42,64 +39,6 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest do
   end
 
   setup_all do
-    # Start the applications
-    {:ok, _} = Application.ensure_all_started(:postgrex)
-    {:ok, _} = Application.ensure_all_started(:ecto_sql)
-    {:ok, _} = Application.ensure_all_started(:game_bot)
-
-    # Use a direct connection for schema setup
-    config = [
-      username: "postgres",
-      password: "csstarahid",
-      hostname: "localhost",
-      database: "game_bot_eventstore_test",
-      pool_size: 2,
-      timeout: 30_000
-    ]
-
-    {:ok, conn} = Postgrex.start_link(config)
-
-    # Create schema and tables
-    Postgrex.query!(conn, "DROP SCHEMA IF EXISTS event_store CASCADE", [])
-    Postgrex.query!(conn, "CREATE SCHEMA event_store", [])
-    Postgrex.query!(conn, "SET search_path TO event_store", [])
-
-    Postgrex.query!(conn, """
-      CREATE TABLE event_store.streams (
-        id text NOT NULL,
-        version bigint NOT NULL,
-        created_at timestamp without time zone DEFAULT now() NOT NULL,
-        PRIMARY KEY(id)
-      );
-    """, [])
-    Postgrex.query!(conn, """
-      CREATE TABLE event_store.events (
-        event_id bigserial NOT NULL,
-        stream_id text NOT NULL,
-        event_type text NOT NULL,
-        event_data jsonb NOT NULL,
-        event_metadata jsonb NOT NULL,
-        event_version bigint NOT NULL,
-        created_at timestamp without time zone DEFAULT now() NOT NULL,
-        PRIMARY KEY(event_id),
-        FOREIGN KEY(stream_id) REFERENCES event_store.streams(id)
-      );
-    """, [])
-    Postgrex.query!(conn, """
-      CREATE TABLE event_store.subscriptions (
-        id bigserial NOT NULL,
-        stream_id text NOT NULL,
-        subscriber_pid text NOT NULL,
-        options jsonb,
-        created_at timestamp without time zone DEFAULT now() NOT NULL,
-        PRIMARY KEY(id),
-        FOREIGN KEY(stream_id) REFERENCES event_store.streams(id)
-      );
-    """, [])
-
-    # Close the direct connection
-    GenServer.stop(conn)
-
     # Register our TestEvent with the serializer
     original_registry = Application.get_env(:game_bot, :event_registry)
 
@@ -134,29 +73,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest do
     :ok
   end
 
-  setup do
-    # Set the sandbox to auto mode for simplicity
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo, [])
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Postgres, [])
-
-    # Use auto mode for simplicity in tests
-    Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
-    Ecto.Adapters.SQL.Sandbox.mode(Postgres, {:shared, self()})
-
-    # Clean up test database before each test
-    Repo.query!("TRUNCATE event_store.events CASCADE", [])
-    Repo.query!("TRUNCATE event_store.streams CASCADE", [])
-    Repo.query!("TRUNCATE event_store.subscriptions CASCADE", [])
-
-    # Clean up on exit
-    on_exit(fn ->
-      # Reset the sandbox mode
-      Ecto.Adapters.SQL.Sandbox.checkin(Repo)
-      Ecto.Adapters.SQL.Sandbox.checkin(Postgres)
-    end)
-
-    :ok
-  end
+  # We'll use the setup from EventStoreCase, so we can remove the setup block
 
   # Create a properly structured test event
   defp create_test_event_local(stream_id) do

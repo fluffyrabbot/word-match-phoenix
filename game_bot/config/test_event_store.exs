@@ -1,8 +1,10 @@
 import Config
 
 # Configure EventStore for testing
-config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
-  serializer: EventStore.JsonSerializer,
+config :game_bot, GameBot.TestEventStore,
+  column_data_type: "jsonb",
+  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer,
+  types: EventStore.PostgresTypes,
   username: "postgres",
   password: "csstarahid",
   database: "game_bot_eventstore_test",

@@ -29,14 +29,14 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
   """
 
   use GameBot.Infrastructure.Persistence.EventStore.Adapter.Base,
-    serializer: GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
+    serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer
 
   use Ecto.Repo,
     otp_app: :game_bot,
     adapter: Ecto.Adapters.Postgres
 
   alias GameBot.Infrastructure.Error
-  alias GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
+  alias GameBot.Infrastructure.Persistence.EventStore.Serializer
 
   # Fixed operational parameters
   @table_prefix "event_store"
@@ -189,7 +189,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
   defp serialize_events(events) when is_list(events) do
     events
     |> Enum.reduce_while({:ok, []}, fn event, {:ok, acc} ->
-      case JsonSerializer.serialize(event) do
+      case Serializer.serialize(event) do
         {:ok, serialized} -> {:cont, {:ok, [serialized | acc]}}
         error -> {:halt, error}
       end

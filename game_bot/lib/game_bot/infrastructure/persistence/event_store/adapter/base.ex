@@ -13,7 +13,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Base do
   alias GameBot.Infrastructure.Error
   alias GameBot.Infrastructure.ErrorHelpers
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Behaviour
-  alias GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
+  alias GameBot.Infrastructure.Persistence.EventStore.Serializer
 
   @type operation :: :append | :read | :subscribe | :version | :delete | :link
   @type telemetry_data :: %{

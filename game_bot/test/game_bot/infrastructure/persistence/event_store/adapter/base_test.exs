@@ -3,7 +3,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
 
   alias GameBot.Infrastructure.Error
   alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base
-  alias GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializer
+  alias GameBot.Infrastructure.Persistence.EventStore.Serializer
 
   # Define the TestEvent struct for tests
   defmodule TestEvent do
@@ -15,7 +15,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest do
   end
 
   defmodule TestAdapter do
-    use Base, serializer: JsonSerializer
+    use Base, serializer: Serializer
 
     def do_append_to_stream("success", _version, events, _opts), do: {:ok, length(events)}
     def do_append_to_stream("retry", _version, _events, _opts) do

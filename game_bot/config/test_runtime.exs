@@ -21,7 +21,7 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
 # Configure eventstore settings
 config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
   column_data_type: "jsonb",
-  serializer: GameBot.Infrastructure.Persistence.EventStore.JsonSerializer,
+  serializer: GameBot.Infrastructure.Persistence.EventStore.Serializer,
   types: EventStore.PostgresTypes,
   username: "postgres",
   password: "csstarahid",
