@@ -205,6 +205,11 @@ defmodule GameBot.Domain.Events.GameEvents do
           is_list(players) and Enum.empty?(players)
         end) ->
           {:error, "Each team must have at least one player"}
+        # Check if all team_ids have corresponding entries in the teams map
+        Enum.any?(team_ids, &(!Map.has_key?(teams, &1))) ->
+          # Find the first team_id that's not in the teams map
+          missing_team = Enum.find(team_ids, &(!Map.has_key?(teams, &1)))
+          {:error, "team_ids contains unknown team: #{missing_team}"}
         !Enum.all?(Map.keys(teams), &(&1 in team_ids)) ->
           {:error, "invalid team_id in teams map"}
         !Enum.all?(List.flatten(Map.values(teams)), &(&1 in player_ids)) ->

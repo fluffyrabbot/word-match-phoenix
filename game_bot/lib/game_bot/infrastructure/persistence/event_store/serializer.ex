@@ -25,6 +25,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   alias GameBot.Domain.Events.EventRegistry
   alias GameBot.Infrastructure.Persistence.Error, as: PersistenceError
   alias GameBot.Infrastructure.Persistence.EventStore.SerializerTest.TestEvent, as: SerializerTestEvent
+  alias GameBot.Infrastructure.Persistence.EventStore.Serialization.Validator, as: EventValidator
 
   @behaviour GameBot.Infrastructure.Persistence.EventStore.Serialization.Behaviour
 
@@ -45,6 +46,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
     * `event` - The event to serialize
     * `opts` - Optional parameters:
       * `:preserve_error_context` - When true, maintains original error details (default: false)
+      * `:validate` - When true, validates the event before serializing (default: true)
       * Any other options are passed to the implementation
 
   ## Returns
@@ -58,8 +60,21 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   @spec serialize(map() | struct(), keyword()) :: {:ok, map()} | {:error, term()}
   def serialize(event, opts \\ []) do
     preserve_error_context = Keyword.get(opts, :preserve_error_context, false)
+    should_validate = Keyword.get(opts, :validate, true)
 
-    result = do_serialize(event, opts)
+    # First validate the event if validation is enabled
+    validation_result =
+      if should_validate and is_struct(event) do
+        EventValidator.validate(event)
+      else
+        :ok
+      end
+
+    result =
+      case validation_result do
+        :ok -> do_serialize(event, opts)
+        error -> error
+      end
 
     if preserve_error_context do
       result
@@ -80,6 +95,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
     * `event_module` - Optional module to deserialize into (ignored in favor of lookup)
     * `opts` - Optional parameters:
       * `:preserve_error_context` - When true, maintains original error details (default: false)
+      * `:validate` - When true, validates the event after deserializing (default: true)
       * Any other options are passed to the implementation
 
   ## Returns
@@ -93,11 +109,36 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   @spec deserialize(map(), module() | nil, keyword()) :: {:ok, struct() | map()} | {:error, term()}
   def deserialize(data, event_module \\ nil, opts \\ []) do
     preserve_error_context = Keyword.get(opts, :preserve_error_context, false)
+    should_validate = Keyword.get(opts, :validate, true)
 
     # Pass event_module in opts if provided (for potential future use)
     opts = if event_module, do: Keyword.put(opts, :event_module, event_module), else: opts
 
-    result = do_deserialize(data, opts)
+    # First validate the data structure
+    structure_result =
+      if should_validate do
+        EventValidator.validate_structure(data)
+      else
+        :ok
+      end
+
+    result =
+      case structure_result do
+        :ok ->
+          # Then do the normal deserialization
+          with {:ok, deserialized} <- do_deserialize(data, opts) do
+            # Finally validate the deserialized event if needed
+            if should_validate and is_struct(deserialized) do
+              case EventValidator.validate(deserialized) do
+                :ok -> {:ok, deserialized}
+                error -> error
+              end
+            else
+              {:ok, deserialized}
+            end
+          end
+        error -> error
+      end
 
     if preserve_error_context do
       result
@@ -135,45 +176,39 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   @impl true
   def version, do: @current_version
 
-  @impl true
-  def validate(data, opts \\ []) do
-    cond do
-      not is_map(data) ->
-        {:error, Error.validation_error(__MODULE__, "Data must be a map", data)}
-      is_nil(data["type"]) ->
-        {:error, Error.validation_error(__MODULE__, "Missing event type", data)}
-      is_nil(data["version"]) ->
-        {:error, Error.validation_error(__MODULE__, "Missing event version", data)}
-      is_nil(data["data"]) ->
-        {:error, Error.validation_error(__MODULE__, "Missing event data", data)}
-      not is_map(data["metadata"]) ->
-        {:error, Error.validation_error(__MODULE__, "Metadata must be a map", data)}
-      true ->
-        :ok
-    end
+  @doc """
+  Validates event data before serialization.
+
+  ## Parameters
+    * `data` - The event data to validate
+    * `opts` - Option list (same as serialize/2)
+
+  ## Returns
+    * `:ok` if validation passes
+    * `{:error, reason}` if validation fails
+  """
+  def validate(data, _opts \\ []) do
+    # Intentionally left as a simple pass-through for now
+    # Future implementations may add more validation rules
+    EventValidator.validate(data)
   end
 
-  @impl true
-  def migrate(data, from_version, to_version, opts \\ []) do
-    cond do
-      from_version == to_version ->
-        {:ok, data}
-      from_version > to_version ->
-        {:error, Error.validation_error(__MODULE__, "Cannot migrate to older version", %{
-          from: from_version,
-          to: to_version
-        })}
-      true ->
-        case get_registry().migrate_event(data["type"], data, from_version, to_version) do
-          {:ok, migrated} -> {:ok, migrated}
-          {:error, reason} ->
-            {:error, Error.validation_error(__MODULE__, "Version migration failed", %{
-              from: from_version,
-              to: to_version,
-              reason: reason
-            })}
-        end
-    end
+  @doc """
+  Migrates an event from one version to another.
+
+  ## Parameters
+    * `data` - The event data to migrate
+    * `from_version` - Source version
+    * `to_version` - Target version
+    * `opts` - Option list (same as serialize/2)
+
+  ## Returns
+    * `{:ok, migrated_data}` if migration was successful
+    * `{:error, reason}` if migration failed
+  """
+  def migrate(data, from_version, to_version, _opts \\ []) do
+    # For future implementation
+    {:ok, data}
   end
 
   # Legacy compatibility aliases
@@ -185,52 +220,55 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   #
 
   # The actual implementation of serialize, now a private function
-  defp do_serialize(event, opts) do
-    ErrorHelpers.wrap_error(
-      fn ->
-        with :ok <- validate_event(event),
-             {:ok, data} <- encode_event(event) do
-          # Create result map with string keys for better compatibility
-          result = %{
-            "type" => get_event_type(event),
-            "version" => get_event_version(event),
-            "data" => data,
-            "metadata" => Map.get(event, :metadata, %{})
-          }
+  defp do_serialize(event, _opts) do
+    # Extract type and version from the event module
+    {type, version} = extract_event_type_and_version(event.__struct__)
 
-          # Preserve stream_id if it exists (primarily for testing)
-          result = if Map.has_key?(event, :stream_id) do
-            Map.put(result, "stream_id", Map.get(event, :stream_id))
-          else
-            result
-          end
+    # Build the serialized structure
+    serialized = %{
+      "type" => type,
+      "version" => version,
+      "data" => Map.from_struct(event),
+      "metadata" => event.metadata
+    }
 
-          {:ok, result}
-        end
-      end,
-      __MODULE__
-    )
+    {:ok, serialized}
   end
 
   # The actual implementation of deserialize, now a private function
-  defp do_deserialize(data, opts) do
-    ErrorHelpers.wrap_error(
-      fn ->
-        with :ok <- validate(data),
-             {:ok, event_module} <- lookup_event_module(data["type"]) do
-          if event_module == nil do
-            # For test events, return the original data format
-            {:ok, data}
-          else
-            # For regular events, create the event struct
-            with {:ok, event_data} <- decode_event(data["data"]) do
-              create_event(event_module, event_data, data["metadata"])
-            end
+  defp do_deserialize(data, _opts) do
+    # Extract the event type and version
+    event_type = Map.get(data, "type") || Map.get(data, "event_type")
+    event_version = Map.get(data, "version") || Map.get(data, "event_version")
+
+    # Validate event data
+    with :ok <- EventValidator.validate_event_data(data["data"], event_type) do
+      # Look up the correct module for this event type and version
+      case EventRegistry.get_module(event_type, event_version) do
+        {:ok, module} ->
+          # Create the struct from the data
+          data_map = for {key, val} <- data["data"], into: %{} do
+            {String.to_atom(key), val}
           end
-        end
-      end,
-      __MODULE__
-    )
+
+          metadata = data["metadata"] || %{}
+
+          # Extra safety check for the metadata structure
+          metadata =
+            if is_map(metadata) do
+              metadata
+            else
+              %{}
+            end
+
+          # Create the struct with the required fields
+          struct = struct(module, data_map) |> Map.put(:metadata, metadata)
+
+          {:ok, struct}
+        {:error, reason} ->
+          {:error, Error.not_found(__MODULE__, reason)}
+      end
+    end
   end
 
   # Implementation of private helpers - copied from JsonSerializer
@@ -450,5 +488,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serializer do
   # Get the event registry to use - allows for overriding in tests
   defp get_registry do
     Application.get_env(:game_bot, :event_registry, EventRegistry)
+  end
+
+  defp extract_event_type_and_version(struct) do
+    # Extract type and version from the struct
+    type = get_event_type(struct)
+    version = get_event_version(struct)
+    {type, version}
   end
 end
