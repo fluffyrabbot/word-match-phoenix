@@ -18,6 +18,33 @@ ExUnit.configure(
 # Start ExUnit
 ExUnit.start()
 
+# Initialize Phoenix endpoint for tests
+Application.put_env(:game_bot, GameBotWeb.Endpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4002],
+  server: false,
+  secret_key_base: "T3vbojxPj5xC0BUswQBDiQ0+6v2QLkvCw/PQQgzxmxqTmH+vCb0uibzPYpZsysVz",
+  live_view: [signing_salt: "your_signing_salt"],
+  pubsub_server: GameBot.PubSub
+)
+
+# Initialize PubSub for tests
+children =
+  case Process.whereis(GameBot.PubSub) do
+    nil ->
+      [{Phoenix.PubSub, name: GameBot.PubSub}]
+    _pid ->
+      []  # PubSub already started, don't start it again
+  end
+
+# Start PubSub under a test supervisor if needed
+if children != [] do
+  {:ok, _} = Supervisor.start_link(children, strategy: :one_for_one, name: GameBot.TestSupervisor)
+end
+
+# Start required applications in correct order
+Application.ensure_all_started(:phoenix)
+Application.ensure_all_started(:phoenix_ecto)
+
 # Note: For improved test database setup, use the new mix task:
 #   mix game_bot.test
 #

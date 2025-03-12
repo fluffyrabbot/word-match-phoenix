@@ -115,6 +115,37 @@ defmodule GameBot.RepositoryCase do
     end
   end
 
+  @doc """
+  Starts the test event store.
+  """
+  def start_test_event_store do
+    # Configure the event store adapter
+    Application.put_env(:game_bot, :event_store_adapter, GameBot.Test.EventStoreCore)
+
+    # First try to reset any existing store
+    if Process.whereis(GameBot.Test.EventStoreCore) do
+      try do
+        GameBot.Test.EventStoreCore.reset()
+        Process.sleep(100) # Give it time to reset
+      catch
+        _, _ -> :ok
+      end
+    end
+
+    # Now start or restart the store
+    case GameBot.Test.EventStoreCore.start_link() do
+      {:ok, pid} ->
+        Process.sleep(100) # Give it time to initialize
+        {:ok, pid}
+      {:error, {:already_started, pid}} ->
+        # Reset the store and continue
+        GameBot.Test.EventStoreCore.reset()
+        Process.sleep(100)
+        {:ok, pid}
+      error -> error
+    end
+  end
+
   # Private helper functions
 
   defp setup_mock_environment(_tags) do
@@ -152,27 +183,6 @@ defmodule GameBot.RepositoryCase do
 
     # Use the centralized DatabaseHelper to initialize the environment
     DatabaseHelper.setup_sandbox(tags)
-  end
-
-  defp start_test_event_store do
-    case Process.whereis(GameBot.TestEventStore) do
-      nil ->
-        Logger.debug("Starting TestEventStore")
-        {:ok, pid} = GameBot.TestEventStore.start_link()
-        # Monitor the process to ensure cleanup
-        monitor_process(pid)
-      _pid ->
-        Logger.debug("TestEventStore already running, resetting state")
-        # Reset state if store already exists
-        GameBot.TestEventStore.set_failure_count(0)
-        # Clear any existing streams
-        case GameBot.TestEventStore.reset!() do
-          :ok -> :ok
-          error ->
-            Logger.error("Failed to reset TestEventStore: #{inspect(error)}")
-            raise "Failed to reset TestEventStore"
-        end
-    end
   end
 
   defp cleanup_monitored_processes do

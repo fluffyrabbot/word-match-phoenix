@@ -9,30 +9,24 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
     # Ensure repositories are started
     RepositoryManager.ensure_all_started()
 
-    # Get configured test event store module
-    test_store = Application.get_env(:game_bot, :event_store_adapter, GameBot.TestEventStore)
-
-    # Start TestEventStore if not already started
-    case Process.whereis(test_store) do
-      nil ->
-        {:ok, _pid} = test_store.start_link()
-      _pid ->
-        :ok
-    end
-
-    # Create a unique test stream ID
+    # Generate a unique stream ID for this test
     stream_id = "test-stream-#{System.unique_integer([:positive])}"
 
-    # Ensure cleanup on test exit
-    on_exit(fn ->
-      try do
-        test_store.reset_state()
-      catch
-        :exit, _ -> :ok
-      end
-    end)
-
-    {:ok, stream_id: stream_id}
+    # Start the test event store if not already started
+    case GameBot.Test.EventStoreCore.start_link() do
+      {:ok, pid} ->
+        on_exit(fn ->
+          GameBot.Test.EventStoreCore.reset()
+          Process.exit(pid, :normal)
+        end)
+        {:ok, %{event_store_pid: pid, stream_id: stream_id}}
+      {:error, {:already_started, pid}} ->
+        # Reset the store if it's already running
+        GameBot.Test.EventStoreCore.reset()
+        {:ok, %{event_store_pid: pid, stream_id: stream_id}}
+      error ->
+        error
+    end
   end
 
   describe "adapter functions" do

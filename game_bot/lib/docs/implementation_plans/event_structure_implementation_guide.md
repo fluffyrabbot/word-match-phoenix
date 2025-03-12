@@ -572,8 +572,8 @@ The `EventStructure` module has been enhanced with:
        timestamp: DateTime.utc_now()
      }
      
-     {:ok, serialized} = Serializer.serialize(original_event)
-     {:ok, deserialized} = Serializer.deserialize(serialized)
+     {:ok, serialized} = GameBot.Infrastructure.Persistence.EventStore.JsonSerializer.serialize(original_event)
+     {:ok, deserialized} = GameBot.Infrastructure.Persistence.EventStore.JsonSerializer.deserialize(serialized)
      
      assert deserialized.game_id == original_event.game_id
      assert deserialized.metadata.correlation_id == original_event.metadata.correlation_id

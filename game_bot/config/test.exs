@@ -1,9 +1,9 @@
 import Config
 
 # Generate unique database names for each test run to avoid connection conflicts
-unique_suffix = System.get_env("MIX_TEST_PARTITION") || "#{System.system_time(:second)}"
-main_db_name = "game_bot_test_1741648768"
-event_db_name = "game_bot_eventstore_test_1741648768"
+unique_suffix = System.get_env("MIX_TEST_PARTITION") || System.system_time(:second)
+main_db_name = "game_bot_test_#{unique_suffix}"
+event_db_name = "game_bot_eventstore_test_#{unique_suffix}"
 
 # Get the pool size from environment or use default
 pool_size = String.to_integer(System.get_env("ECTO_POOL_SIZE") || "10")
@@ -28,12 +28,17 @@ config :game_bot, GameBot.Infrastructure.Persistence.Repo,
   database: main_db_name,
   port: 5432,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10,
+  pool_size: pool_size,
+  pool_timeout: 15000,
   ownership_timeout: 60_000,
   queue_target: 5000,
   queue_interval: 5000,
   timeout: 30_000,
   connect_timeout: 30_000,
+  idle_interval: 5000,
+  backoff_type: :exp,
+  max_restarts: 3,
+  max_seconds: 5,
   types: EventStore.PostgresTypes
 
 # Configure the Postgres adapter for the EventStore
@@ -47,11 +52,16 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
   types: EventStore.PostgresTypes,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: pool_size,
+  pool_timeout: 15000,
   ownership_timeout: 60_000,
   queue_target: 200,
   queue_interval: 1000,
   timeout: 30_000,
-  connect_timeout: 30_000
+  connect_timeout: 30_000,
+  idle_interval: 5000,
+  backoff_type: :exp,
+  max_restarts: 3,
+  max_seconds: 5
 
 # Configure the event store for testing
 # Increased timeouts for better reliability
@@ -68,8 +78,14 @@ config :game_bot, GameBot.Infrastructure.Persistence.EventStore,
   types: EventStore.PostgresTypes,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: pool_size,
+  pool_timeout: 15000,
+  ownership_timeout: 60_000,
   timeout: 30_000,
-  connect_timeout: 30_000
+  connect_timeout: 30_000,
+  idle_interval: 5000,
+  backoff_type: :exp,
+  max_restarts: 3,
+  max_seconds: 5
 
 # Configure the Postgres repository
 config :game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres,

@@ -412,8 +412,12 @@ defmodule GameBot.Domain.WordService do
               [word, String.slice(word, 0..-4//1)]
             String.ends_with?(word, "ed") ->
               [word, String.slice(word, 0..-3//1)]
+            String.ends_with?(word, "e") ->
+              [word, word <> "ing", word <> "d"]
+            String.ends_with?(word, "ze") or String.ends_with?(word, "se") ->
+              [word, word <> "s", word <> "d", String.slice(word, 0..-3//1) <> "ing"]
             true ->
-              [word]
+              [word, word <> "ing", word <> "ed"]
           end
         end)
       irregular_forms ->
@@ -432,6 +436,10 @@ defmodule GameBot.Domain.WordService do
           [w, String.replace(w, "ize", "ise")]
         String.contains?(w, "ise") ->
           [w, String.replace(w, "ise", "ize")]
+        String.contains?(w, "yze") ->
+          [w, String.replace(w, "yze", "yse")]
+        String.contains?(w, "yse") ->
+          [w, String.replace(w, "yse", "yze")]
         true ->
           [w]
       end
@@ -503,8 +511,8 @@ defmodule GameBot.Domain.WordService do
     # Generate pattern-based variations
     pattern_variations =
       [word]
-      |> add_plural_variations()
       |> add_verb_variations(word)
+      |> add_plural_variations()
       |> add_regional_variations()
       |> MapSet.new()
       |> MapSet.delete(word)  # Remove the original word

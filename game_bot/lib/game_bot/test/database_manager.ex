@@ -36,6 +36,7 @@ defmodule GameBot.Test.DatabaseManager do
       :admin_conn,
       :main_db_pid,
       :event_db_pid,
+      :event_store_pid,
       :monitor_ref,
       active_connections: %{},
       test_processes: %{},
@@ -45,6 +46,12 @@ defmodule GameBot.Test.DatabaseManager do
 
   # Server name
   @name __MODULE__
+
+  # Add module attribute for repos
+  @repos [
+    GameBot.Infrastructure.Persistence.Repo,
+    GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+  ]
 
   # Startup and initialization
 
@@ -168,9 +175,36 @@ defmodule GameBot.Test.DatabaseManager do
   end
 
   @impl true
+  def handle_info({:EXIT, pid, reason}, state) do
+    Logger.debug("Received EXIT message from #{inspect(pid)} with reason: #{inspect(reason)}")
+    # If this is a normal exit from one of our managed processes, just remove it from state
+    new_state = case reason do
+      :normal ->
+        %{state |
+          main_db_pid: if(state.main_db_pid == pid, do: nil, else: state.main_db_pid),
+          event_db_pid: if(state.event_db_pid == pid, do: nil, else: state.event_db_pid),
+          event_store_pid: if(state.event_store_pid == pid, do: nil, else: state.event_store_pid)
+        }
+      _ -> state
+    end
+    {:noreply, new_state}
+  end
+
+  @impl true
   def terminate(_reason, state) do
     # Ensure cleanup on shutdown
     cleanup_databases(state)
+
+    # Stop event store if it's running
+    if state.event_store_pid do
+      try do
+        GameBot.Test.EventStoreCore.reset()
+        Process.exit(state.event_store_pid, :normal)
+      catch
+        _, _ -> :ok
+      end
+    end
+
     :ok
   end
 
@@ -224,9 +258,8 @@ defmodule GameBot.Test.DatabaseManager do
       result
     catch
       kind, reason ->
-        stacktrace = Process.info(self(), :current_stacktrace)
-        Logger.error("Failed to setup sandbox: #{inspect(reason)}, trace: #{inspect(stacktrace)}")
-        {:error, {kind, reason, stacktrace}}
+        Logger.error("Failed to setup sandbox: #{inspect(reason)}")
+        {:error, {kind, reason}}
     end
   end
 
@@ -240,11 +273,9 @@ defmodule GameBot.Test.DatabaseManager do
         # Configure sandbox mode based on async flag
         if async? do
           # For async tests, use shared mode with the test process
-          # This mode allows the test process to share its connection with other processes
           Sandbox.mode(repo, {:shared, test_pid})
         else
           # For non-async tests, use manual mode
-          # This mode requires explicit checkout but provides better isolation
           Sandbox.mode(repo, :manual)
         end
 
@@ -394,7 +425,12 @@ defmodule GameBot.Test.DatabaseManager do
     create_query = "CREATE DATABASE \"#{db_name}\" ENCODING 'UTF8';"
 
     case Postgrex.query(conn, create_query, [], timeout: DatabaseConfig.timeouts()[:operation_timeout]) do
-      {:ok, _} -> :ok
+      {:ok, _} ->
+        Logger.info("Successfully created database #{db_name}")
+        :ok
+      {:error, %Postgrex.Error{postgres: %{code: :duplicate_database}}} ->
+        Logger.info("Database #{db_name} already exists")
+        :ok
       {:error, reason} = error ->
         Logger.error("Failed to create database #{db_name}: #{inspect(reason)}")
         error
@@ -403,21 +439,187 @@ defmodule GameBot.Test.DatabaseManager do
 
   # Actual database setup logic
   defp do_setup_databases(state) do
-    with {:ok, _} <- create_database(DatabaseConfig.main_test_db(), state),
+    Logger.info("Setting up test databases...")
+
+    # First ensure any existing repos are stopped
+    stop_existing_repos()
+
+    # Then try to create and start each database with proper error handling
+    with :ok <- ensure_no_existing_connections(state),
+         {:ok, _} <- create_or_reset_database(DatabaseConfig.main_test_db(), state),
+         :ok <- wait_for_database_availability(DatabaseConfig.main_test_db(), state),
          {:ok, main_pid} <- start_repo(GameBot.Infrastructure.Persistence.Repo, DatabaseConfig.main_db_config()),
-         {:ok, _} <- create_database(DatabaseConfig.event_test_db(), state),
-         {:ok, event_pid} <- start_repo(GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, DatabaseConfig.event_db_config())
+         {:ok, _} <- create_or_reset_database(DatabaseConfig.event_test_db(), state),
+         :ok <- wait_for_database_availability(DatabaseConfig.event_test_db(), state),
+         {:ok, event_pid} <- start_repo(GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, DatabaseConfig.event_db_config()),
+         {:ok, event_store_pid} <- start_event_store()
     do
-      {:ok, %State{state | main_db_pid: main_pid, event_db_pid: event_pid}}
+      Logger.info("Successfully set up test databases")
+      {:ok, %State{state |
+        main_db_pid: main_pid,
+        event_db_pid: event_pid,
+        event_store_pid: event_store_pid
+      }}
     else
-      {:error, reason} -> {:error, reason}
+      {:error, reason} ->
+        Logger.error("Failed to set up test databases: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp ensure_no_existing_connections(%{admin_conn: conn}) do
+    # Terminate ALL existing connections to our test databases
+    terminate_query = """
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE datname IN ($1, $2) AND pid <> pg_backend_pid();
+    """
+
+    case Postgrex.query(conn, terminate_query, [DatabaseConfig.main_test_db(), DatabaseConfig.event_test_db()],
+      timeout: DatabaseConfig.timeouts()[:operation_timeout]) do
+      {:ok, _} ->
+        Logger.debug("Terminated all existing database connections")
+        Process.sleep(200) # Give connections time to fully close
+        :ok
+      {:error, reason} ->
+        Logger.warning("Failed to terminate existing connections: #{inspect(reason)}")
+        :ok # Continue anyway as this is best-effort
+    end
+  end
+
+  defp wait_for_database_availability(db_name, %{admin_conn: conn}) do
+    # Try to connect to the database a few times before giving up
+    Enum.reduce_while(1..5, {:error, :not_ready}, fn attempt, _acc ->
+      case Postgrex.query(conn, "SELECT 1", [], [database: db_name, timeout: 5000]) do
+        {:ok, _} ->
+          {:halt, :ok}
+        {:error, _} ->
+          Process.sleep(200 * attempt) # Exponential backoff
+          if attempt == 5, do: {:halt, {:error, :database_not_available}}, else: {:cont, {:error, :retry}}
+      end
+    end)
+  end
+
+  defp create_or_reset_database(db_name, state) do
+    Logger.info("Setting up database: #{db_name}")
+    case create_database(db_name, state) do
+      :ok ->
+        Logger.debug("Database #{db_name} ready")
+        {:ok, db_name}
+      {:error, %Postgrex.Error{postgres: %{code: :duplicate_database}}} ->
+        Logger.info("Database #{db_name} exists, attempting reset...")
+        case reset_existing_database(db_name, state) do
+          :ok -> {:ok, db_name}
+          error -> error
+        end
+      error -> error
+    end
+  end
+
+  defp reset_existing_database(db_name, %{admin_conn: conn}) do
+    # First terminate all connections to the database
+    terminate_query = """
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE datname = $1 AND pid <> pg_backend_pid();
+    """
+
+    case Postgrex.query(conn, terminate_query, [db_name], timeout: DatabaseConfig.timeouts()[:operation_timeout]) do
+      {:ok, _} ->
+        Logger.debug("Terminated existing connections to #{db_name}")
+        :ok
+      {:error, reason} ->
+        Logger.warning("Failed to terminate connections to #{db_name}: #{inspect(reason)}")
+        :ok  # Continue anyway, as some connections might not be terminatable
+    end
+
+    # Give connections time to close
+    Process.sleep(100)
+
+    :ok
+  end
+
+  defp stop_existing_repos do
+    repos = [
+      GameBot.Infrastructure.Persistence.Repo,
+      GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+      GameBot.Infrastructure.Persistence.Repo.Postgres
+    ]
+
+    Enum.each(repos, fn repo ->
+      case Process.whereis(repo) do
+        nil -> :ok
+        pid ->
+          try do
+            repo.stop()
+            # Wait for it to actually stop
+            ref = Process.monitor(pid)
+            receive do
+              {:DOWN, ^ref, :process, ^pid, _} -> :ok
+            after
+              1000 ->
+                Process.exit(pid, :kill)
+                :ok
+            end
+          rescue
+            _ -> :ok
+          end
+      end
+    end)
+
+    # Also stop the event store if it's running
+    if Process.whereis(GameBot.Test.EventStoreCore) do
+      try do
+        GameBot.Test.EventStoreCore.reset()
+      catch
+        _, _ -> :ok
+      end
     end
   end
 
   defp start_repo(repo, config) do
+    # Ensure the repo is stopped first
+    try do
+      repo.stop()
+    catch
+      _, _ -> :ok
+    end
+
+    # Wait a moment for the repo to fully stop
+    Process.sleep(100)
+
+    # Now start it with the new config
     case repo.start_link(config) do
       {:ok, pid} -> {:ok, pid}
       {:error, {:already_started, pid}} -> {:ok, pid}
+      error -> error
+    end
+  end
+
+  defp start_event_store do
+    # Configure and start the event store
+    Application.put_env(:game_bot, :event_store_adapter, GameBot.Test.EventStoreCore)
+
+    # First try to reset any existing store
+    if Process.whereis(GameBot.Test.EventStoreCore) do
+      try do
+        GameBot.Test.EventStoreCore.reset()
+        Process.sleep(100) # Give it time to reset
+      catch
+        _, _ -> :ok
+      end
+    end
+
+    # Now start or restart the store
+    case GameBot.Test.EventStoreCore.start_link() do
+      {:ok, pid} ->
+        Process.sleep(100) # Give it time to initialize
+        {:ok, pid}
+      {:error, {:already_started, pid}} ->
+        # Reset the store and continue
+        GameBot.Test.EventStoreCore.reset()
+        Process.sleep(100)
+        {:ok, pid}
       error -> error
     end
   end
