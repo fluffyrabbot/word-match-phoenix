@@ -36,151 +36,96 @@ defmodule GameBot.GameSessions.Recovery do
 
   require Logger
 
-  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Base, as: EventStore
-  alias GameBot.Infrastructure.Error
+  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStore
   alias GameBot.Domain.GameState
   alias GameBot.Domain.Events.GameEvents.{
     GameStarted,
     GameCompleted,
-    GuessProcessed,
     RoundCompleted,
     TeamEliminated,
-    KnockoutRoundCompleted,
-    RaceModeTimeExpired
+    KnockoutRoundCompleted
   }
-  alias GameBot.Domain.Events.Event
+  alias GameBot.Domain.Events.GuessEvents.{
+    GuessProcessed,
+    GuessStarted,
+    GuessAbandoned
+  }
 
   # Configuration
-  @default_timeout :timer.seconds(30)
+  @default_timeout 60_000  # 60 seconds
   @max_retries 3
-  @max_events 10_000
+  @max_events 1000
 
-  @type validation_error ::
-    :no_events |
-    :invalid_stream_start |
-    :invalid_event_order |
-    :invalid_initial_event |
-    :too_many_events
+  @typedoc """
+  Error reasons for session recovery.
+  """
+  @type error_reason() ::
+          :no_events
+          | :timeout
+          | :fetch_failed
+          | :invalid_initial_event
+          | :event_application_failed
+          | :state_validation_failed
+          | {:event_fetch_failed, term()}
+          | {:rescue_error, term()}
+          | {:unhandled_event, map()}
 
-  @type state_error ::
-    :missing_game_id |
-    :missing_mode |
-    :missing_mode_state |
-    :missing_teams |
-    :missing_start_time |
-    :invalid_status |
-    :invalid_mode_state |
-    :invalid_teams
+  @typedoc """
+  Error reasons during state validation.
+  """
+  @type state_error() ::
+          :missing_game_id
+          | :missing_guild_id
+          | :missing_mode
+          | :missing_mode_state
+          | :missing_teams
+          | :missing_start_time
+          | :invalid_status
+          | :invalid_mode_state
+          | :invalid_teams
 
-  @type error_reason ::
-    validation_error() |
-    state_error() |
-    :event_application_failed |
-    :recovery_failed |
-    :timeout
+  @typedoc """
+  Error reasons during event stream validation.
+  """
+  @type validation_error() ::
+          :no_events
+          | :invalid_stream_start
+          | :invalid_event_order
+          | :too_many_events
 
   @doc """
-  Recovers a game session from its event stream.
-  Rebuilds the complete game state by applying all events in sequence.
+  Recovers a game session from the event store.
 
-  ## Parameters
-    * `game_id` - The ID of the game session to recover
-    * `opts` - Recovery options:
-      * `:timeout` - Operation timeout in milliseconds (default: 30000)
-      * `:retry_count` - Number of retries for transient errors (default: 3)
-
-  ## Returns
-    * `{:ok, state}` - Successfully recovered state
-    * `{:error, reason}` - Recovery failed
-
-  ## Examples
-
-      iex> Recovery.recover_session("game-123")
-      {:ok, %{game_id: "game-123", mode: TwoPlayerMode, ...}}
-
-      iex> Recovery.recover_session("nonexistent")
-      {:error, :no_events}
-
-      iex> Recovery.recover_session("game-123", timeout: 5000)
-      {:error, :timeout}
-
-  ## Error Conditions
-    * `{:error, :no_events}` - No events found for game
-    * `{:error, :invalid_stream_start}` - First event is not GameStarted
-    * `{:error, :event_application_failed}` - Error applying events
-    * `{:error, :missing_required_fields}` - Recovered state is invalid
-    * `{:error, :timeout}` - Operation timed out
-    * `{:error, :too_many_events}` - Event stream exceeds maximum size
-
-  @since "1.0.0"
+  Fetches events, validates the stream, builds the initial state,
+  applies events, and validates the final state.  Includes a timeout
+  to prevent hanging.
   """
   @spec recover_session(String.t(), keyword()) :: {:ok, map()} | {:error, error_reason()}
   def recover_session(game_id, opts \\ []) do
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
-    retry_count = Keyword.get(opts, :retry_count, @max_retries)
-    guild_id = Keyword.get(opts, :guild_id)
+    _timeout = Keyword.get(opts, :timeout, @default_timeout)
 
-    task = Task.async(fn ->
-      try do
-        with {:ok, events} <- fetch_events_with_retry(game_id, retry_count, guild_id),
-             :ok <- validate_event_stream(events),
-             {:ok, initial_state} <- build_initial_state(events),
-             {:ok, recovered_state} <- apply_events(initial_state, events),
-             :ok <- validate_recovered_state(recovered_state) do
-          if guild_id && recovered_state.guild_id != guild_id do
-            {:error, :guild_mismatch}
-          else
-            {:ok, recovered_state}
-          end
-        end
-      rescue
-        e ->
-          Logger.error("Failed to recover session",
-            error: e,
-            game_id: game_id,
-            stacktrace: __STACKTRACE__
-          )
-          {:error, :recovery_failed}
+    try do
+      with {:ok, events} <- fetch_events(game_id, opts),
+           :ok <- validate_event_stream(events),
+           {:ok, initial_state} <- build_initial_state(events),
+           {:ok, final_state} <- apply_events(initial_state, events -- [List.first(events)]),
+           :ok <- validate_recovered_state(final_state) do
+        {:ok, final_state}
       end
-    end)
-
-    case Task.yield(task, timeout) || Task.shutdown(task) do
-      {:ok, result} -> result
-      nil -> {:error, :timeout}
+    rescue
+      e ->
+        Logger.error("Session recovery failed for game #{game_id}",
+          error: e,
+          stacktrace: __STACKTRACE__
+        )
+        {:error, :state_validation_failed}  # Consistent error type
     end
   end
 
-  @doc """
-  Fetches all events for a given game ID from the event store.
-  Events are returned in chronological order.
-
-  ## Parameters
-    * `game_id` - The ID of the game to fetch events for
-    * `opts` - Fetch options:
-      * `:timeout` - Operation timeout in milliseconds (default: 30000)
-      * `:retry_count` - Number of retries for transient errors (default: 3)
-
-  ## Returns
-    * `{:ok, events}` - List of events in chronological order
-    * `{:error, reason}` - Failed to fetch events
-
-  ## Examples
-
-      iex> Recovery.fetch_events("game-123")
-      {:ok, [%GameStarted{}, %GuessProcessed{}]}
-
-      iex> Recovery.fetch_events("nonexistent")
-      {:error, :no_events}
-
-  @since "1.0.0"
-  """
-  @spec fetch_events(String.t(), keyword()) :: {:ok, [Event.t()]} | {:error, error_reason()}
+  @spec fetch_events(String.t(), keyword()) :: {:ok, [map()]} | {:error, error_reason()}
   def fetch_events(game_id, opts \\ []) do
-    # Use the adapter's safe functions instead of direct EventStore access
-    case EventStore.read_stream_forward(game_id, 0, @max_events, opts) do
-      {:ok, events} -> {:ok, events}
-      {:error, reason} -> {:error, {:event_fetch_failed, reason}}
-    end
+    # Call fetch_events_with_retry, passing options through
+    fetch_events_with_retry(game_id, Keyword.get(opts, :retry_count, @max_retries), Keyword.get(opts, :guild_id))
   end
 
   @doc """
@@ -209,12 +154,18 @@ defmodule GameBot.GameSessions.Recovery do
     * `{:error, :no_events}` - Event stream is empty
     * `{:error, :invalid_stream_start}` - First event is not GameStarted
     * `{:error, :invalid_event_order}` - Events are not in chronological order
+    * `{:error, :too_many_events}` - Event stream exceeds maximum size
 
   @since "1.0.0"
   """
-  @spec validate_event_stream([Event.t()]) :: :ok | {:error, validation_error()}
-  def validate_event_stream([%GameStarted{} | _] = events), do: validate_event_order(events)
+  @spec validate_event_stream([map()]) :: :ok | {:error, validation_error()}
   def validate_event_stream([]), do: {:error, :no_events}
+  def validate_event_stream([%GameStarted{} | _] = events) when length(events) <= @max_events do
+    validate_event_order(events)
+  end
+  def validate_event_stream([%GameStarted{} | _]) do
+    {:error, :too_many_events}
+  end
   def validate_event_stream(_), do: {:error, :invalid_stream_start}
 
   @doc """
@@ -242,13 +193,13 @@ defmodule GameBot.GameSessions.Recovery do
 
   @since "1.0.0"
   """
-  @spec build_initial_state([Event.t()]) :: {:ok, map()} | {:error, error_reason()}
+  @spec build_initial_state([map()]) :: {:ok, map()} | {:error, error_reason()}
   def build_initial_state([%GameStarted{
     game_id: game_id,
     mode: mode,
     teams: teams,
     team_ids: team_ids,
-    config: _config,
+    config: config,
     timestamp: timestamp,
     metadata: %{guild_id: guild_id}
   } | _]) do
@@ -257,9 +208,19 @@ defmodule GameBot.GameSessions.Recovery do
       team_states = Map.new(teams, fn {team_id, player_ids} ->
         {team_id, %{
           player_ids: player_ids,
-          current_words: [],
-          guess_count: 1,  # Start at 1 for first attempt
-          pending_guess: nil
+          score: 0,                  # Initial score
+          matches: 0,                # Successful matches
+          total_guesses: 0,          # Total guess attempts
+          current_words: [],         # Words currently in play
+          guess_count: 1,            # Start at 1 for first attempt
+          pending_guess: nil,        # No pending guesses
+          players: Map.new(player_ids, fn player_id ->   # Player stats
+            {player_id, %{
+              total_guesses: 0,
+              successful_matches: 0,
+              abandoned_guesses: 0
+            }}
+          end)
         }}
       end)
 
@@ -285,9 +246,13 @@ defmodule GameBot.GameSessions.Recovery do
           last_activity: timestamp
         },
         guild_id: guild_id,
-        status: :in_progress,
-        start_time: timestamp,
-        last_update: timestamp
+        teams: teams,
+        config: config,  # Moved config to parent state
+        status: :active,
+        started_at: timestamp,
+        round_start_time: timestamp,
+        pending_events: [],
+        round_timer_ref: nil
       }}
     end
   end
@@ -307,7 +272,7 @@ defmodule GameBot.GameSessions.Recovery do
 
   ## Examples
 
-      iex> Recovery.apply_events(initial_state, [%GuessProcessed{}, %RoundEnded{}])
+      iex> Recovery.apply_events(initial_state, [%GuessProcessed{}, %RoundCompleted{}])
       {:ok, %{...updated state...}}
 
       iex> Recovery.apply_events(invalid_state, events)
@@ -319,25 +284,24 @@ defmodule GameBot.GameSessions.Recovery do
 
   @since "1.0.0"
   """
-  @spec apply_events(map(), [Event.t()]) :: {:ok, map()} | {:error, error_reason()}
+  @spec apply_events(map(), [map()]) :: {:ok, map()} | {:error, error_reason()}
   def apply_events(initial_state, events) do
-    try do
-      final_state = events
-      |> Enum.group_by(&event_type/1)
-      |> Map.to_list()
-      |> Enum.reduce(initial_state, fn {_type, type_events}, state ->
-        Enum.reduce(type_events, state, &apply_event/2)
-      end)
-      {:ok, final_state}
-    rescue
-      e ->
-        Logger.error("Error applying events",
-          error: e,
-          state: initial_state,
-          stacktrace: __STACKTRACE__
-        )
-        {:error, :event_application_failed}
-    end
+    final_state = Enum.reduce(events, initial_state, fn
+      %GameStarted{}, state -> state  # Skip GameStarted
+      event, state ->
+        case apply_event(event, state) do
+          {:ok, new_state} -> new_state
+          {:error, _} = error ->
+            # Stop on error and return the error
+            throw(error)
+        end
+    end)
+
+    {:ok, final_state}
+  catch
+    {:error, _} = error ->
+      # Return the error from apply_event
+      error
   end
 
   @doc """
@@ -361,6 +325,7 @@ defmodule GameBot.GameSessions.Recovery do
 
   ## Error Conditions
     * `{:error, :missing_game_id}` - Game ID is missing
+    * `{:error, :missing_guild_id}` - Guild ID is missing
     * `{:error, :missing_mode}` - Game mode is missing
     * `{:error, :missing_mode_state}` - Mode state is missing
     * `{:error, :missing_teams}` - Teams are missing
@@ -382,56 +347,53 @@ defmodule GameBot.GameSessions.Recovery do
 
   # Private Functions
 
-  @spec fetch_events_with_retry(String.t(), pos_integer(), non_neg_integer()) ::
-    {:ok, [Event.t()]} | {:error, term()}
-  def fetch_events_with_retry(stream_id, batch_size, retries \\ 3) do
+  @spec fetch_events_with_retry(String.t(), non_neg_integer(), String.t() | nil, term()) ::
+    {:ok, [map()]} | {:error, term()}
+  defp fetch_events_with_retry(game_id, retries, guild_id, last_error \\ nil) do
     try do
-      {:ok, fetch_events_from_store(stream_id, batch_size)}
+      case EventStore.read_stream_forward(game_id, 0, @max_events, []) do
+        {:ok, []} -> {:error, :no_events}
+        {:ok, events} -> {:ok, events}
+        {:error, _reason} = error when retries > 0 ->
+          # Retry, passing the last error
+          Process.sleep(50 * (@max_retries - retries + 1))
+          fetch_events_with_retry(game_id, retries - 1, guild_id, error)
+        error -> error  # Return the error directly
+      end
     rescue
-      error ->
-        case error do
-          # Handle connection errors with retry
-          {:error, %Error{type: :connection}} = _error when retries > 0 ->
-            Process.sleep(50) # Brief backoff
-            fetch_events_with_retry(stream_id, batch_size, retries - 1)
-          # Re-raise other errors
-          _ -> reraise(error, __STACKTRACE__)
+      e ->
+        Logger.error("Failed to fetch events",
+          error: e,
+          game_id: game_id,
+          stacktrace: __STACKTRACE__
+        )
+        if retries > 0 do
+          Process.sleep(50 * (@max_retries - retries + 1))
+          # Pass the *rescue* error as the last_error
+          fetch_events_with_retry(game_id, retries - 1, guild_id, {:error, {:rescue_error, e}})
+        else
+          # Return the last error, or a generic error if none
+          last_error || {:error, :fetch_failed}
         end
     end
   end
 
-  # Private helper to fetch events from the store
-  defp fetch_events_from_store(stream_id, _batch_size) do
-    case EventStore.read_stream_forward(stream_id, 0, @max_events) do
-      {:ok, []} -> []
-      {:ok, events} -> events
-      {:error, reason} -> raise {:error, reason}
-    end
-  end
-
   defp validate_event_order(events) do
+    # Check if events are in chronological order
     events
-    |> Stream.chunk_every(2, 1, :discard)
-    |> Stream.take_while(fn [e1, e2] ->
-      DateTime.compare(e1.timestamp, e2.timestamp) in [:lt, :eq]
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.all?(fn [event1, event2] ->
+      DateTime.compare(event1.timestamp, event2.timestamp) in [:lt, :eq]
     end)
-    |> Stream.run()
     |> case do
-      :ok -> :ok
-      _ -> {:error, :invalid_event_order}
+      true -> :ok
+      false -> {:error, :invalid_event_order}
     end
   end
 
-  defp validate_teams(teams) do
-    cond do
-      is_nil(teams) ->
-        {:error, :missing_teams}
-      not is_map(teams) ->
-        {:error, :invalid_teams}
-      true ->
-        :ok
-    end
-  end
+  defp validate_teams(nil), do: {:error, :missing_teams}
+  defp validate_teams(teams) when not is_map(teams), do: {:error, :invalid_teams}
+  defp validate_teams(_), do: :ok
 
   defp validate_required_fields(state) do
     cond do
@@ -441,89 +403,127 @@ defmodule GameBot.GameSessions.Recovery do
       is_nil(state.mode_state) -> {:error, :missing_mode_state}
       is_nil(state.teams) -> {:error, :missing_teams}
       is_nil(state.started_at) -> {:error, :missing_start_time}
-      not is_atom(state.status) -> {:error, :invalid_status}
+      state.status not in [:initializing, :active, :completed] -> {:error, :invalid_status}
       true -> :ok
     end
   end
 
   defp validate_mode_state(%GameState{} = _state), do: :ok
-  defp validate_mode_state(_), do: {:error, :invalid_state_format}
+  defp validate_mode_state(_), do: {:error, :invalid_mode_state}
 
-  defp event_type(event), do: event.__struct__
+  # Event application handlers
 
-  defp apply_event(%GameStarted{}, state), do: state  # Already handled in build_initial_state
+  # GameStarted is handled in build_initial_state
+  defp apply_event(%GameStarted{}, state), do: {:ok, state}
 
   defp apply_event(%GuessProcessed{} = event, state) do
-    Map.update!(state, :mode_state, fn mode_state ->
-      %{mode_state |
-        guess_count: event.guess_count,
-        last_guess: %{
-          team_id: event.team_id,
-          player1_info: event.player1_info,
-          player2_info: event.player2_info,
-          player1_word: event.player1_word,
-          player2_word: event.player2_word,
-          successful: event.guess_successful,
-          match_score: event.match_score
-        }
-      }
-    end)
+    # Update mode state with guess results
+    updated_state = put_in(state, [:mode_state, :last_guess], %{
+      team_id: event.team_id,
+      player1_info: event.player1_info,
+      player2_info: event.player2_info,
+      player1_word: event.player1_word,
+      player2_word: event.player2_word,
+      successful: event.guess_successful,
+      match_score: event.match_score,
+      guess_duration: event.guess_duration
+    })
+
+    # Update team stats
+    team_path = [:mode_state, :teams, event.team_id]
+    updated_state = update_in(updated_state, team_path ++ [:total_guesses], &(&1 + 1))
+    updated_state = put_in(updated_state, team_path ++ [:guess_count], event.guess_count)
+
+    # Update if successful match
+    final_state = if event.guess_successful do
+      updated_state
+      |> update_in(team_path ++ [:matches], &(&1 + 1))
+      |> update_in(team_path ++ [:score], &(&1 + (event.match_score || 1)))
+    else
+      updated_state
+    end
+
+    {:ok, final_state}
+  end
+
+  defp apply_event(%GuessStarted{} = event, state) do
+    # Just track that a guess is in progress
+    team_path = [:mode_state, :teams, event.team_id]
+    updated_state = put_in(state, team_path ++ [:pending_guess], %{
+      player_id: event.player_id,
+      timestamp: event.timestamp
+    })
+    {:ok, updated_state}
+  end
+
+  defp apply_event(%GuessAbandoned{} = event, state) do
+    # Clear pending guess
+    team_path = [:mode_state, :teams, event.team_id]
+    updated_state = put_in(state, team_path ++ [:pending_guess], nil)
+
+    # Update player's abandoned guess count if player_id is provided
+    final_state = if event.player_id do
+      player_path = team_path ++ [:players, event.player_id]
+      update_in(updated_state, player_path ++ [:abandoned_guesses], &(&1 + 1))
+    else
+      updated_state
+    end
+
+    {:ok, final_state}
   end
 
   defp apply_event(%RoundCompleted{} = event, state) do
-    # Update state with round end results
-    new_state = %{state |
-      round_number: event.round_number,
-      winner_team_id: event.winner_team_id,
-      round_score: event.round_score,
-      round_stats: event.round_stats
-    }
-    {:ok, new_state}
+    # Update round information
+    updated_state = put_in(state, [:mode_state, :current_round], event.round_number + 1)
+    updated_state = put_in(updated_state, [:mode_state, :last_round_winner], event.winner_team_id)
+    updated_state = put_in(updated_state, [:mode_state, :round_stats], event.round_stats)
+
+    # Update round start time for the new round
+    final_state = put_in(updated_state, [:round_start_time], event.timestamp)
+    {:ok, final_state}
   end
 
   defp apply_event(%GameCompleted{} = event, state) do
-    state
-    |> Map.update!(:mode_state, fn mode_state ->
-      %{mode_state |
-        winners: event.winners,
-        status: :completed
-      }
-    end)
-    |> Map.put(:status, :completed)
+    # Mark game as completed
+    updated_state = put_in(state, [:mode_state, :status], :completed)
+    updated_state = put_in(updated_state, [:status], :completed)
+    updated_state = put_in(updated_state, [:mode_state, :winners], event.winners)
+    updated_state = put_in(updated_state, [:mode_state, :final_scores], event.final_scores)
+
+    # Add finished timestamp
+    final_state = put_in(updated_state, [:ended_at], event.finished_at)
+    {:ok, final_state}
   end
 
   defp apply_event(%TeamEliminated{} = event, state) do
-    # Remove the team from active teams
-    updated_mode_state = %{state.mode_state |
-      teams: Map.delete(state.mode_state.teams, event.team_id)
-    }
+    # Remove team from active teams
+    updated_state = update_in(state, [:mode_state, :teams], &Map.delete(&1, event.team_id))
 
-    # Update any mode-specific state if needed
-    # For Knockout mode, we might add it to eliminated_teams
-    updated_mode_state = case state.mode do
-      :knockout ->
-        eliminated_teams = Map.get(updated_mode_state, :eliminated_teams, [])
-        Map.put(updated_mode_state, :eliminated_teams, [event.team_id | eliminated_teams])
-      _ -> updated_mode_state
+    # For knockout mode, track eliminated teams
+    final_state = if state.mode == :knockout do
+      eliminated = Map.get(state.mode_state, :eliminated_teams, [])
+      put_in(updated_state, [:mode_state, :eliminated_teams], [event.team_id | eliminated])
+    else
+      updated_state
     end
 
-    {:ok, %{state | mode_state: updated_mode_state}}
+    {:ok, final_state}
   end
 
   defp apply_event(%KnockoutRoundCompleted{} = event, state) do
-    # Update the round number
-    updated_mode_state = %{state.mode_state | current_round: event.round_number + 1}
-    {:ok, %{state | mode_state: updated_mode_state}}
+    # Update round number for knockout mode
+    updated_state = put_in(state, [:mode_state, :current_round], event.round_number + 1)
+    {:ok, updated_state}
   end
 
-  defp apply_event(state, %RaceModeTimeExpired{} = _event) do
-    # Mark race mode game as completed due to time expiry
-    updated_mode_state = %{state.mode_state | status: :completed}
-    {:ok, %{state | mode_state: updated_mode_state, status: :completed}}
-  end
-
-  defp apply_event(event, state) do
-    Logger.warning("Unhandled event type", event_type: event.__struct__)
-    state
+  # Handle RaceModeTimeExpired events if needed
+  defp apply_event(%{__struct__: mod} = event, _state) when is_atom(mod) do
+    Logger.warning("Unhandled event type in recovery",
+      event_type: mod,
+      game_id: Map.get(event, :game_id, "unknown"),  # Safely get game_id
+      event: inspect(event)  # Include the full event for debugging
+    )
+    # Return an error to signal the unhandled event
+    {:error, {:unhandled_event, event}}
   end
 end

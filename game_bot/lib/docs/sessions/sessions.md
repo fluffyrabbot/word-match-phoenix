@@ -25,6 +25,7 @@ Manages individual game sessions with the following responsibilities:
   mode_state: GameState.t(),   # Current game state
   teams: %{String.t() => team_state()},  # Team states
   started_at: DateTime.t(),    # Session start timestamp
+  round_start_time: DateTime.t(), # Timestamp when current round started
   status: :initializing | :active | :completed,  # Current session status
   guild_id: String.t(),        # Discord server ID
   round_timer_ref: reference() | nil,  # Reference to round check timer
@@ -57,13 +58,28 @@ The session integrates with the event store for:
    - Error events
    - Game completion events
 
-2. **Event Persistence**:
+2. **Event Persistence with Retry**:
    ```elixir
-   # Event persistence flow
-   generate_events()    # From game actions
-   -> collect_events()  # Accumulate related events
-   -> persist_events()  # Store in event store
-   -> update_state()    # Apply event effects
+   # Event persistence flow with exponential backoff retry
+   defp persist_events(events, state, retries) when retries > 0 do
+     case EventStore.append_to_stream(state.game_id, :any_version, events, []) do
+       :ok -> :ok
+       
+       # Retry on transient failures with exponential backoff
+       {:error, reason} 
+       when reason == :connection_timeout or
+              reason == :database_unavailable or
+              reason == :timeout or
+              (is_tuple(reason) and elem(reason, 0) == :shutdown) and retries > 1 ->
+         delay = trunc(:math.pow(2, (3 - retries)) * 50) # 50ms -> 100ms -> 200ms
+         Process.sleep(delay)
+         persist_events(events, state, retries - 1)
+
+       # Permanent failure
+       {:error, reason} ->
+         {:error, reason}
+     end
+   end
    ```
 
 3. **Event Types**:
@@ -73,7 +89,9 @@ The session integrates with the event store for:
    GuessProcessed     # Guess handling
    GuessFailed        # Failed match
    GuessError         # Validation errors
+   GuessPairError     # Errors processing a pair
    RoundEnded         # Round completion
+   RoundCheckError    # Errors checking round state
    GameCompleted      # Game finish
    ```
 
@@ -82,17 +100,23 @@ The session integrates with the event store for:
 1. **Game Mode Integration**
    ```elixir
    # Mode callbacks now return events
-   @callback init(game_id, config) :: 
+   @callback init(game_id, teams, config) :: 
      {:ok, state, [Event.t()]} | {:error, term()}
    
    @callback process_guess_pair(state, team_id, guess_pair) :: 
      {:ok, new_state, [Event.t()]} | {:error, term()}
    
    @callback check_round_end(state) :: 
-     {:round_end, winners, [Event.t()]} | :continue
+     {:round_end, winners, [Event.t()]} | :continue | {:error, term()}
    
    @callback check_game_end(state) :: 
      {:game_end, winners, [Event.t()]} | :continue
+     
+   @callback update_round_results(state, winners) ::
+     {:ok, new_state, [Event.t()]} | {:error, term()}
+     
+   @callback start_new_round(state) ::
+     {:ok, new_state, [Event.t()]} | {:error, term()}
    ```
 
 2. **Event Flow**
@@ -100,28 +124,28 @@ The session integrates with the event store for:
    # Event handling flow
    handle_action()
    -> generate_events()
-   -> persist_events()
+   -> persist_events()  # With retry mechanism
    -> update_state()
    -> respond()
    ```
 
-3. **Word Processing**
+3. **Word Processing with Timing**
    ```elixir
-   # Enhanced guess validation flow
+   # Enhanced guess validation flow with timing information
    validate_guess(word, player_id, state)
-   -> find_player_team()           # Locate player's team
-   -> check_existing_submission()  # Prevent duplicate guesses
-   -> validate_word()             # Check word validity
-   -> check_forbidden()           # Check forbidden status
-   -> record_guess()             # Store in pending state
-   -> process_guess_pair()       # If pair complete
-   -> generate_result_event()    # Create appropriate event
-   -> persist_events()           # Save to event store
+   -> find_player_team()            # Locate player's team
+   -> check_existing_submission()   # Prevent duplicate guesses
+   -> validate_word()               # Check word validity
+   -> check_forbidden()             # Check forbidden status
+   -> record_guess_with_timestamp() # Store in pending state with timing
+   -> process_guess_pair()          # If pair complete
+   -> generate_result_event()       # Create appropriate event
+   -> persist_events()              # Save to event store with retry
    ```
 
 ### Guess State Management
 
-The session now implements a robust guess handling system with the following features:
+The session implements a robust guess handling system with the following features:
 
 1. **Guess Validation Hierarchy**
    - Team membership verification
@@ -129,282 +153,270 @@ The session now implements a robust guess handling system with the following fea
    - Word validity checking
    - Forbidden word validation
    - Special command handling (e.g., "give up")
+   - Guild context validation
 
-2. **Pending Guess States**
+2. **Pending Guess States with Timing**
    ```elixir
    # First guess of a pair
    %{
      player_id: String.t(),
      word: String.t(),
-     timestamp: DateTime.t()
+     timestamp: DateTime.t()  # Actual submission time
    }
 
-   # Complete guess pair
+   # Complete guess pair with timing information
    %{
      player1_id: String.t(),
      player2_id: String.t(),
      player1_word: String.t(),
-     player2_word: String.t()
+     player2_word: String.t(),
+     player1_timestamp: DateTime.t(),
+     player2_timestamp: DateTime.t(),
+     player1_duration: integer(),  # Milliseconds from round start
+     player2_duration: integer()   # Milliseconds from round start
    }
    ```
 
-3. **Error Handling**
+3. **Error Handling with Error Events**
    - `:guess_already_submitted` - Player already has an active guess
-   - `:invalid_word` - Word not in dictionary
+   - `:invalid_word` - Word not in dictionary or empty
    - `:forbidden_word` - Word is forbidden for the player
-   - `:invalid_team` - Player not in a valid team
-   - `:invalid_player` - Player not authorized for team
-   - `:same_player` - Same player submitting both guesses
+   - `:not_in_guild` - Player not in the correct guild
+   - `:player_not_in_game` - Player not authorized for team
+   - `GuessError`, `GuessPairError`, `RoundCheckError` events capture failure details
 
-### Edge Cases and Recommended Improvements
+### Round Management
 
-1. **Out-of-Window Guesses**
+The session implements automatic round management:
+
+1. **Round Checking**
    ```elixir
-   # Recommended validation in validate_guess/3
-   defp validate_guess(word, player_id, state) do
-     cond do
-       not is_active_game?(state) ->
-         {:error, :game_not_active}
-       
-       not in_guess_window?(state, player_id) ->
-         {:error, :not_guess_window}
-         
-       # ... existing validation ...
+   # Periodic round checks
+   @round_check_interval :timer.seconds(5)  # Check every 5 seconds
+   
+   defp schedule_round_check(state) do
+     if state.round_timer_ref, do: Process.cancel_timer(state.round_timer_ref)
+     Process.send_after(self(), :check_round_status, @round_check_interval)
+   end
+   ```
+
+2. **Round Transitions**
+   ```elixir
+   # Flow for round transitions
+   check_round_end()
+   -> {:round_end, winners, events}
+   -> update_round_results()        # Update scores and stats
+   -> persist_events()
+   -> check_game_end()              # Check if game should end
+   -> start_new_round()             # If game continues
+   -> reset_round_start_time()      # Track new round timing
+   ```
+
+3. **Timing-aware State Tracking**
+   - `round_start_time` tracks when each round begins
+   - Guess durations are calculated relative to round start
+   - Timestamps are captured at each submission for precise timing
+
+### Game Completion
+
+1. **Game End Conditions**
+   ```elixir
+   # Game completion flow
+   check_game_end()
+   -> {:game_end, winners, events}
+   -> compute_final_scores()      # Generate detailed stats
+   -> create_game_completed()     # Create GameCompleted event
+   -> persist_events()            # Persist final events
+   -> unregister_players()        # Clean up player registrations
+   -> update_status(:completed)   # Mark session as complete
+   ```
+
+2. **Score Computation**
+   ```elixir
+   # Detailed final score calculation
+   defp compute_final_scores(state) do
+     Enum.into(state.teams, %{}, fn {team_id, team_state} ->
+       {team_id, %{
+         score: team_state.score,
+         matches: team_state.matches,
+         total_guesses: team_state.total_guesses,
+         average_guesses: compute_average_guesses(team_state),
+         player_stats: compute_player_stats(team_state)
+       }}
+     end)
+   end
+   ```
+
+### Player Management
+
+1. **Active Game Registration**
+   ```elixir
+   # Register players in the active games ETS table
+   defp register_players(%{teams: teams, game_id: game_id}) do
+     for {_team_id, %{player_ids: player_ids}} <- teams,
+         player_id <- player_ids,
+         CommandHandler.get_active_game(player_id, game_id) == nil do
+       CommandHandler.set_active_game(player_id, game_id, game_id)
+     end
+   end
+   
+   # Unregister on game completion or termination
+   defp unregister_players(%{teams: teams, game_id: game_id}) do
+     for {_team_id, %{player_ids: player_ids}} <- teams,
+         player_id <- player_ids do
+       CommandHandler.clear_active_game(player_id, game_id)
      end
    end
    ```
 
-2. **Guess Window Management**
+### Edge Cases and Error Handling
+
+1. **Event Persistence Retry**
+   - Exponential backoff for transient failures (50ms -> 100ms -> 200ms)
+   - Distinguishes between retryable and permanent failures
+   - Maximum 3 retry attempts for database connectivity issues
+   - Graceful degradation on permanent failures
+
+2. **Process Lifecycle Management**
    ```elixir
-   # Proposed guess window tracking
-   %{
-     game_id: String.t(),
-     # ... existing state ...
-     guess_windows: %{
-       team_id => %{
-         active: boolean(),
-         starts_at: DateTime.t(),
-         expires_at: DateTime.t() | nil
-       }
-     }
-   }
+   # Proper cleanup on termination
+   def terminate(_reason, state) do
+     # Cancel any pending timers
+     if state.round_timer_ref, do: Process.cancel_timer(state.round_timer_ref)
+     
+     # Clean up player registrations
+     unregister_players(state)
+     :ok
+   end
    ```
 
-3. **Rate Limiting**
+3. **Guild Context Validation**
    ```elixir
-   # Recommended rate limiting structure
-   %{
-     player_guesses: %{
-       player_id => %{
-         last_guess: DateTime.t(),
-         guess_count: integer()
-       }
-     },
-     rate_limit: %{
-       window_seconds: integer(),
-       max_guesses: integer()
-     }
-   }
+   # Ensure player belongs to the correct guild
+   defp validate_guild_context(_word, player_id, %{guild_id: guild_id} = _state) do
+     if player_in_guild?(player_id, guild_id) do
+       :ok
+     else
+       {:error, :not_in_guild}
+     end
+   end
    ```
-
-4. **Cleanup Recommendations**
-   - Implement periodic cleanup of stale pending guesses
-   - Add timeout for incomplete guess pairs
-   - Clear player guess history on round transitions
-   - Handle disconnected player scenarios
-
-5. **Additional Validations**
-   - Maximum word length checks
-   - Minimum word length requirements
-   - Character set validation
-   - Language detection
-   - Profanity filtering
-   - Spam detection
 
 ### Architectural Validation Layers
 
-1. **Discord Listener Layer** (`GameBot.Bot.Listener`)
-   ```elixir
-   # First line of defense
-   def handle_message(msg) do
-     with :ok <- validate_rate_limit(msg.author_id),
-          :ok <- validate_message_format(msg.content),
-          :ok <- basic_spam_check(msg) do
-       forward_to_dispatcher(msg)
-     end
-   end
-   ```
-   Responsibilities:
-   - Rate limiting
-   - Basic message validation
-   - Spam detection
-   - Character set validation
-   - Message length checks
-   - Profanity filtering
+The session implements a multi-layered validation approach:
 
-2. **Command Dispatcher** (`GameBot.Bot.Dispatcher`)
-   ```elixir
-   # Command routing and game state checks
-   def dispatch_command(msg) do
-     with {:ok, game_id} <- lookup_active_game(msg.author_id),
-          {:ok, game_state} <- verify_game_active(game_id),
-          {:ok, command} <- parse_command(msg.content) do
-       route_to_handler(command, game_state)
-     end
-   end
-   ```
-   Responsibilities:
-   - Command parsing
-   - Game existence validation
-   - Basic game state checks
-   - Player registration verification
+1. **Initial Command Validation**
+   - Word validity (non-empty, in dictionary)
+   - Player authorization (in guild, in team)
+   - Duplicate guess detection
 
-3. **Command Handler** (`GameBot.Bot.CommandHandler`)
-   ```elixir
-   # Game-specific command validation
-   def handle_guess(game_id, player_id, word) do
-     with {:ok, game} <- fetch_game(game_id),
-          :ok <- validate_player_in_game(game, player_id),
-          :ok <- validate_game_phase(game),
-          :ok <- validate_guess_window(game, player_id) do
-       forward_to_session(game_id, player_id, word)
-     end
-   end
-   ```
-   Responsibilities:
-   - Game phase validation
-   - Player participation checks
-   - Guess window validation
-   - Basic game rule enforcement
+2. **Game State Validation**
+   - Current game status checks
+   - Round timing validation
+   - Team membership verification
 
-4. **Session Layer** (`GameBot.GameSessions.Session`)
-   ```elixir
-   # Game state and rule enforcement
-   def submit_guess(game_id, team_id, player_id, word) do
-     with :ok <- validate_game_rules(state, team_id, player_id),
-          :ok <- validate_no_duplicate_guess(state, player_id),
-          {:ok, new_state} <- record_guess(state, team_id, player_id, word) do
-       process_game_state(new_state)
-     end
-   end
-   ```
-   Responsibilities:
-   - Game rule enforcement
-   - State management
-   - Guess pairing logic
-   - Team coordination
-   - Score tracking
+3. **Game Rule Enforcement**
+   - Mode-specific rule application
+   - Forbidden word checking
+   - Team coordination rules
 
-5. **Game Mode Layer** (`GameBot.Domain.GameModes.*`)
-   ```elixir
-   # Game mode specific logic
-   def process_guess_pair(state, team_id, guess_pair) do
-     with :ok <- validate_mode_rules(state, team_id),
-          {:ok, new_state} <- apply_guess_pair(state, team_id, guess_pair) do
-       calculate_results(new_state)
-     end
-   end
-   ```
-   Responsibilities:
-   - Mode-specific rules
-   - Scoring logic
-   - Win conditions
-   - Round management
+4. **Event Persistence Guarantees**
+   - Retry mechanism for transient failures
+   - Clear error reporting
+   - State consistency preservation
 
 ### Implementation Status
 
 ### Completed
 - [x] Basic GenServer structure
-- [x] Player registration
-- [x] Guess validation
+- [x] Player registration and tracking
+- [x] Guess validation with timing
 - [x] Word matching integration
 - [x] Forbidden word tracking
-- [x] Basic state management
-- [x] Round management
+- [x] Robust state management
+- [x] Round management with timed checking
 - [x] Round transitions
 - [x] Event generation
-- [x] Event persistence
+- [x] Event persistence with retry
+- [x] Guild context validation
+- [x] Detailed score computation
+- [x] Proper process lifecycle management
 
 ### In Progress
-- [ ] State recovery
-- [ ] Error handling
+- [ ] Enhanced error handling
+- [ ] Performance optimization
 
 ### Pending
 - [ ] State snapshots
-- [ ] Performance optimization
+- [ ] State recovery from events
 
 ## Implementation Plan
 
-### Phase 1: Core Session Management
-1. ✓ Implement round management
-2. ✓ Add event system integration
-3. Add state recovery
+### Phase 1: Reliability Enhancements (Current)
+1. ✓ Improve event persistence with retry logic
+2. ✓ Add detailed error events
+3. ✓ Enhance timing precision for guesses
+4. [ ] Complete robust error handling
 
-### Phase 2: Error Handling
-1. Add comprehensive error handling
-2. Implement error responses
-3. Add logging system
+### Phase 2: Performance Optimization
+1. [ ] Add state snapshots
+2. [ ] Optimize event persistence
+3. [ ] Add monitoring and metrics
 
-### Phase 3: State Management
-1. Add state snapshots
-2. Add monitoring
-3. Optimize performance
+### Phase 3: Resilience
+1. [ ] Implement state recovery from events
+2. [ ] Add distributed session management
+3. [ ] Implement horizontal scaling
 
-## Testing Strategy
+## Constants and Configurations
 
-1. **Unit Tests**
-   - Session state management
-   - Round transitions
-   - Event generation
-   - Event persistence
-   - State recovery
-
-2. **Integration Tests**
-   - Game mode interaction
-   - Event store integration
-   - Recovery from events
-   - Error handling
-
-3. **Property Tests**
-   - Event ordering
-   - State consistency
-   - Recovery correctness
-   - Event persistence integrity
+- **Round Check Interval**: 5 seconds (`@round_check_interval :timer.seconds(5)`)
+- **Event Persistence Retries**: 3 attempts with exponential backoff
+- **Retry Delays**: 50ms -> 100ms -> 200ms
 
 ## Notes
 
-- Sessions are temporary and will not be restarted on crash until state recovery is implemented
-- Each session has a 24-hour maximum lifetime
-- Cleanup runs every 5 minutes
-- Round checks occur every 5 seconds
-- All state changes generate events
-- Events are persisted immediately after generation
-- Event store provides the source of truth for game state
+- Sessions are transient and won't restart on crash until state recovery is implemented
+- All state changes generate events that are persisted immediately
+- Guild context validation ensures players belong to the correct Discord server
+- Timing information is tracked with millisecond precision relative to round start
+- Round checks occur automatically every 5 seconds
+- Event persistence includes retry logic for transient database failures
 
 ## Usage Examples
 
 ### Starting a Session
 ```elixir
-GameBot.GameSessions.Supervisor.start_game(%{
+# Create a game from a GameStarted event
+GameBot.GameSessions.Session.create_game(%GameEvents.GameStarted{
   game_id: "game_123",
-  mode: TwoPlayerMode,
-  mode_config: config,
-  teams: teams,
-  guild_id: guild_id
+  mode: GameBot.Domain.GameModes.TwoPlayerMode,
+  config: %{rounds: 3},
+  guild_id: "discord_guild_123",
+  teams: %{"team1" => %{player_ids: ["player1", "player2"]}}
 })
 ```
 
 ### Submitting a Guess
 ```elixir
+# Submit a guess and get the result
 GameBot.GameSessions.Session.submit_guess(
-  game_id,
-  team_id,
-  player_id,
-  word
+  "game_123",
+  "team1",
+  "player1",
+  "apple"
 )
 ```
 
 ### Checking Game State
 ```elixir
-GameBot.GameSessions.Session.get_state(game_id)
+# Get the current game state
+{:ok, state} = GameBot.GameSessions.Session.get_state("game_123")
+```
+
+### Manually Checking Round End
+```elixir
+# Manually trigger a round end check
+GameBot.GameSessions.Session.check_round_end("game_123")
 ``` 

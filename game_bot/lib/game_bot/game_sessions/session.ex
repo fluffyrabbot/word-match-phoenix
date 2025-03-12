@@ -21,6 +21,7 @@ defmodule GameBot.GameSessions.Session do
   @doc """
   Starts a new game session.
   """
+  @spec start_link(Keyword.t()) :: {:ok, pid()} | {:error, term()} | :ignore
   def start_link(opts) do
     game_id = Keyword.fetch!(opts, :game_id)
     GenServer.start_link(__MODULE__, opts, name: via_tuple(game_id))
@@ -46,7 +47,7 @@ defmodule GameBot.GameSessions.Session do
   Submits a guess for the given team.
   """
   def submit_guess(game_id, team_id, player_id, word) do
-    GenServer.call(via_tuple(game_id), {:submit_guess, team_id, player_id, word})
+    GenServer.cast(via_tuple(game_id), {:submit_guess, team_id, player_id, word})
   end
 
   @doc """
@@ -106,17 +107,24 @@ defmodule GameBot.GameSessions.Session do
   end
 
   @impl true
+  @spec handle_continue(atom(), map()) :: {:noreply, map()} | {:stop, term(), term()}
   def handle_continue(:post_init, state) do
     # Persist any initialization events
-    :ok = persist_events(state.pending_events, state)
+    # Handle potential errors from persist_events
+    case persist_events(state.pending_events, state) do
+      :ok ->
+        # Register players in the active games ETS table
+        register_players(state)
 
-    # Register players in the active games ETS table
-    register_players(state)
+        # Start round management
+        ref = schedule_round_check(state)
 
-    # Start round management
-    ref = schedule_round_check()
-
-    {:noreply, %{state | status: :active, round_timer_ref: ref, pending_events: []}}
+        {:noreply, %{state | status: :active, round_timer_ref: ref, pending_events: []}}
+      {:error, reason} ->
+        # Handle persistence failure during initialization
+        Logger.error("Failed to persist initialization events for game #{state.game_id}: #{inspect(reason)}")
+        {:stop, {:persistence_failed, reason}, state} # Stop the GenServer and return current state
+    end
   end
 
   @impl true
@@ -125,21 +133,34 @@ defmodule GameBot.GameSessions.Session do
          :ok <- validate_guess(word, player_id, state),
          {:ok, mode_state, events} <- record_guess(team_id, player_id, word, state) do
 
-      # Process complete guess pair if available
-      case mode_state.pending_guess do
-        %{player1_word: word1, player2_word: word2} ->
-          handle_guess_pair(word1, word2, team_id, %{state | mode_state: mode_state}, events)
+      # Persist events **before** modifying state
+      # Handle potential errors from persist_events
+      case persist_events(events, state) do
+        :ok ->
+          # Process complete guess pair if available
+          case mode_state.pending_guess do
+            %{player1_word: word1, player2_word: word2} ->
+              handle_guess_pair(word1, word2, team_id, %{state | mode_state: mode_state}, events)
 
-        :pending ->
-          # Persist events from recording the guess
-          :ok = persist_events(events, state)
-          {:reply, {:ok, :pending}, %{state | mode_state: mode_state, pending_events: []}}
+            _ ->
+              # Only reply, do NOT persist events here.
+              {:reply, {:ok, :pending}, %{state | mode_state: mode_state, pending_events: []}}
+          end
+        {:error, reason} ->
+          # Handle persistence failure
+          Logger.error("Failed to persist events for game #{state.game_id}: #{inspect(reason)}")
+          {:reply, {:error, :persistence_failed}, state}
       end
     else
       {:error, reason} ->
         error_event = GuessError.new(state.game_id, team_id, player_id, word, reason)
-        :ok = persist_events([error_event], state)
-        {:reply, {:error, reason}, state}
+        case persist_events([error_event], state) do
+          :ok ->
+            {:reply, {:error, reason}, state}
+          {:error, persistence_reason} ->
+            Logger.error("Failed to persist GuessError for game #{state.game_id}: #{inspect(persistence_reason)}")
+            {:reply, {:error, :persistence_failed}, state}
+        end
     end
   end
 
@@ -151,24 +172,38 @@ defmodule GameBot.GameSessions.Session do
         {updated_state, round_events} = update_round_results(state, winners)
 
         # Persist round end events
-        :ok = persist_events(events ++ round_events, updated_state)
-
-        # Then check if game should end
-        case apply(state.mode, :check_game_end, [updated_state.mode_state]) do
-          {:game_end, game_winners, game_events} ->
-            handle_game_end(game_winners, updated_state, game_events)
-          :continue ->
-            # Start new round if game continues
-            {new_state, new_round_events} = start_new_round(updated_state)
-            :ok = persist_events(new_round_events, new_state)
-            {:reply, {:round_end, winners}, new_state}
+        case persist_events(events ++ round_events, updated_state) do
+          :ok ->
+            # Then check if game should end
+            case apply(state.mode, :check_game_end, [updated_state.mode_state]) do
+              {:game_end, game_winners, game_events} ->
+                handle_game_end(game_winners, updated_state, game_events)
+              :continue ->
+                # Start new round if game continues
+                {new_state, new_round_events} = start_new_round(updated_state)
+                case persist_events(new_round_events, new_state) do
+                  :ok ->
+                    {:reply, {:round_end, winners}, new_state}
+                  {:error, reason} ->
+                    Logger.error("Failed to persist new round events for game #{updated_state.game_id}: #{inspect(reason)}")
+                    {:reply, {:error, :persistence_failed}, updated_state}
+                end
+            end
+          {:error, reason} ->
+            Logger.error("Failed to persist round end events for game #{updated_state.game_id}: #{inspect(reason)}")
+            {:reply, {:error, :persistence_failed}, state} #important to return original state
         end
       :continue ->
         {:reply, :continue, state}
       {:error, reason} ->
         error_event = RoundCheckError.new(state.game_id, reason, %{})
-        :ok = persist_events([error_event], state)
-        {:reply, {:error, reason}, state}
+        case persist_events([error_event], state) do
+          :ok ->
+            {:reply, {:error, reason}, state}
+          {:error, persistence_reason} ->
+            Logger.error("Failed to persist RoundCheckError for game #{state.game_id}: #{inspect(persistence_reason)}")
+            {:reply, {:error, :persistence_failed}, state}
+        end
     end
   end
 
@@ -198,34 +233,105 @@ defmodule GameBot.GameSessions.Session do
         )
 
         # Persist events
-        {:ok, _} = EventStore.append_to_stream(
-          state.game_id,
-          :any_version,
-          [game_completed | events]
-        )
-
-        {:reply, {:ok, :game_completed}, updated_state}
+        case persist_events([game_completed | events], updated_state) do
+          :ok ->
+            {:reply, {:ok, :game_completed}, updated_state}
+          {:error, reason} ->
+            Logger.error("Failed to persist game completion events for game #{state.game_id}: #{inspect(reason)}")
+            {:reply, {:error, :persistence_failed}, state} #important to return original state
+        end
 
       :continue ->
         {:reply, {:ok, :continue}, state}
+
+      unexpected ->  # Catch-all for unexpected return values
+        Logger.error("Unexpected return from check_game_end: #{inspect(unexpected)} in game #{state.game_id}")
+        {:reply, {:error, :unexpected_response}, state}
     end
   end
 
   @impl true
   def handle_call(:get_state, _from, state) do
-    {:reply, {:ok, state}, state}
+    {:reply, {:ok, %{game_id: state.game_id, status: state.status, teams: state.teams}}, state}
+  end
+
+  @impl true
+  def handle_cast({:submit_guess, team_id, player_id, word}, state) do
+    with :ok <- validate_guild_context(word, player_id, state),
+         :ok <- validate_guess(word, player_id, state),
+         {:ok, mode_state, events} <- record_guess(team_id, player_id, word, state) do
+      # Persist events **before** modifying state
+      case persist_events(events, state) do
+        :ok ->
+          # Process complete guess pair if available
+          case mode_state.pending_guess do
+            %{player1_word: word1, player2_word: word2} ->
+              # Since handle_cast can't return a reply, we need to handle errors differently
+              # We'll process the guess pair and then return a noreply
+              case state.mode.process_guess_pair(state.mode_state, team_id, %{
+                player1_id: mode_state.pending_guess.player1_id,
+                player2_id: mode_state.pending_guess.player2_id,
+                player1_word: word1,
+                player2_word: word2,
+                player1_duration: mode_state.pending_guess.player1_duration,
+                player2_duration: mode_state.pending_guess.player2_duration
+              }) do
+                {:ok, new_mode_state, pair_events} ->
+                  case persist_events(pair_events, state) do
+                    :ok ->
+                      {:noreply, %{state | mode_state: new_mode_state}}
+                    {:error, reason} ->
+                      Logger.error("Failed to persist guess pair events for game #{state.game_id}: #{inspect(reason)}")
+                      {:noreply, state}
+                  end
+                {:error, reason} ->
+                  error_event = GuessPairError.new(state.game_id, team_id, word1, word2, reason)
+                  case persist_events([error_event], state) do
+                    :ok ->
+                      {:noreply, state}
+                    {:error, persist_reason} ->
+                      Logger.error("Failed to persist error event for game #{state.game_id}: #{inspect(persist_reason)}")
+                      {:noreply, state}
+                  end
+              end
+
+            :pending ->
+              {:noreply, %{state | mode_state: mode_state, pending_events: []}}
+          end
+        {:error, reason} ->
+          # Handle persistence failure.
+          Logger.error("Failed to persist events for game #{state.game_id}: #{inspect(reason)}")
+          {:noreply, state}
+      end
+    else
+      {:error, reason} ->
+        error_event = GuessError.new(state.game_id, team_id, player_id, word, reason)
+        case persist_events([error_event], state) do
+          :ok ->
+            {:noreply, state}
+          {:error, persistence_reason} ->
+            Logger.error("Failed to persist GuessError for game #{state.game_id}: #{inspect(persistence_reason)}")
+            {:noreply, state}
+        end
+    end
   end
 
   @impl true
   def handle_info(:check_round_status, state) do
-    # Check round status and reschedule
+    if not is_nil(state.round_timer_ref), do: Process.cancel_timer(state.round_timer_ref)
+
     case check_round_end(state.game_id) do
-      {:reply, :continue, state} ->
-        ref = schedule_round_check()
+      {:reply, :continue, updated_state} ->
+        ref = schedule_round_check(state)
+        {:noreply, %{updated_state | round_timer_ref: ref}}
+
+      {:reply, {:round_end, _}, updated_state} ->
+        {:noreply, %{updated_state | round_timer_ref: nil}}
+
+      {:reply, {:error, _}, _} ->
+        # In case of error, reschedule the check
+        ref = schedule_round_check(state)
         {:noreply, %{state | round_timer_ref: ref}}
-      {:reply, {:round_end, _}, _} = _result ->
-        # Round ended, don't reschedule
-        {:noreply, %{state | round_timer_ref: nil}}
     end
   end
 
@@ -242,13 +348,14 @@ defmodule GameBot.GameSessions.Session do
   # Private Functions
 
   defp via_tuple(game_id) do
-    {:via, Registry, {GameBot.GameRegistry, game_id}}
+    {:via, Registry, {GameBot.GameSessions.Registry, game_id}}
   end
 
   @dialyzer {:nowarn_function, register_players: 1}
   defp register_players(%{teams: teams, game_id: game_id}) do
     for {_team_id, %{player_ids: player_ids}} <- teams,
-        player_id <- player_ids do
+        player_id <- player_ids,
+        CommandHandler.get_active_game(player_id, game_id) == nil do  # Check for existing game using get_active_game
       CommandHandler.set_active_game(player_id, game_id, game_id)
     end
   end
@@ -266,6 +373,10 @@ defmodule GameBot.GameSessions.Session do
     team_state = get_in(state.mode_state.teams, [team_id])
 
     cond do
+      # Check for nil or empty word *before* other checks
+      word in [nil, ""] ->
+        {:error, :invalid_word}
+
       # Check if player has already submitted a guess
       has_player_submitted?(team_state, player_id) ->
         {:error, :guess_already_submitted}
@@ -275,7 +386,7 @@ defmodule GameBot.GameSessions.Session do
         :ok
 
       # Normal word validation
-      !WordService.valid_word?(word) ->
+      not WordService.valid_word?(word) ->
         {:error, :invalid_word}
 
       GameState.word_forbidden?(state.mode_state, state.guild_id, player_id, word) == {:ok, true} ->
@@ -294,36 +405,40 @@ defmodule GameBot.GameSessions.Session do
       nil ->
         # First guess of the pair
         {:ok,
-          put_in(state.mode_state.teams[team_id].pending_guess, %{
-            player_id: player_id,
-            word: word,
-            timestamp: now
-          }),
-          []  # No events for first guess
-        }
+         put_in(state.mode_state.teams[team_id].pending_guess, %{
+           player_id: player_id,
+           word: word,
+           timestamp: now
+         }),
+         []} # No events for first guess
 
       %{player_id: pending_player_id} = pending when pending_player_id != player_id ->
         # Second guess - create complete pair with timing information
-        # Calculate durations from round start time for both players
-        player1_timestamp = pending.timestamp
-        player2_timestamp = now
 
-        player1_duration = DateTime.diff(player1_timestamp, state.round_start_time, :millisecond)
-        player2_duration = DateTime.diff(player2_timestamp, state.round_start_time, :millisecond)
+        # Check if the player is still in the game
+        if player_id not in state.teams[team_id].player_ids do
+          {:error, :player_not_in_game}
+        else
+          # Calculate durations from round start time for both players
+          player1_timestamp = pending.timestamp
+          player2_timestamp = now
 
-        {:ok,
-          put_in(state.mode_state.teams[team_id].pending_guess, %{
-            player1_id: pending_player_id,
-            player2_id: player_id,
-            player1_word: pending.word,
-            player2_word: word,
-            player1_timestamp: player1_timestamp,
-            player2_timestamp: player2_timestamp,
-            player1_duration: player1_duration,
-            player2_duration: player2_duration
-          }),
-          []  # Events will be generated when processing the complete pair
-        }
+          player1_duration = DateTime.diff(player1_timestamp, state.round_start_time, :millisecond)
+          player2_duration = DateTime.diff(player2_timestamp, state.round_start_time, :millisecond)
+
+          {:ok,
+           put_in(state.mode_state.teams[team_id].pending_guess, %{
+             player1_id: pending_player_id,
+             player2_id: player_id,
+             player1_word: pending.word,
+             player2_word: word,
+             player1_timestamp: player1_timestamp,
+             player2_timestamp: player2_timestamp,
+             player1_duration: player1_duration,
+             player2_duration: player2_duration
+           }),
+           []} # Events will be generated when processing the complete pair
+        end
 
       _ ->
         {:error, :guess_already_submitted}
@@ -339,20 +454,40 @@ defmodule GameBot.GameSessions.Session do
   end
 
   defp has_player_submitted?(%{pending_guess: nil}, _player_id), do: false
-  defp has_player_submitted?(%{pending_guess: %{player_id: pending_id}}, player_id), do: pending_id == player_id
-  defp has_player_submitted?(%{pending_guess: %{player1_id: p1, player2_id: p2}}, player_id), do: player_id in [p1, p2]
+
+  defp has_player_submitted?(%{pending_guess: %{player_id: pending_id}}, player_id) do
+    pending_id == player_id
+  end
+
+  defp has_player_submitted?(%{pending_guess: %{player1_id: p1, player2_id: p2}}, player_id) do
+    player_id in [p1, p2]
+  end
+
   defp has_player_submitted?(_, _), do: false
 
-  defp persist_events(events, state) when is_map(state) do
-    {:ok, _} = EventStore.append_to_stream(state.game_id, :any_version, events, [])
-    :ok
+  defp persist_events(events, state), do: persist_events(events, state, 3)
+
+  defp persist_events(events, state, retries) when retries > 0 do
+    case EventStore.append_to_stream(state.game_id, :any_version, events, []) do
+      :ok -> :ok
+
+      {:error, reason}
+      when reason == :connection_timeout or
+             reason == :database_unavailable or
+             reason == :timeout or
+             (is_tuple(reason) and elem(reason, 0) == :shutdown) and retries > 1 ->
+        delay = trunc(:math.pow(2, (3 - retries)) * 50) # Exponential backoff: 50ms -> 100ms -> 200ms
+        Logger.warning("Retrying event persistence for game #{state.game_id} in #{delay}ms (#{retries - 1} retries left)")
+        Process.sleep(delay)
+        persist_events(events, state, retries - 1)
+
+      {:error, reason} ->
+        Logger.error("Permanent failure persisting events for game #{state.game_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
   end
 
-  defp persist_events(events, %{game_id: game_id}) do
-    {:ok, _} = EventStore.append_to_stream(game_id, :any_version, events, [])
-    :ok
-  end
-
+  # dialyzer: {:nowarn_function, handle_guess_pair: 5}
   defp handle_guess_pair(word1, word2, team_id, state, _previous_events) do
     # Extract or create the guess pair with timing information
     pending_guess = get_in(state.mode_state.teams, [team_id, :pending_guess])
@@ -381,62 +516,106 @@ defmodule GameBot.GameSessions.Session do
     case state.mode.process_guess_pair(state.mode_state, team_id, guess_pair) do
       {:ok, new_mode_state, events} ->
         # Persist all events
-        :ok = persist_events(events, state)
+        case persist_events(events, state) do
+          :ok ->
+            # Return result based on match status
+            result = if Enum.any?(events, fn
+              %GameBot.Domain.Events.GuessEvents.GuessProcessed{guess_successful: true} -> true
+              _ -> false
+            end), do: :match, else: :no_match
+            {:reply, {:ok, result}, %{state | mode_state: new_mode_state}}
 
-        # Return result based on match status
-        result = if Enum.any?(events, fn
-          %GameBot.Domain.Events.GuessEvents.GuessProcessed{guess_successful: true} -> true
-          _ -> false
-        end), do: :match, else: :no_match
-        {:reply, {:ok, result}, %{state | mode_state: new_mode_state}}
+          {:error, reason} ->
+            Logger.error("Failed to persist events for game #{state.game_id}: #{inspect(reason)}")
+            {:reply, {:error, :persistence_failed}, state}
+        end
 
       {:error, reason} ->
         error_event = GuessPairError.new(state.game_id, team_id, word1, word2, reason)
-        :ok = persist_events([error_event], state)
-        {:reply, {:error, reason}, state}
+        case persist_events([error_event], state) do
+          :ok ->
+            {:reply, {:error, reason}, state}
+          {:error, persist_reason} ->
+            Logger.error("Failed to persist error event for game #{state.game_id}: #{inspect(persist_reason)}")
+            {:reply, {:error, :persistence_failed}, state}
+        end
+
+      other ->
+        raise "Unexpected return value from process_guess_pair: #{inspect(other)}"
     end
   end
 
-  defp schedule_round_check do
+
+  defp schedule_round_check(state) do
+    if not is_nil(state.round_timer_ref), do: Process.cancel_timer(state.round_timer_ref)
     Process.send_after(self(), :check_round_status, @round_check_interval)
   end
 
   defp update_round_results(state, winners) do
-    case apply(state.mode, :handle_round_end, [state.mode_state, winners]) do
+    # Capture 'now' at the beginning
+    now = DateTime.utc_now()
+
+    case apply(state.mode, :update_round_results, [state.mode_state, winners]) do
       {:ok, new_mode_state, events} ->
-        {%{state | mode_state: new_mode_state}, events}
+        # Use Task.Supervisor for non-blocking event persistence
+
+        updated_state = %{state | mode_state: new_mode_state, round_start_time: now}
+        {updated_state, events}
+
+      {:error, reason} ->
+        # Log the error and potentially stop the GenServer or return an error tuple
+        Logger.error("Error updating round results for game #{state.game_id}: #{reason}")
+        #  Consider what the appropriate action is here.  You might:
+        #  1. Stop the GenServer:  {:stop, {:round_update_failed, reason}}
+        #  2. Return an error tuple: {state, [{:error, :round_update_failed}]}  (less likely)
+        # For now, I'll assume you want to stop the GenServer:
+        {:stop, {:round_update_failed, reason}}
     end
   end
 
+  # dialyzer: {:nowarn_function, start_new_round: 1}
   defp start_new_round(state) do
+    # Capture 'now' at the beginning
+    now = DateTime.utc_now()
+
     case apply(state.mode, :start_new_round, [state.mode_state]) do
       {:ok, new_mode_state, events} ->
-        ref = schedule_round_check()
-        now = DateTime.utc_now()
         {%{state |
           mode_state: new_mode_state,
-          round_timer_ref: ref,
+          round_timer_ref: nil,  # We'll set this in handle_info
           round_start_time: now  # Reset round start time for new round
         }, events}
+
+      {:error, reason} ->
+        Logger.error("Failed to start new round for game #{state.game_id}: #{inspect(reason)}")
+        {:stop, {:new_round_failed, reason}}
     end
   end
 
+  # dialyzer: {:nowarn_function, handle_game_end: 3}
   defp handle_game_end(winners, state, events) do
-    # Create final game state
+    # Capture 'now' at the beginning
+    now = DateTime.utc_now()
+
     final_state = %{state |
       status: :completed,
       round_timer_ref: nil,
-      mode_state: %{state.mode_state | winners: winners}
+      mode_state: %{state.mode_state | winners: winners},
+      ended_at: now
     }
 
     # Clean up timers and registrations
     if state.round_timer_ref, do: Process.cancel_timer(state.round_timer_ref)
     unregister_players(state)
 
-    # Persist game end events
-    :ok = persist_events(events, final_state)
-
-    {:reply, {:game_end, winners}, final_state}
+    # Persist game end events *synchronously* and handle the result
+    case persist_events(events, final_state) do
+      :ok ->
+        {:reply, {:game_end, winners}, final_state}
+      {:error, reason} ->
+        Logger.error("Game #{state.game_id} failed to finalize: #{inspect(reason)}")
+        {:reply, {:error, :persistence_failed}, state}  # Return an error
+    end
   end
 
   defp validate_guild_context(_word, player_id, %{guild_id: guild_id} = _state) do
@@ -457,8 +636,7 @@ defmodule GameBot.GameSessions.Session do
 
   # Helper to compute detailed final scores for GameCompleted event
   defp compute_final_scores(state) do
-    state.teams
-    |> Enum.map(fn {team_id, team_state} ->
+    Enum.into(state.teams, %{}, fn {team_id, team_state} ->
       {team_id, %{
         score: team_state.score,
         matches: team_state.matches,
@@ -467,7 +645,6 @@ defmodule GameBot.GameSessions.Session do
         player_stats: compute_player_stats(team_state)
       }}
     end)
-    |> Map.new()
   end
 
   defp compute_average_guesses(%{total_guesses: total, matches: matches}) when matches > 0 do

@@ -23,7 +23,7 @@ defmodule GameBot.GameSessions.Supervisor do
     child_spec = %{
       id: Session,
       start: {Session, :start_link, [opts]},
-      restart: :temporary  # Don't restart failed games
+      restart: :temporary  # Defines the restart strategy for the child.
     }
 
     DynamicSupervisor.start_child(__MODULE__, child_spec)

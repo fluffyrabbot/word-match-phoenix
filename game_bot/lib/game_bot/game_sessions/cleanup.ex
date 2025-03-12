@@ -38,21 +38,19 @@ defmodule GameBot.GameSessions.Cleanup do
   """
   def cleanup_old_sessions do
     # Get all active sessions
-    active_sessions = Registry.select(GameBot.GameSessions.Registry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+    active_sessions = Registry.lookup(GameBot.GameSessions.Registry, :session)
 
     # For each session, check if it's too old and terminate it
-    active_sessions
-    |> Enum.each(fn {game_id, _pid} ->
+    Enum.each(active_sessions, fn {game_id, pid} ->
       case Session.get_last_activity(game_id) do
         {:ok, last_activity} ->
           if DateTime.diff(DateTime.utc_now(), last_activity, :second) > @session_timeout_seconds do
             Logger.info("Cleaning up inactive session for game #{game_id}")
-            Session.terminate(game_id, :inactivity_timeout)
+            GenServer.stop(pid, :inactivity_timeout)
           end
-        _ ->
-          # If we can't get last activity, assume it's stale
-          Logger.info("Cleaning up session with unknown activity for game #{game_id}")
-          Session.terminate(game_id, :unknown_activity)
+        {:error, reason} -> # Log the error reason
+          Logger.warning("Failed to get last activity for game #{game_id}: #{reason}.  Assuming stale.")
+          GenServer.stop(pid, :unknown_activity)
       end
     end)
   end
