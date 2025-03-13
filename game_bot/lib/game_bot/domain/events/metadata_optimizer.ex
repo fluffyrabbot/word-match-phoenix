@@ -29,7 +29,7 @@ defmodule GameBot.Domain.Events.MetadataOptimizer do
     cond do
       # Critical events - full metadata
       event_type in ["game_started", "game_ended", "player_joined", "player_left",
-                     "game_aborted", "team_eliminated"] ->
+                     "game_aborted", "team_eliminated", "guess_processed"] ->
         :critical
 
       # Important events - standard metadata

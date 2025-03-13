@@ -31,8 +31,6 @@ defmodule GameBot.Domain.Events.Types do
 
   # ========== Entity Types ==========
 
-  @type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
-
   @type team_state :: %{
     required(:team_id) => String.t(),
     required(:player_ids) => [String.t()],

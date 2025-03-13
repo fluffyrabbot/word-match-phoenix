@@ -1,13 +1,26 @@
-defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
+defmodule GameBot.Domain.Events.GameEvents.TemplateEvent do
   @moduledoc """
-  An example event that demonstrates the use of the BaseEvent behavior.
-  This can be used as a template for creating new events.
+  Template for creating new event modules following best practices.
+  This template demonstrates the proper implementation of an event module.
+
+  ## Usage
+
+  When creating a new event:
+  1. Copy this template
+  2. Rename the module and filename
+  3. Update the event_type and version
+  4. Define your custom fields
+  5. Implement required_fields/0 if needed
+  6. Implement validate_custom_fields/1 if needed
+  7. Add any custom creation functions
   """
 
+  # Use BaseEvent with proper options
   use GameBot.Domain.Events.BaseEvent,
-    event_type: "example_event",
+    event_type: "template_event",
     version: 1,
     fields: [
+      # Define custom fields here
       field(:player_id, :string),
       field(:action, :string),
       field(:data, :map)
@@ -43,13 +56,15 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   }
 
   # Define constants for validation
-  @valid_actions ~w(create update delete do_something)
+  @valid_actions ~w(create update delete)
 
   @doc """
   Returns the list of required fields for this event.
+  Includes base required fields plus any custom required fields.
   """
   @spec required_fields() :: [atom()]
   def required_fields do
+    # Always call super() first, then add custom fields
     super() ++ [:player_id, :action, :data]
   end
 
@@ -124,13 +139,13 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   # Standard creation functions
 
   @doc """
-  Creates a new ExampleEvent with the given attributes.
+  Creates a new TemplateEvent with the given attributes.
 
   ## Parameters
   - attrs: Map containing event attributes
 
   ## Returns
-  - A new ExampleEvent struct
+  - A new TemplateEvent struct
   """
   @spec new(map()) :: t()
   def new(attrs) do
@@ -138,7 +153,7 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   end
 
   @doc """
-  Creates a new ExampleEvent with individual parameters.
+  Creates a new TemplateEvent with individual parameters.
 
   ## Parameters
   - game_id: Game identifier
@@ -149,7 +164,7 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   - metadata: Event metadata
 
   ## Returns
-  - A new ExampleEvent struct
+  - A new TemplateEvent struct
   """
   @spec new(String.t(), String.t(), String.t(), String.t(), map(), map()) :: t()
   def new(game_id, guild_id, player_id, action, data, metadata) when is_map(metadata) do
@@ -168,26 +183,7 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   end
 
   @doc """
-  Creates a new ExampleEvent with metadata result tuple.
-
-  ## Parameters
-  - game_id: Game identifier
-  - guild_id: Discord guild identifier
-  - player_id: Player identifier
-  - action: Action being performed
-  - data: Additional event data
-  - metadata_result: Tuple containing {:ok, metadata}
-
-  ## Returns
-  - A new ExampleEvent struct
-  """
-  @spec new(String.t(), String.t(), String.t(), String.t(), map(), {:ok, map()}) :: t()
-  def new(game_id, guild_id, player_id, action, data, {:ok, metadata}) do
-    new(game_id, guild_id, player_id, action, data, metadata)
-  end
-
-  @doc """
-  Creates a new ExampleEvent from a parent event.
+  Creates a new TemplateEvent from a parent event.
 
   ## Parameters
   - parent_event: The parent event
@@ -196,7 +192,7 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   - data: Additional event data
 
   ## Returns
-  - A new ExampleEvent struct
+  - A new TemplateEvent struct
 
   ## Raises
   - RuntimeError if metadata creation fails
@@ -222,30 +218,6 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
     end
   end
 
-  @doc """
-  Applies the event to a state after validating it.
-
-  ## Parameters
-  - event: The event to apply
-  - state: The current state
-
-  ## Returns
-  - {:ok, updated_state} on success
-  - {:error, reason} on validation failure
-  """
-  @spec apply(t(), map()) :: {:ok, map()} | {:error, String.t()}
-  def apply(%__MODULE__{} = event, state) do
-    case validate(event) do
-      :ok ->
-        updated_state = state
-          |> Map.put(:actions, [event.action | Map.get(state, :actions, [])])
-          |> Map.put(:last_player_id, event.player_id)
-          |> Map.put(:last_action_time, event.timestamp)
-        {:ok, updated_state}
-      error -> error
-    end
-  end
-
   # Private validation functions
 
   @spec validate_action(String.t() | nil) :: :ok | {:error, String.t()}
@@ -262,7 +234,7 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   defp default_attrs do
     %{
       id: Ecto.UUID.generate(),
-      type: "example_event",
+      type: "template_event",
       version: 1,
       timestamp: DateTime.utc_now(),
       data: %{},

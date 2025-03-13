@@ -10,8 +10,8 @@ Emitted when a guess attempt is abandoned before completion, either due to a tim
   mode: atom(),                  # Game mode
   round_number: pos_integer(),   # Current round number
   team_id: String.t(),           # Team making the guess
-  player1_info: player_info(),   # First player's information
-  player2_info: player_info(),   # Second player's information
+  player1_id: String.t(),        # First player's Discord ID
+  player2_id: String.t(),        # Second player's Discord ID
   reason: :timeout | :player_quit | :disconnected,  # Why the guess was abandoned
   abandoning_player_id: String.t(),  # Player who abandoned/timed out
   last_guess: %{                 # Last recorded guess if any
@@ -23,8 +23,6 @@ Emitted when a guess attempt is abandoned before completion, either due to a tim
   timestamp: DateTime.t(),        # When the event occurred
   metadata: metadata()           # Additional context information
 }
-
-@type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
 ```
 
 ## Fields
@@ -32,8 +30,8 @@ Emitted when a guess attempt is abandoned before completion, either due to a tim
 - `mode`: The game mode being played
 - `round_number`: The current round number
 - `team_id`: Identifier of the team making the guess
-- `player1_info`: Information about the first player (ID, team, role)
-- `player2_info`: Information about the second player (ID, team, role)
+- `player1_id`: Discord ID of the first player
+- `player2_id`: Discord ID of the second player
 - `reason`: Why the guess was abandoned (:timeout, :player_quit, or :disconnected)
 - `abandoning_player_id`: ID of the player who abandoned or timed out
 - `last_guess`: Information about the last guess made (if any)
@@ -44,7 +42,7 @@ Emitted when a guess attempt is abandoned before completion, either due to a tim
 ## Validation
 The event validates:
 - All required fields are present
-- Player information is complete
+- Player IDs are valid strings
 - Valid abandonment reason is provided
 - Abandoning player ID is provided
 - Guess count is positive
@@ -64,16 +62,8 @@ This event is used to:
   mode: :two_player,
   round_number: 1,
   team_id: "team1",
-  player1_info: %{
-    player_id: "player1",
-    team_id: "team1",
-    role: :giver
-  },
-  player2_info: %{
-    player_id: "player2",
-    team_id: "team1",
-    role: :guesser
-  },
+  player1_id: "player1",
+  player2_id: "player2",
   reason: :timeout,
   abandoning_player_id: "player2",
   last_guess: %{

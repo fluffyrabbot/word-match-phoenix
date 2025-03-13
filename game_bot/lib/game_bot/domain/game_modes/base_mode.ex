@@ -271,8 +271,10 @@ defmodule GameBot.Domain.GameModes.BaseMode do
         guild_id: state.guild_id,
         mode: state.mode,
         team_id: team_id,
-        player1_info: {player1_id, get_in(state, [:players, player1_id, :name]), get_in(state, [:players, player1_id, :nickname])},
-        player2_info: {player2_id, get_in(state, [:players, player2_id, :name]), get_in(state, [:players, player2_id, :nickname])},
+        player1_id: player1_id,
+        player2_id: player2_id,
+        player1_word: player1_word,
+        player2_word: player2_word,
         guess_successful: guess_successful,
         guess_count: round_guess_count,
         round_number: state.current_round,
@@ -286,6 +288,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
         metadata: %{}
       }
 
+      # Update state based on result
       state = if guess_successful do
         record_match(state, team_id, player1_word)
       else
@@ -333,14 +336,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       mode: state.mode,
       round_number: state.round_number,
       team_id: team_id,
-      player1_info: %{
-        player_id: last_guess["player1_id"],
-        team_id: team_id
-      },
-      player2_info: %{
-        player_id: last_guess["player2_id"],
-        team_id: team_id
-      },
+      player1_id: last_guess["player1_id"],
+      player2_id: last_guess["player2_id"],
       reason: reason,
       abandoning_player_id: last_guess["abandoning_player_id"],
       last_guess: last_guess,

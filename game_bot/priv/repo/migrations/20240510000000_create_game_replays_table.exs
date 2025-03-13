@@ -4,9 +4,10 @@ defmodule GameBot.Repo.Migrations.CreateGameReplaysTable do
   def change do
     create table(:game_replays, primary_key: false) do
       add :replay_id, :uuid, primary_key: true
-      add :game_id, :string, null: false
+      add :game_id, references(:games, column: :game_id, type: :string), null: false
       add :display_name, :string, null: false
       add :mode, :string, null: false
+      add :guild_id, :string, null: false
       add :start_time, :utc_datetime_usec, null: false
       add :end_time, :utc_datetime_usec, null: false
       add :event_count, :integer, null: false
@@ -22,6 +23,7 @@ defmodule GameBot.Repo.Migrations.CreateGameReplaysTable do
     create index(:game_replays, [:game_id])
     create unique_index(:game_replays, [:display_name])
     create index(:game_replays, [:mode])
+    create index(:game_replays, [:guild_id])
     create index(:game_replays, [:created_at])
   end
 end

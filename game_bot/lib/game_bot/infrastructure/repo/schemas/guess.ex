@@ -23,9 +23,9 @@ defmodule GameBot.Infrastructure.Repo.Schemas.Guess do
     game_id: integer(),
     round_id: integer(),
     guild_id: String.t(),
-    team_id: integer(),
-    player1_id: integer(),
-    player2_id: integer(),
+    team_id: String.t(),
+    player1_id: String.t(),
+    player2_id: String.t(),
     player1_word: String.t(),
     player2_word: String.t(),
     successful: boolean(),
@@ -126,8 +126,8 @@ defmodule GameBot.Infrastructure.Repo.Schemas.Guess do
     # Find the DB IDs for the referenced entities
     with {:ok, game_id} <- get_game_id_by_game_id(event.game_id),
          {:ok, team_id} <- get_team_id_by_team_id(event.team_id),
-         {:ok, player1_id} <- get_user_id_by_discord_id(event.player1_info.id),
-         {:ok, player2_id} <- get_user_id_by_discord_id(event.player2_info.id) do
+         {:ok, player1_id} <- get_user_id_by_discord_id(event.player1_id),
+         {:ok, player2_id} <- get_user_id_by_discord_id(event.player2_id) do
 
       attrs = %{
         game_id: game_id,

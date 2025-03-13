@@ -17,8 +17,8 @@ defmodule GameBot.Domain.Events.GameEvents.GuessProcessed do
     version: 1,
     fields: [
       field(:team_id, :string),
-      field(:player1_info, :map),
-      field(:player2_info, :map),
+      field(:player1_id, :string),
+      field(:player2_id, :string),
       field(:player1_word, :string),
       field(:player2_word, :string),
       field(:guess_successful, :boolean),
@@ -26,7 +26,9 @@ defmodule GameBot.Domain.Events.GameEvents.GuessProcessed do
       field(:guess_count, :integer),
       field(:round_guess_count, :integer),
       field(:total_guesses, :integer),
-      field(:guess_duration, :integer)
+      field(:guess_duration, :integer),
+      field(:player1_duration, :integer),
+      field(:player2_duration, :integer)
     ]
 end
 ```
@@ -43,22 +45,8 @@ end
 
 ### Custom Fields
 - `team_id` (string, required) - ID of the team making the guess
-- `player1_info` (map, required) - Information about the first player
-  ```elixir
-  %{
-    player_id: String.t(),
-    username: String.t(),
-    role: :giver | :guesser
-  }
-  ```
-- `player2_info` (map, required) - Information about the second player
-  ```elixir
-  %{
-    player_id: String.t(),
-    username: String.t(),
-    role: :giver | :guesser
-  }
-  ```
+- `player1_id` (string, required) - Discord ID of the first player
+- `player2_id` (string, required) - Discord ID of the second player
 - `player1_word` (string, required) - Word submitted by player 1
 - `player2_word` (string, required) - Word submitted by player 2
 - `guess_successful` (boolean, required) - Whether the guess matched
@@ -67,6 +55,8 @@ end
 - `round_guess_count` (integer, required) - Total guesses made in the current round
 - `total_guesses` (integer, required) - Total guesses made in the game
 - `guess_duration` (integer, required) - Time taken for this guess attempt in milliseconds
+- `player1_duration` (integer, required) - Time taken for player 1 to submit their word in milliseconds
+- `player2_duration` (integer, required) - Time taken for player 2 to submit their word in milliseconds
 
 ## Validation Rules
 
@@ -80,12 +70,16 @@ end
      |> validate_number(:round_guess_count, greater_than: 0)
      |> validate_number(:total_guesses, greater_than: 0)
      |> validate_number(:guess_duration, greater_than_or_equal_to: 0)
+     |> validate_number(:player1_duration, greater_than_or_equal_to: 0)
+     |> validate_number(:player2_duration, greater_than_or_equal_to: 0)
      |> validate_match_score()
    end
    ```
 4. Match score validation:
    - Must be present and positive when guess is successful
    - Must be nil when guess is unsuccessful
+5. Player ID validation:
+   - Must be a non-empty string
 
 ## Example Usage
 
@@ -97,16 +91,8 @@ event = %GameBot.Domain.Events.GameEvents.GuessProcessed{
   mode: :two_player,
   round_number: 1,
   team_id: "team-789",
-  player1_info: %{
-    player_id: "player1",
-    username: "Player One",
-    role: :giver
-  },
-  player2_info: %{
-    player_id: "player2",
-    username: "Player Two",
-    role: :guesser
-  },
+  player1_id: "123456789",
+  player2_id: "987654321",
   player1_word: "apple",
   player2_word: "apple",
   guess_successful: true,
@@ -115,6 +101,8 @@ event = %GameBot.Domain.Events.GameEvents.GuessProcessed{
   round_guess_count: 5,
   total_guesses: 15,
   guess_duration: 12500,
+  player1_duration: 5000,
+  player2_duration: 7500,
   timestamp: DateTime.utc_now(),
   metadata: %{
     source_id: "msg-123",
@@ -163,7 +151,15 @@ Required test cases:
    end
    ```
 
-4. Serialization roundtrip
+4. Player duration validation
+   ```elixir
+   test "validates player durations are non-negative" do
+     event = build(:guess_processed_event, player1_duration: -1)
+     assert {:error, _} = EventValidator.validate(event)
+   end
+   ```
+
+5. Serialization roundtrip
    ```elixir
    test "serializes and deserializes correctly" do
      event = build(:guess_processed_event)
@@ -190,3 +186,11 @@ The GuessProcessed event is typically part of the following flow:
 - GuessAbandoned - When a guess attempt is abandoned
 - RoundCompleted - When a successful guess completes a round
 - TeamEliminated - When a team is eliminated due to max guesses 
+
+## Importance Level
+
+The GuessProcessed event is classified as **CRITICAL** importance because:
+- It represents the atomic unit of gameplay
+- It contains essential data for game state reconstruction
+- It's required for accurate scoring and game progression
+- It's needed for analytics and player performance tracking 

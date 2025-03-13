@@ -236,7 +236,7 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     This is the most detailed version that allows specifying all parameters.
     """
-    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()], map(), DateTime.t(), map()) :: t()
+    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()], map(), DateTime.t() | nil, map()) :: t() | no_return()
     def new(game_id, guild_id, mode, teams, team_ids, player_ids, config, started_at, metadata) do
       now = DateTime.utc_now()
       event = %__MODULE__{
@@ -263,7 +263,7 @@ defmodule GameBot.Domain.Events.GameEvents do
     @doc """
     Creates a new GameStarted event with default configuration and started_at.
     """
-    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()]) :: t()
+    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()]) :: t() | no_return()
     def new(game_id, guild_id, mode, teams, team_ids, player_ids) do
       new(game_id, guild_id, mode, teams, team_ids, player_ids, %{}, nil, %{})
     end
@@ -413,9 +413,6 @@ defmodule GameBot.Domain.Events.GameEvents do
 
     defp validate_non_negative_integer(_field, value) when is_integer(value) and value >= 0, do: :ok
     defp validate_non_negative_integer(field, _), do: {:error, "#{field} must be a non-negative integer"}
-
-    defp validate_float(_field, value) when is_float(value), do: :ok
-    defp validate_float(field, _), do: {:error, "#{field} must be a float"}
   end
 
   # Gameplay Events
@@ -437,8 +434,8 @@ defmodule GameBot.Domain.Events.GameEvents do
       # Event-specific Fields
       round_number: pos_integer(),
       team_id: String.t(),
-      player1_info: player_info(),
-      player2_info: player_info(),
+      player1_id: String.t(),
+      player2_id: String.t(),
       player1_word: String.t(),
       player2_word: String.t(),
       guess_successful: boolean(),
@@ -457,8 +454,8 @@ defmodule GameBot.Domain.Events.GameEvents do
       :mode,
       :round_number,
       :team_id,
-      :player1_info,
-      :player2_info,
+      :player1_id,
+      :player2_id,
       :player1_word,
       :player2_word,
       :guess_successful,
@@ -502,8 +499,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         # Event-specific Fields
         :round_number,
         :team_id,
-        :player1_info,
-        :player2_info,
+        :player1_id,
+        :player2_id,
         :player1_word,
         :player2_word,
         :guess_successful,
@@ -576,8 +573,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "team_id" => event.team_id,
-        "player1_info" => event.player1_info,
-        "player2_info" => event.player2_info,
+        "player1_id" => event.player1_id,
+        "player2_id" => event.player2_id,
         "player1_word" => event.player1_word,
         "player2_word" => event.player2_word,
         "guess_successful" => event.guess_successful,
@@ -601,8 +598,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         team_id: data["team_id"],
-        player1_info: data["player1_info"],
-        player2_info: data["player2_info"],
+        player1_id: data["player1_id"],
+        player2_id: data["player2_id"],
         player1_word: data["player1_word"],
         player2_word: data["player2_word"],
         guess_successful: data["guess_successful"],
@@ -675,8 +672,8 @@ defmodule GameBot.Domain.Events.GameEvents do
       * `guess_data` - Map containing detailed guess information:
         * `round_number` - Current round number
         * `mode` - Game mode (e.g., :two_player, :knockout)
-        * `player1_info` - Information about the first player
-        * `player2_info` - Information about the second player
+        * `player1_id` - ID of the first player
+        * `player2_id` - ID of the second player
         * `player1_word` - Word provided by first player
         * `player2_word` - Word provided by second player
         * `guess_successful` - Whether the guess was successful
@@ -693,12 +690,9 @@ defmodule GameBot.Domain.Events.GameEvents do
     def new_detailed(game_id, guild_id, team_id, guess_data) do
       now = DateTime.utc_now()
 
-      # Ensure player info is properly set with default values if missing
-      player1_info = Map.get(guess_data, :player1_info) || Map.get(guess_data, "player1_info") ||
-                    {0, "Unknown Player", nil}  # {discord_id, username, nickname}
-
-      player2_info = Map.get(guess_data, :player2_info) || Map.get(guess_data, "player2_info") ||
-                    {0, "Unknown Player", nil}  # {discord_id, username, nickname}
+      # Get player IDs directly
+      player1_id = Map.get(guess_data, :player1_id) || Map.get(guess_data, "player1_id", "")
+      player2_id = Map.get(guess_data, :player2_id) || Map.get(guess_data, "player2_id", "")
 
       event = %__MODULE__{
         game_id: game_id,
@@ -706,8 +700,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         mode: Map.get(guess_data, :mode) || Map.get(guess_data, "mode", :two_player),
         round_number: Map.get(guess_data, :round_number) || Map.get(guess_data, "round_number", 1),
         team_id: team_id,
-        player1_info: player1_info,
-        player2_info: player2_info,
+        player1_id: player1_id,
+        player2_id: player2_id,
         player1_word: Map.get(guess_data, :player1_word) || Map.get(guess_data, "player1_word", ""),
         player2_word: Map.get(guess_data, :player2_word) || Map.get(guess_data, "player2_word", ""),
         guess_successful: Map.get(guess_data, :guess_successful) || Map.get(guess_data, "guess_successful", false),
@@ -745,8 +739,8 @@ defmodule GameBot.Domain.Events.GameEvents do
       # Event-specific Fields
       round_number: pos_integer(),
       team_id: String.t(),
-      player1_info: player_info(),
-      player2_info: player_info(),
+      player1_id: String.t(),
+      player2_id: String.t(),
       reason: :timeout | :player_quit | :disconnected,
       abandoning_player_id: String.t(),
       last_guess: %{
@@ -766,8 +760,8 @@ defmodule GameBot.Domain.Events.GameEvents do
       :mode,
       :round_number,
       :team_id,
-      :player1_info,
-      :player2_info,
+      :player1_id,
+      :player2_id,
       :reason,
       :abandoning_player_id,
       :last_guess,
@@ -807,8 +801,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         # Event-specific Fields
         :round_number,
         :team_id,
-        :player1_info,
-        :player2_info,
+        :player1_id,
+        :player2_id,
         :reason,
         :abandoning_player_id,
         :guess_count,
@@ -866,8 +860,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         "mode" => Atom.to_string(event.mode),
         "round_number" => event.round_number,
         "team_id" => event.team_id,
-        "player1_info" => event.player1_info,
-        "player2_info" => event.player2_info,
+        "player1_id" => event.player1_id,
+        "player2_id" => event.player2_id,
         "reason" => Atom.to_string(event.reason),
         "abandoning_player_id" => event.abandoning_player_id,
         "last_guess" => if(event.last_guess, do: Map.update!(event.last_guess, :timestamp, &DateTime.to_iso8601/1)),
@@ -888,8 +882,8 @@ defmodule GameBot.Domain.Events.GameEvents do
         mode: String.to_existing_atom(data["mode"]),
         round_number: data["round_number"],
         team_id: data["team_id"],
-        player1_info: data["player1_info"],
-        player2_info: data["player2_info"],
+        player1_id: data["player1_id"],
+        player2_id: data["player2_id"],
         reason: String.to_existing_atom(data["reason"]),
         abandoning_player_id: data["abandoning_player_id"],
         last_guess: if(data["last_guess"], do: Map.update!(data["last_guess"], "timestamp", &GameBot.Domain.Events.GameEvents.parse_timestamp/1)),

@@ -4,7 +4,7 @@ defmodule GameBot.Repo.Migrations.CreateReplayAccessLogsTable do
   def change do
     create table(:replay_access_logs) do
       add :replay_id, references(:game_replays, column: :replay_id, type: :uuid), null: false
-      add :user_id, :string, null: false
+      add :user_id, references(:users), null: false
       add :guild_id, :string, null: false
       add :access_type, :string, null: false
       add :client_info, :map

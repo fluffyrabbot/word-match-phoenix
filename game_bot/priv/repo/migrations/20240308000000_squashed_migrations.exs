@@ -18,6 +18,19 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     # Create event store schema
     execute "CREATE SCHEMA IF NOT EXISTS event_store"
 
+    # Users table - primary source of user data
+    create table(:users) do
+      add :discord_id, :string, null: false
+      add :guild_id, :string, null: false
+      add :username, :string
+      add :active, :boolean, default: true
+
+      timestamps()
+    end
+
+    create index(:users, [:discord_id])
+    create unique_index(:users, [:discord_id, :guild_id], name: "users_discord_guild_unique_index")
+
     # Teams table
     create table(:teams) do
       add :name, :string, null: false
@@ -29,19 +42,6 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     end
 
     create index(:teams, [:guild_id])
-
-    # Users table
-    create table(:users) do
-      add :discord_id, :string, null: false
-      add :guild_id, :string, null: false
-      add :username, :string
-      add :active, :boolean, default: true
-
-      timestamps()
-    end
-
-    create index(:users, [:discord_id])
-    create index(:users, [:guild_id])
 
     # Team memberships (join table)
     create table(:team_members) do
@@ -62,7 +62,7 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
       add :guild_id, :string, null: false
       add :mode, :string, null: false
       add :status, :string, default: "created"
-      add :created_by, :string
+      add :created_by_user_id, references(:users, on_delete: :nilify_all)
       add :created_at, :utc_datetime
       add :started_at, :utc_datetime
       add :finished_at, :utc_datetime
@@ -74,6 +74,7 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     create unique_index(:games, [:game_id])
     create index(:games, [:guild_id])
     create index(:games, [:status])
+    create index(:games, [:created_by_user_id])
 
     # Game rounds
     create table(:game_rounds) do
@@ -88,7 +89,6 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     end
 
     create index(:game_rounds, [:game_id])
-    create index(:game_rounds, [:guild_id])
     create unique_index(:game_rounds, [:game_id, :round_number])
 
     # Game configs
@@ -96,15 +96,15 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
       add :guild_id, :string, null: false
       add :mode, :string, null: false
       add :config, :map, null: false
-      add :created_by, :string
+      add :created_by_user_id, references(:users, on_delete: :nilify_all)
       add :active, :boolean, default: true
 
       timestamps()
     end
 
     create index(:game_configs, [:guild_id])
+    create index(:game_configs, [:created_by_user_id])
     create unique_index(:game_configs, [:guild_id, :mode])
-
 
     # Player stats
     create table(:player_stats) do
@@ -127,7 +127,6 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     end
 
     create index(:player_stats, [:user_id])
-    create index(:player_stats, [:guild_id])
     create unique_index(:player_stats, [:user_id, :guild_id])
 
     # Round stats
@@ -149,7 +148,6 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     end
 
     create index(:round_stats, [:game_id])
-    create index(:round_stats, [:guild_id])
     create index(:round_stats, [:team_id])
     create unique_index(:round_stats, [:game_id, :round_number, :team_id])
 
@@ -159,8 +157,8 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
       add :round_id, references(:game_rounds, on_delete: :delete_all), null: false
       add :guild_id, :string, null: false
       add :team_id, references(:teams, on_delete: :nilify_all), null: false
-      add :player1_id, references(:users, on_delete: :nilify_all), null: false
-      add :player2_id, references(:users, on_delete: :nilify_all), null: false
+      add :player1_user_id, references(:users, on_delete: :nilify_all), null: false
+      add :player2_user_id, references(:users, on_delete: :nilify_all), null: false
       add :player1_word, :string, null: false
       add :player2_word, :string, null: false
       add :successful, :boolean, null: false
@@ -175,20 +173,17 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
       timestamps()
     end
 
-    create index(:guesses, [:game_id])
-    create index(:guesses, [:round_id])
-    create index(:guesses, [:guild_id])
     create index(:guesses, [:team_id])
-    create index(:guesses, [:player1_id, :player2_id])
-    create index(:guesses, [:successful])
+    create index(:guesses, [:player1_user_id, :player2_user_id])
     create index(:guesses, [:event_id])
+    create index(:guesses, [:game_id, :round_id, :guess_number], name: "guesses_game_round_index")
 
     # Team invitations
     create table(:team_invitations) do
       add :team_id, references(:teams, on_delete: :delete_all), null: false
       add :guild_id, :string, null: false
       add :invited_user_id, references(:users, on_delete: :delete_all), null: false
-      add :invited_by_id, references(:users, on_delete: :nilify_all)
+      add :inviter_user_id, references(:users, on_delete: :nilify_all)
       add :status, :string, default: "pending"
       add :expires_at, :utc_datetime
 
@@ -196,8 +191,8 @@ defmodule GameBot.Infrastructure.Repo.Migrations.SquashedMigrations do
     end
 
     create index(:team_invitations, [:team_id])
-    create index(:team_invitations, [:guild_id])
     create index(:team_invitations, [:invited_user_id])
+    create index(:team_invitations, [:inviter_user_id])
     create unique_index(:team_invitations, [:team_id, :invited_user_id])
 
     # Create event store tables

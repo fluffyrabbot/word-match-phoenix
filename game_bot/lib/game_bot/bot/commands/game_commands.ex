@@ -10,7 +10,11 @@ defmodule GameBot.Bot.Commands.GameCommands do
 
   @doc """
   Handles the /start command to begin a new game.
+
+  Can be called with either an Interaction or a Message struct.
   """
+  @spec handle_start_game(Interaction.t(), String.t(), map()) :: {:ok, struct()} | {:error, term()}
+  @spec handle_start_game(Message.t(), String.t(), map()) :: {:ok, struct()} | {:error, term()}
   def handle_start_game(%Interaction{} = interaction, mode_name, options) do
     metadata = Metadata.from_discord_interaction(interaction)
     guild_id = metadata.guild_id
@@ -21,6 +25,47 @@ defmodule GameBot.Bot.Commands.GameCommands do
         # Generate game ID
         with {:ok, game_id} <- generate_game_id(),
              {:ok, teams} <- validate_teams(options.teams),
+             {:ok, mode} <- GameModes.get_mode(mode_name),
+             {:ok, config} <- build_game_config(mode, options) do
+
+          # Create the event
+          event = %GameEvents.GameStarted{
+            game_id: game_id,
+            guild_id: guild_id,
+            mode: mode,
+            round_number: 1,
+            teams: teams.team_map,
+            team_ids: teams.team_ids,
+            player_ids: teams.player_ids,
+            config: config,
+            timestamp: DateTime.utc_now(),
+            metadata: metadata
+          }
+
+          {:ok, event}
+        end
+      error -> error
+    end
+  end
+
+  def handle_start_game(%Message{} = message, mode_name, options) do
+    # Create metadata from message
+    metadata = %{
+      source_id: message.author.id,
+      source_type: :message,
+      timestamp: DateTime.utc_now(),
+      correlation_id: generate_correlation_id(),
+      guild_id: message.guild_id
+    }
+
+    guild_id = message.guild_id
+
+    # Validate guild context
+    case validate_guild_context(guild_id) do
+      {:ok, _} ->
+        # Generate game ID
+        with {:ok, game_id} <- generate_game_id(),
+             {:ok, teams} <- validate_teams(Map.get(options, :teams, %{})),
              {:ok, mode} <- GameModes.get_mode(mode_name),
              {:ok, config} <- build_game_config(mode, options) do
 
@@ -70,9 +115,17 @@ defmodule GameBot.Bot.Commands.GameCommands do
 
   @doc """
   Handles a guess submission in an active game.
+
+  Can be called with:
+  - An Interaction struct, game_id, word, and optional parent_metadata
+  - A Message struct, game_id, word, and optional parent_metadata
+  - Just game_id, author_id, and word (for direct message processing)
   """
+  @spec handle_guess(Interaction.t(), String.t(), String.t(), map() | nil) :: {:ok, map()} | {:error, term()}
+  @spec handle_guess(Message.t(), String.t(), String.t(), map() | nil) :: {:ok, map()} | {:error, term()}
+  @spec handle_guess(String.t(), String.t(), String.t()) :: {:ok, struct()} | {:error, term()}
   def handle_guess(%Interaction{} = interaction, game_id, word, parent_metadata) do
-    metadata = if parent_metadata do
+    metadata = if parent_metadata != nil and is_map(parent_metadata) and map_size(parent_metadata) > 0 do
       Metadata.from_parent_event(parent_metadata)
     else
       Metadata.from_discord_interaction(interaction)
@@ -94,9 +147,30 @@ defmodule GameBot.Bot.Commands.GameCommands do
     end
   end
 
-  @doc """
-  Handles a guess submission in an active game from a message.
-  """
+  def handle_guess(%Message{} = message, game_id, word, _parent_metadata) do
+    with {:ok, game} <- Session.get_state(game_id),
+         {:ok, player_info} <- GameModes.get_player_info(game, message.author.id) do
+
+      metadata = %{
+        source_id: message.author.id,
+        source_type: :message,
+        timestamp: DateTime.utc_now(),
+        correlation_id: generate_correlation_id(),
+        guild_id: game.guild_id
+      }
+
+      # Don't create a GuessProcessed event here - let the game mode handle it
+      # when both players have submitted their guesses
+      {:ok, %{
+        game_id: game_id,
+        team_id: player_info.team_id,
+        player_id: message.author.id,
+        word: word,
+        metadata: metadata
+      }}
+    end
+  end
+
   def handle_guess(game_id, author_id, word) do
     with {:ok, game} <- Session.get_state(game_id),
          {:ok, player_info} <- GameModes.get_player_info(game, author_id) do
@@ -114,8 +188,8 @@ defmodule GameBot.Bot.Commands.GameCommands do
         mode: game.mode,
         round_number: game.current_round,
         team_id: player_info.team_id,
-        player1_info: player_info,
-        player2_info: GameModes.get_teammate_info(game, player_info),
+        player1_id: author_id,
+        player2_id: GameModes.get_teammate_info(game, player_info).player_id,
         player1_word: word,
         player2_word: nil,
         guess_successful: false,
@@ -167,7 +241,7 @@ defmodule GameBot.Bot.Commands.GameCommands do
       "guess" ->
         game_id = Map.get(command.options, "game_id")
         word = Map.get(command.options, "word")
-        handle_guess(command.interaction, game_id, word, %{})
+        handle_guess(command.interaction, game_id, word, nil)
 
       _ ->
         {:error, :unknown_command}
@@ -210,7 +284,7 @@ defmodule GameBot.Bot.Commands.GameCommands do
         handle_start_game(message, mode_name, options)
 
       ["guess", game_id, word] when byte_size(game_id) > 0 and byte_size(word) > 0 ->
-        handle_guess(message, game_id, word, %{})
+        handle_guess(message, game_id, word, nil)
 
       _ ->
         {:error, :invalid_command}

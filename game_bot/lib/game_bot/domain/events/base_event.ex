@@ -6,6 +6,7 @@ defmodule GameBot.Domain.Events.BaseEvent do
 
   use Ecto.Schema
   import Ecto.Changeset
+  alias GameBot.Domain.Events.EventStructure
 
   @type validation_error :: {:error, {:validation, String.t()}}
 
@@ -173,7 +174,13 @@ defmodule GameBot.Domain.Events.BaseEvent do
           struct = struct(__MODULE__)
 
           Map.merge(struct, Map.new(data, fn
-            {"timestamp", v} -> {:timestamp, DateTime.from_iso8601!(v)}
+            {"timestamp", v} ->
+              case DateTime.from_iso8601(v) do
+                {:ok, datetime, _} -> {:timestamp, datetime}
+                {:error, _} ->
+                  # Fallback to parsing with EventStructure.parse_timestamp
+                  {:timestamp, EventStructure.parse_timestamp(v)}
+              end
             {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
             {k, v} -> {k, v}
           end))

@@ -114,11 +114,14 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Compressor do
     # Get data to compress
     data = Map.get(event, "data") || Map.get(event, :data) || %{}
 
+    # Include the level in the data to be compressed
+    data_with_level = {level, data}
+
     # Convert to binary and compress
     compressed_data =
-      data
+      data_with_level
       |> :erlang.term_to_binary()
-      |> :zlib.compress(level)
+      |> :zlib.compress()  # Correct: compress/1
       |> Base.encode64()
 
     # Update event with compressed data
@@ -142,7 +145,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Compressor do
         |> Base.decode64!()
 
       # Decompress
-      decompressed =
+      {_level, decompressed} =  # Unpack level and data
         compressed
         |> :zlib.uncompress()
         |> :erlang.binary_to_term()

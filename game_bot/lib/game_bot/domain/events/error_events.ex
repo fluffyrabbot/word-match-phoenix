@@ -1,407 +1,405 @@
 defmodule GameBot.Domain.Events.ErrorEvents do
   @moduledoc """
-  Defines error events that can occur during game play.
+  Defines error-related events in the domain.
   """
 
-  alias GameBot.Domain.Events.Metadata
+  alias GameBot.Domain.Events.{Metadata, EventStructure, GameEvents, ValidationHelpers}
 
-  @type metadata :: Metadata.t()
-
-  defmodule GuessError do
+  defmodule CommandError do
     @moduledoc """
-    Emitted when there is an error processing a guess.
+    Emitted when a command fails to execute.
 
     Base fields:
-    - game_id: Unique identifier for the game
-    - guild_id: Discord guild ID where the game is being played
+    - game_id: Unique identifier for the game (optional)
+    - guild_id: Discord guild ID where the error occurred
     - timestamp: When the error occurred
-    - metadata: Additional context about the error
+    - metadata: Additional context about the event
 
     Event-specific fields:
-    - team_id: ID of the team that made the guess
-    - player_id: ID of the player that made the guess
-    - word: The word that was guessed
-    - reason: Why the guess failed (see @type reason())
+    - command_name: Name of the command that failed
+    - error_code: Error code for the failure
+    - error_message: Human-readable error message
+    - user_id: ID of the user who issued the command
+    - channel_id: ID of the channel where the command was issued
     """
-    use GameBot.Domain.Events.EventBuilderAdapter
+    use GameBot.Domain.Events.BaseEvent,
+      event_type: "command_error",
+      version: 1,
+      fields: [
+        field(:command_name, :string),
+        field(:error_code, :string),
+        field(:error_message, :string),
+        field(:user_id, :string),
+        field(:channel_id, :string)
+      ]
 
-    @type reason :: :invalid_word | :not_players_turn | :word_already_guessed | :invalid_player | :invalid_team
+    @behaviour GameBot.Domain.Events.GameEvents
 
     @type t :: %__MODULE__{
-      # Base fields
-      game_id: String.t(),
+      # Base fields (from BaseEvent)
+      id: Ecto.UUID.t(),
+      game_id: String.t() | nil,
       guild_id: String.t(),
+      mode: atom() | nil,
+      round_number: integer() | nil,
       timestamp: DateTime.t(),
-      metadata: metadata(),
-      # Event-specific fields
-      team_id: String.t(),
-      player_id: String.t(),
-      word: String.t(),
-      reason: reason()
+      metadata: Metadata.t(),
+      type: String.t(),
+      version: pos_integer(),
+
+      # Custom fields
+      command_name: String.t(),
+      error_code: String.t(),
+      error_message: String.t(),
+      user_id: String.t(),
+      channel_id: String.t(),
+
+      # Ecto timestamps
+      inserted_at: DateTime.t() | nil,
+      updated_at: DateTime.t() | nil
     }
-    defstruct [:game_id, :guild_id, :team_id, :player_id, :word, :reason, :timestamp, :metadata]
 
     @doc """
-    Returns the string type identifier for this event.
+    Returns the list of required fields for this event.
     """
     @impl true
-    def event_type(), do: "guess_error"
+    @spec required_fields() :: [atom()]
+    def required_fields do
+      [:guild_id, :command_name, :error_code, :error_message, :user_id, :channel_id, :metadata]
+    end
 
+    @doc """
+    Validates custom fields specific to this event.
+    """
     @impl true
-    def event_version(), do: 1
+    @spec validate_custom_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+    def validate_custom_fields(changeset) do
+      super(changeset)
+      |> validate_required([:command_name, :error_code, :error_message, :user_id, :channel_id])
+    end
 
-    def validate_attrs(attrs) do
-      with {:ok, base_attrs} <- super(attrs),
-           :ok <- validate_required_field(attrs, :team_id),
-           :ok <- validate_required_field(attrs, :player_id),
-           :ok <- validate_required_field(attrs, :word),
-           :ok <- validate_required_field(attrs, :reason),
-           :ok <- validate_string_field(attrs, :team_id),
-           :ok <- validate_string_field(attrs, :player_id),
-           :ok <- validate_string_field(attrs, :word),
-           :ok <- validate_reason(attrs.reason) do
-        {:ok, base_attrs}
+    @doc """
+    Validates the event.
+
+    Implements the GameEvents.validate/1 callback.
+    """
+    @impl GameEvents
+    @spec validate(t()) :: :ok | {:error, String.t()}
+    def validate(%__MODULE__{} = event) do
+      with :ok <- EventStructure.validate(event),
+           :ok <- ValidationHelpers.validate_string_value(event.command_name),
+           :ok <- ValidationHelpers.validate_string_value(event.error_code),
+           :ok <- ValidationHelpers.validate_string_value(event.error_message),
+           :ok <- ValidationHelpers.validate_string_value(event.user_id),
+           :ok <- ValidationHelpers.validate_string_value(event.channel_id) do
+        :ok
       end
     end
 
-    defp validate_reason(nil), do: {:error, {:validation, "reason is required"}}
-    defp validate_reason(reason) when reason in [:invalid_word, :not_players_turn, :word_already_guessed, :invalid_player, :invalid_team], do: :ok
-    defp validate_reason(_), do: {:error, {:validation, "invalid reason"}}
-
     @doc """
-    Creates a new GuessError event with the specified attributes.
+    Converts the event to a map for serialization.
 
-    ## Parameters
-    - game_id: Unique identifier for the game
-    - guild_id: Discord guild ID where the game is being played
-    - team_id: ID of the team that made the guess
-    - player_id: ID of the player that made the guess
-    - word: The word that was guessed
-    - reason: Why the guess failed
-    - metadata: Optional event metadata
-
-    ## Returns
-    - `{:ok, event}` if validation succeeds
-    - `{:error, reason}` if validation fails
+    Implements the GameEvents.to_map/1 callback.
     """
-    @spec create(String.t(), String.t(), String.t(), String.t(), String.t(), reason(), map()) :: {:ok, t()} | {:error, term()}
-    def create(game_id, guild_id, team_id, player_id, word, reason, metadata \\ %{}) do
-      attrs = %{
-        game_id: game_id,
-        guild_id: guild_id,
-        team_id: team_id,
-        player_id: player_id,
-        word: word,
-        reason: reason
+    @impl GameEvents
+    @spec to_map(t()) :: map()
+    def to_map(%__MODULE__{} = event) do
+      %{
+        "command_name" => event.command_name,
+        "error_code" => event.error_code,
+        "error_message" => event.error_message,
+        "user_id" => event.user_id,
+        "channel_id" => event.channel_id,
+        "metadata" => event.metadata || %{},
+        "guild_id" => event.guild_id,
+        "game_id" => event.game_id
       }
-
-      new(attrs, metadata)
     end
 
     @doc """
-    Creates a new GuessError event with minimal parameters.
+    Creates an event from a serialized map.
 
-    This is a convenience function used primarily in error handling code.
-    Guild ID will be empty and metadata will be empty.
+    Implements the GameEvents.from_map/1 callback.
+    """
+    @impl GameEvents
+    @spec from_map(map()) :: t()
+    def from_map(data) do
+      %__MODULE__{
+        command_name: data["command_name"],
+        error_code: data["error_code"],
+        error_message: data["error_message"],
+        user_id: data["user_id"],
+        channel_id: data["channel_id"],
+        metadata: data["metadata"] || %{},
+        guild_id: data["guild_id"],
+        game_id: data["game_id"],
+        timestamp: GameEvents.parse_timestamp(data["timestamp"]),
+        type: "command_error",
+        version: 1
+      }
+    end
+
+    @doc """
+    Creates a new CommandError event.
 
     ## Parameters
-    - game_id: Unique identifier for the game
-    - team_id: ID of the team that made the guess
-    - player_id: ID of the player that made the guess
-    - word: The word that was guessed
-    - reason: Why the guess failed
+      * `command_name` - Name of the command that failed
+      * `error_code` - Error code for the failure
+      * `error_message` - Human-readable error message
+      * `user_id` - ID of the user who issued the command
+      * `channel_id` - ID of the channel where the command was issued
+      * `guild_id` - Discord guild ID where the error occurred
+      * `game_id` - Unique identifier for the game (optional)
+      * `metadata` - Additional metadata for the event (optional)
 
     ## Returns
-    - A new GuessError struct
+      * `{:ok, %CommandError{}}` - A new CommandError event struct
+      * `{:error, reason}` - If validation fails
     """
-    @spec new(String.t(), String.t(), String.t(), String.t(), reason()) :: t()
-    def new(game_id, team_id, player_id, word, reason) do
+    @spec new(
+      String.t(),
+      String.t(),
+      String.t(),
+      String.t(),
+      String.t(),
+      String.t(),
+      String.t() | nil,
+      map()
+    ) :: {:ok, t()} | {:error, String.t()}
+    def new(
+      command_name,
+      error_code,
+      error_message,
+      user_id,
+      channel_id,
+      guild_id,
+      game_id \\ nil,
+      metadata \\ %{}
+    ) do
       now = DateTime.utc_now()
-      %__MODULE__{
+
+      # Ensure metadata has required fields
+      enhanced_metadata = ValidationHelpers.ensure_metadata_fields(metadata, guild_id)
+
+      attrs = %{
+        command_name: command_name,
+        error_code: error_code,
+        error_message: error_message,
+        user_id: user_id,
+        channel_id: channel_id,
+        guild_id: guild_id,
         game_id: game_id,
-        guild_id: "",
-        team_id: team_id,
-        player_id: player_id,
-        word: word,
-        reason: reason,
         timestamp: now,
-        metadata: %{}
+        metadata: enhanced_metadata
       }
+
+      # Create and validate the event
+      event = struct!(__MODULE__, attrs)
+
+      case validate(event) do
+        :ok -> {:ok, event}
+        error -> error
+      end
     end
   end
 
-  defmodule GuessPairError do
+  defmodule SystemError do
     @moduledoc """
-    Emitted when there is an error processing a guess pair.
+    Emitted when a system error occurs.
 
     Base fields:
-    - game_id: Unique identifier for the game
-    - guild_id: Discord guild ID where the game is being played
+    - game_id: Unique identifier for the game (optional)
+    - guild_id: Discord guild ID where the error occurred (optional)
     - timestamp: When the error occurred
-    - metadata: Additional context about the error
+    - metadata: Additional context about the event
 
     Event-specific fields:
-    - team_id: ID of the team that made the guess pair
-    - word1: First word in the pair
-    - word2: Second word in the pair
-    - reason: Why the guess pair failed (see @type reason())
+    - error_type: Type of error that occurred
+    - error_message: Human-readable error message
+    - stacktrace: Error stacktrace (optional)
+    - context: Additional context about the error
     """
-    use GameBot.Domain.Events.EventBuilderAdapter
+    use GameBot.Domain.Events.BaseEvent,
+      event_type: "system_error",
+      version: 1,
+      fields: [
+        field(:error_type, :string),
+        field(:error_message, :string),
+        field(:stacktrace, :string),
+        field(:context, :map)
+      ]
 
-    @type reason :: :invalid_word_pair | :not_teams_turn | :words_already_guessed | :invalid_team | :same_words
+    @behaviour GameBot.Domain.Events.GameEvents
 
     @type t :: %__MODULE__{
-      # Base fields
-      game_id: String.t(),
-      guild_id: String.t(),
+      # Base fields (from BaseEvent)
+      id: Ecto.UUID.t(),
+      game_id: String.t() | nil,
+      guild_id: String.t() | nil,
+      mode: atom() | nil,
+      round_number: integer() | nil,
       timestamp: DateTime.t(),
-      metadata: metadata(),
-      # Event-specific fields
-      team_id: String.t(),
-      word1: String.t(),
-      word2: String.t(),
-      reason: reason()
+      metadata: Metadata.t(),
+      type: String.t(),
+      version: pos_integer(),
+
+      # Custom fields
+      error_type: String.t(),
+      error_message: String.t(),
+      stacktrace: String.t() | nil,
+      context: map(),
+
+      # Ecto timestamps
+      inserted_at: DateTime.t() | nil,
+      updated_at: DateTime.t() | nil
     }
-    defstruct [:game_id, :guild_id, :team_id, :word1, :word2, :reason, :timestamp, :metadata]
 
     @doc """
-    Returns the string type identifier for this event.
+    Returns the list of required fields for this event.
     """
     @impl true
-    def event_type(), do: "guess_pair_error"
+    @spec required_fields() :: [atom()]
+    def required_fields do
+      [:error_type, :error_message, :context, :metadata]
+    end
 
+    @doc """
+    Validates custom fields specific to this event.
+    """
     @impl true
-    def event_version(), do: 1
+    @spec validate_custom_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+    def validate_custom_fields(changeset) do
+      super(changeset)
+      |> validate_required([:error_type, :error_message, :context])
+    end
 
-    def validate_attrs(attrs) do
-      with {:ok, base_attrs} <- super(attrs),
-           :ok <- validate_required_field(attrs, :team_id),
-           :ok <- validate_required_field(attrs, :word1),
-           :ok <- validate_required_field(attrs, :word2),
-           :ok <- validate_required_field(attrs, :reason),
-           :ok <- validate_string_field(attrs, :team_id),
-           :ok <- validate_string_field(attrs, :word1),
-           :ok <- validate_string_field(attrs, :word2),
-           :ok <- validate_words(attrs.word1, attrs.word2),
-           :ok <- validate_reason(attrs.reason) do
-        {:ok, base_attrs}
+    @doc """
+    Validates the event.
+
+    Implements the GameEvents.validate/1 callback.
+    """
+    @impl GameEvents
+    @spec validate(t()) :: :ok | {:error, String.t()}
+    def validate(%__MODULE__{} = event) do
+      with :ok <- EventStructure.validate(event),
+           :ok <- ValidationHelpers.validate_string_value(event.error_type),
+           :ok <- ValidationHelpers.validate_string_value(event.error_message),
+           :ok <- validate_context(event.context) do
+        :ok
       end
     end
 
-    defp validate_words(word, word), do: {:error, {:validation, "word1 and word2 cannot be the same"}}
-    defp validate_words(_, _), do: :ok
-
-    defp validate_reason(nil), do: {:error, {:validation, "reason is required"}}
-    defp validate_reason(reason) when reason in [:invalid_word_pair, :not_teams_turn, :words_already_guessed, :invalid_team, :same_words], do: :ok
-    defp validate_reason(_), do: {:error, {:validation, "invalid reason"}}
-
     @doc """
-    Creates a new GuessPairError event with the specified attributes.
+    Converts the event to a map for serialization.
 
-    ## Parameters
-    - game_id: Unique identifier for the game
-    - guild_id: Discord guild ID where the game is being played
-    - team_id: ID of the team that made the guess pair
-    - word1: First word in the pair
-    - word2: Second word in the pair
-    - reason: Why the guess pair failed
-    - metadata: Optional event metadata
-
-    ## Returns
-    - `{:ok, event}` if validation succeeds
-    - `{:error, reason}` if validation fails
+    Implements the GameEvents.to_map/1 callback.
     """
-    @spec create(String.t(), String.t(), String.t(), String.t(), String.t(), reason(), map()) :: {:ok, t()} | {:error, term()}
-    def create(game_id, guild_id, team_id, word1, word2, reason, metadata \\ %{}) do
-      attrs = %{
-        game_id: game_id,
-        guild_id: guild_id,
-        team_id: team_id,
-        word1: word1,
-        word2: word2,
-        reason: reason
+    @impl GameEvents
+    @spec to_map(t()) :: map()
+    def to_map(%__MODULE__{} = event) do
+      %{
+        "error_type" => event.error_type,
+        "error_message" => event.error_message,
+        "stacktrace" => event.stacktrace,
+        "context" => event.context,
+        "metadata" => event.metadata || %{},
+        "guild_id" => event.guild_id,
+        "game_id" => event.game_id
       }
-
-      new(attrs, metadata)
     end
 
     @doc """
-    Creates a new GuessPairError event with minimal parameters.
+    Creates an event from a serialized map.
 
-    This is a convenience function used primarily in error handling code.
-    Guild ID will be empty and metadata will be empty.
-
-    ## Parameters
-    - game_id: Unique identifier for the game
-    - team_id: ID of the team that made the guess pair
-    - word1: First word in the pair
-    - word2: Second word in the pair
-    - reason: Why the guess pair failed
-
-    ## Returns
-    - A new GuessPairError struct
+    Implements the GameEvents.from_map/1 callback.
     """
-    @spec new(String.t(), String.t(), String.t(), String.t(), reason()) :: t()
-    def new(game_id, team_id, word1, word2, reason) do
-      now = DateTime.utc_now()
+    @impl GameEvents
+    @spec from_map(map()) :: t()
+    def from_map(data) do
       %__MODULE__{
-        game_id: game_id,
-        guild_id: "",
-        team_id: team_id,
-        word1: word1,
-        word2: word2,
-        reason: reason,
-        timestamp: now,
-        metadata: %{}
+        error_type: data["error_type"],
+        error_message: data["error_message"],
+        stacktrace: data["stacktrace"],
+        context: data["context"] || %{},
+        metadata: data["metadata"] || %{},
+        guild_id: data["guild_id"],
+        game_id: data["game_id"],
+        timestamp: GameEvents.parse_timestamp(data["timestamp"]),
+        type: "system_error",
+        version: 1
       }
     end
-  end
-
-  defmodule GameError do
-    @moduledoc """
-    Emitted when there is an error related to game state.
-
-    Base fields:
-    - game_id: Unique identifier for the game
-    - guild_id: Discord guild ID where the game is being played
-    - timestamp: When the error occurred
-    - metadata: Additional context about the error
-
-    Event-specific fields:
-    - reason: Why the game operation failed (see @type reason())
-    - details: Optional additional information about the error
-    """
-    use GameBot.Domain.Events.EventBuilderAdapter
-
-    @type reason :: :game_not_found | :game_already_exists | :invalid_game_state | :invalid_operation
-
-    @type t :: %__MODULE__{
-      # Base fields
-      game_id: String.t(),
-      guild_id: String.t(),
-      timestamp: DateTime.t(),
-      metadata: metadata(),
-      # Event-specific fields
-      reason: reason(),
-      details: String.t() | nil
-    }
-    defstruct [:game_id, :guild_id, :reason, :details, :timestamp, :metadata]
 
     @doc """
-    Returns the string type identifier for this event.
-    """
-    @impl true
-    def event_type(), do: "game_error"
-
-    @impl true
-    def event_version(), do: 1
-
-    def validate_attrs(attrs) do
-      with {:ok, base_attrs} <- super(attrs),
-           :ok <- validate_required_field(attrs, :reason),
-           :ok <- validate_reason(attrs.reason),
-           :ok <- validate_string_field(attrs, :details) do
-        {:ok, base_attrs}
-      end
-    end
-
-    defp validate_reason(nil), do: {:error, {:validation, "reason is required"}}
-    defp validate_reason(reason) when reason in [:game_not_found, :game_already_exists, :invalid_game_state, :invalid_operation], do: :ok
-    defp validate_reason(_), do: {:error, {:validation, "invalid reason"}}
-
-    @doc """
-    Creates a new GameError event with the specified attributes.
+    Creates a new SystemError event.
 
     ## Parameters
-    - game_id: Unique identifier for the game
-    - guild_id: Discord guild ID where the game is being played
-    - reason: Why the game operation failed
-    - details: Optional additional information about the error
-    - metadata: Optional event metadata
+      * `error_type` - Type of error that occurred
+      * `error_message` - Human-readable error message
+      * `context` - Additional context about the error
+      * `stacktrace` - Error stacktrace (optional)
+      * `guild_id` - Discord guild ID where the error occurred (optional)
+      * `game_id` - Unique identifier for the game (optional)
+      * `metadata` - Additional metadata for the event (optional)
 
     ## Returns
-    - `{:ok, event}` if validation succeeds
-    - `{:error, reason}` if validation fails
+      * `{:ok, %SystemError{}}` - A new SystemError event struct
+      * `{:error, reason}` - If validation fails
     """
-    @spec create(String.t(), String.t(), reason(), String.t() | nil, map()) :: {:ok, t()} | {:error, term()}
-    def create(game_id, guild_id, reason, details \\ nil, metadata \\ %{}) do
-      attrs = %{
-        game_id: game_id,
-        guild_id: guild_id,
-        reason: reason,
-        details: details
-      }
-
-      new(attrs, metadata)
-    end
-  end
-
-  defmodule RoundCheckError do
-    @moduledoc """
-    Emitted when there is an error during round end check.
-
-    Base fields:
-    - game_id: Unique identifier for the game
-    - guild_id: Discord guild ID where the game is being played
-    - timestamp: When the error occurred
-    - metadata: Additional context about the error
-
-    Event-specific fields:
-    - reason: Why the round check failed
-    """
-    use GameBot.Domain.Events.EventBuilderAdapter
-
-    @type reason :: :invalid_round_state | :round_already_ended | :round_not_started | atom()
-
-    @type t :: %__MODULE__{
-      # Base fields
-      game_id: String.t(),
-      guild_id: String.t(),
-      timestamp: DateTime.t(),
-      metadata: metadata(),
-      # Event-specific fields
-      reason: reason()
-    }
-    defstruct [:game_id, :guild_id, :reason, :timestamp, :metadata]
-
-    @doc """
-    Returns the string type identifier for this event.
-    """
-    @impl true
-    def event_type(), do: "round_check_error"
-
-    @impl true
-    def event_version(), do: 1
-
-    def validate_attrs(attrs) do
-      with {:ok, base_attrs} <- super(attrs),
-           :ok <- validate_required_field(attrs, :reason) do
-        {:ok, base_attrs}
-      end
-    end
-
-    @doc """
-    Creates a new RoundCheckError event with the specified attributes.
-
-    ## Parameters
-    - game_id: Unique identifier for the game
-    - reason: Why the round check failed
-    - metadata: Optional event metadata
-
-    ## Returns
-    - `{:ok, event}` if validation succeeds
-    - `{:error, reason}` if validation fails
-    """
-    @spec new(String.t(), atom(), map()) :: t()
-    def new(game_id, reason, metadata \\ %{}) do
+    @spec new(
+      String.t(),
+      String.t(),
+      map(),
+      String.t() | nil,
+      String.t() | nil,
+      String.t() | nil,
+      map()
+    ) :: {:ok, t()} | {:error, String.t()}
+    def new(
+      error_type,
+      error_message,
+      context,
+      stacktrace \\ nil,
+      guild_id \\ nil,
+      game_id \\ nil,
+      metadata \\ %{}
+    ) do
       now = DateTime.utc_now()
-      %__MODULE__{
+
+      # Ensure metadata has required fields
+      enhanced_metadata = if guild_id do
+        ValidationHelpers.ensure_metadata_fields(metadata, guild_id)
+      else
+        metadata
+        |> Map.put_new(:source_id, UUID.uuid4())
+        |> Map.put_new(:correlation_id, UUID.uuid4())
+      end
+
+      attrs = %{
+        error_type: error_type,
+        error_message: error_message,
+        context: context,
+        stacktrace: stacktrace,
+        guild_id: guild_id,
         game_id: game_id,
-        guild_id: Map.get(metadata, :guild_id, ""),
-        reason: reason,
         timestamp: now,
-        metadata: metadata
+        metadata: enhanced_metadata
       }
+
+      # Create and validate the event
+      event = struct!(__MODULE__, attrs)
+
+      case validate(event) do
+        :ok -> {:ok, event}
+        error -> error
+      end
     end
+
+    # Private validation functions
+
+    @spec validate_context(map() | nil) :: :ok | {:error, String.t()}
+    defp validate_context(nil), do: {:error, "context is required"}
+    defp validate_context(context) when is_map(context), do: :ok
+    defp validate_context(_), do: {:error, "context must be a map"}
   end
 end

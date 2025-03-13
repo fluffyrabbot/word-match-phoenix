@@ -456,7 +456,7 @@ defmodule GameBot.GameSessions.Recovery do
     {:ok, updated_state}
   end
 
-  defp apply_event(%GuessAbandoned{} = event, state) do
+  defp apply_event(%{__struct__: GuessAbandoned} = event, state) do
     # Clear pending guess
     team_path = [:mode_state, :teams, event.team_id]
     updated_state = put_in(state, team_path ++ [:pending_guess], nil)

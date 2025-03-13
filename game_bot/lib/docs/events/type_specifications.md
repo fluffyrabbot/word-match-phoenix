@@ -6,7 +6,6 @@ This document centralizes type specifications for all events in the system to en
 
 ```elixir
 @type metadata :: %{String.t() => term()}
-@type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
 @type team_info :: %{
   team_id: String.t(),
   player_ids: [String.t()],
@@ -54,8 +53,8 @@ Records a processed guess attempt between two players.
   # Event-specific Fields
   round_number: pos_integer(),
   team_id: String.t(),
-  player1_info: player_info(),
-  player2_info: player_info(),
+  player1_id: String.t(),
+  player2_id: String.t(),
   player1_word: String.t(),
   player2_word: String.t(),
   guess_successful: boolean(),
@@ -63,7 +62,9 @@ Records a processed guess attempt between two players.
   guess_count: pos_integer(),
   round_guess_count: pos_integer(),
   total_guesses: pos_integer(),
-  guess_duration: non_neg_integer()
+  guess_duration: non_neg_integer(),
+  player1_duration: non_neg_integer(),  # Time taken for player 1 to submit word
+  player2_duration: non_neg_integer()   # Time taken for player 2 to submit word
 }
 ```
 
@@ -83,8 +84,8 @@ Records when a guess attempt is abandoned.
   # Event-specific Fields
   round_number: pos_integer(),
   team_id: String.t(),
-  player1_info: player_info(),
-  player2_info: player_info(),
+  player1_id: String.t(),
+  player2_id: String.t(),
   reason: :timeout | :player_quit | :disconnected,
   abandoning_player_id: String.t(),
   last_guess: %{

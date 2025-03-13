@@ -26,7 +26,8 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
             invitation_id = generate_invitation_id(cmd.inviter_id, cmd.invitee_id)
             expires_at = DateTime.add(DateTime.utc_now(), 300) # 5 minutes
 
-            %TeamInvitationCreated{
+            %{
+              __struct__: TeamInvitationCreated,
               invitation_id: invitation_id,
               inviter_id: cmd.inviter_id,
               invitee_id: cmd.invitee_id,
@@ -52,13 +53,15 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
 
       [
         # First record the acceptance
-        %TeamInvitationAccepted{
+        %{
+          __struct__: TeamInvitationAccepted,
           invitation_id: state.pending_invitation.invitation_id,
           team_id: team_id,
           accepted_at: DateTime.utc_now()
         },
         # Then create the team
-        %TeamCreated{
+        %{
+          __struct__: TeamCreated,
           team_id: team_id,
           name: name,
           player_ids: [p1, p2],
@@ -75,7 +78,8 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
     with :ok <- validate_member(state, requester_id),
          :ok <- RenameTeam.validate(cmd) do
       if cmd.new_name != state.name do
-        %TeamUpdated{
+        %{
+          __struct__: TeamUpdated,
           team_id: team_id,
           name: cmd.new_name,
           updated_at: DateTime.utc_now(),
@@ -93,7 +97,7 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
     {:error, :team_not_found}
   end
 
-  def apply(%State{} = state, %TeamInvitationCreated{} = event) do
+  def apply(%State{} = state, %{__struct__: TeamInvitationCreated} = event) do
     %State{state |
       pending_invitation: %{
         invitation_id: event.invitation_id,
@@ -106,14 +110,14 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
     }
   end
 
-  def apply(%State{} = state, %TeamInvitationAccepted{}) do
+  def apply(%State{} = state, %{__struct__: TeamInvitationAccepted} = event) do
     # Clear the pending invitation
     %State{state | pending_invitation: nil}
   end
 
   # When a team is created, we're creating a completely new state from the event data
   # We don't use the previous state because we're initializing a brand new team
-  def apply(%State{} = _state, %TeamCreated{} = event) do
+  def apply(%State{} = _state, %{__struct__: TeamCreated} = event) do
     %State{
       team_id: event.team_id,
       name: event.name,
@@ -124,7 +128,7 @@ defmodule GameBot.Domain.Aggregates.TeamAggregate do
     }
   end
 
-  def apply(%State{} = state, %TeamUpdated{} = event) do
+  def apply(%State{} = state, %{__struct__: TeamUpdated} = event) do
     %State{state | name: event.name, updated_at: event.updated_at}
   end
 

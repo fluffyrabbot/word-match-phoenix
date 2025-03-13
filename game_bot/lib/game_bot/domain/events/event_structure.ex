@@ -47,10 +47,16 @@ defmodule GameBot.Domain.Events.EventStructure do
 
       # Define types
       @type metadata :: Metadata.t()
-      @type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
       @type team_info :: %{
         team_id: String.t(),
         player_ids: [String.t()],
+        score: integer(),
+        matches: non_neg_integer(),
+        total_guesses: pos_integer()
+      }
+      @type player_info :: %{
+        player_id: String.t(),
+        username: String.t(),
         score: integer(),
         matches: non_neg_integer(),
         total_guesses: pos_integer()
@@ -86,18 +92,24 @@ defmodule GameBot.Domain.Events.EventStructure do
   @type metadata :: Metadata.t()
 
   @typedoc """
-  Standard structure for player information in events.
-  Used consistently across all events that reference players.
-  """
-  @type player_info :: {integer(), String.t(), String.t() | nil}  # {discord_id, username, nickname}
-
-  @typedoc """
   Standard structure for team information in events.
   Used consistently across all events that reference teams.
   """
   @type team_info :: %{
     team_id: String.t(),
     player_ids: [String.t()],
+    score: integer(),
+    matches: non_neg_integer(),
+    total_guesses: pos_integer()
+  }
+
+  @typedoc """
+  Standard structure for player information in events.
+  Used consistently across all events that reference players.
+  """
+  @type player_info :: %{
+    player_id: String.t(),
+    username: String.t(),
     score: integer(),
     matches: non_neg_integer(),
     total_guesses: pos_integer()

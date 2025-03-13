@@ -4,140 +4,281 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
   alias GameBot.Domain.Events.GameEvents.ExampleEvent
   alias GameBot.Domain.Events.Metadata
 
-  describe "ExampleEvent" do
-    test "creates a valid event" do
-      {:ok, metadata} = Metadata.new("source_123", %{
-        correlation_id: "corr_123",
-        actor_id: "player_123"
-      })
+  describe "new/1" do
+    test "creates a valid event with all required fields" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      attrs = %{
+        game_id: "game-123",
+        guild_id: "guild-123",
+        mode: :two_player,
+        round_number: 1,
+        player_id: "player-123",
+        action: "create",
+        data: %{key: "value"},
+        metadata: metadata
+      }
 
-      event = ExampleEvent.new("game_123", "guild_123", "player_123", "do_something", %{extra: "data"}, metadata)
+      # Act
+      event = ExampleEvent.new(attrs)
 
-      assert :ok = ExampleEvent.validate(event)
-      assert event.game_id == "game_123"
-      assert event.player_id == "player_123"
-      assert event.action == "do_something"
-      assert event.data == %{extra: "data"}
+      # Assert
+      assert event.game_id == "game-123"
+      assert event.guild_id == "guild-123"
+      assert event.mode == :two_player
+      assert event.round_number == 1
+      assert event.player_id == "player-123"
+      assert event.action == "create"
+      assert event.data == %{key: "value"}
+      assert event.metadata == metadata
+      assert event.type == "example_event"
+      assert event.version == 1
       assert %DateTime{} = event.timestamp
+    end
+  end
+
+  describe "new/6" do
+    test "creates a valid event with individual parameters" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+
+      # Act
+      event = ExampleEvent.new(
+        "game-123",
+        "guild-123",
+        "player-123",
+        "update",
+        %{key: "value"},
+        metadata
+      )
+
+      # Assert
+      assert event.game_id == "game-123"
+      assert event.guild_id == "guild-123"
+      assert event.mode == :two_player
+      assert event.round_number == 1
+      assert event.player_id == "player-123"
+      assert event.action == "update"
+      assert event.data == %{key: "value"}
       assert event.metadata == metadata
     end
 
-    test "validation fails with missing fields" do
-      {:ok, metadata} = Metadata.new("source_123", %{correlation_id: "corr_123"})
+    test "accepts metadata result tuple" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      metadata_result = {:ok, metadata}
 
-      # Missing player_id
-      event = %ExampleEvent{
-        game_id: "game_123",
-        guild_id: "guild_123",
-        mode: :two_player,
-        round_number: 1,
-        action: "do_something",
-        data: %{},
-        timestamp: DateTime.utc_now(),
-        metadata: metadata
-      }
-
-      assert {:error, "player_id is required"} = ExampleEvent.validate(event)
-
-      # Missing action
-      event = %ExampleEvent{
-        game_id: "game_123",
-        guild_id: "guild_123",
-        mode: :two_player,
-        round_number: 1,
-        player_id: "player_123",
-        data: %{},
-        timestamp: DateTime.utc_now(),
-        metadata: metadata
-      }
-
-      assert {:error, "action is required"} = ExampleEvent.validate(event)
-
-      # Missing data
-      event = %ExampleEvent{
-        game_id: "game_123",
-        guild_id: "guild_123",
-        mode: :two_player,
-        round_number: 1,
-        player_id: "player_123",
-        action: "do_something",
-        timestamp: DateTime.utc_now(),
-        metadata: metadata
-      }
-
-      assert {:error, "data is required"} = ExampleEvent.validate(event)
-    end
-
-    test "serializes and deserializes" do
-      {:ok, metadata} = Metadata.new("source_123", %{
-        correlation_id: "corr_123",
-        actor_id: "player_123"
-      })
-
-      event = ExampleEvent.new("game_123", "guild_123", "player_123", "do_something", %{extra: "data"}, metadata)
-
-      serialized = ExampleEvent.serialize(event)
-      assert is_binary(serialized["timestamp"])
-      assert serialized["game_id"] == "game_123"
-      assert serialized["player_id"] == "player_123"
-
-      deserialized = ExampleEvent.deserialize(serialized)
-      assert deserialized.game_id == event.game_id
-      assert deserialized.player_id == event.player_id
-      assert deserialized.action == event.action
-      assert deserialized.data == event.data
-      assert %DateTime{} = deserialized.timestamp
-      assert deserialized.metadata == event.metadata
-    end
-
-    test "creates event from parent" do
-      {:ok, parent_metadata} = Metadata.new("source_123", %{
-        correlation_id: "corr_123",
-        actor_id: "parent_actor"
-      })
-
-      parent_event = ExampleEvent.new(
-        "game_123",
-        "guild_123",
-        "parent_actor",
-        "parent_action",
-        %{parent: true},
-        parent_metadata
+      # Act
+      event = ExampleEvent.new(
+        "game-123",
+        "guild-123",
+        "player-123",
+        "update",
+        %{key: "value"},
+        metadata_result
       )
 
-      child_event = ExampleEvent.from_parent(
+      # Assert
+      assert event.metadata == metadata
+    end
+  end
+
+  describe "from_parent/4" do
+    test "creates a valid event from a parent event" do
+      # Arrange
+      parent_metadata = %{
+        source_id: "parent-123",
+        correlation_id: "corr-123"
+      }
+
+      parent_event = %{
+        game_id: "game-123",
+        guild_id: "guild-123",
+        mode: :knockout,
+        round_number: 2,
+        metadata: parent_metadata
+      }
+
+      # Act
+      event = ExampleEvent.from_parent(
         parent_event,
-        "child_actor",
-        "child_action",
-        %{child: true}
+        "player-123",
+        "delete",
+        %{key: "value"}
       )
 
-      assert child_event.game_id == parent_event.game_id
-      assert child_event.guild_id == parent_event.guild_id
-      assert child_event.player_id == "child_actor"
-      assert child_event.action == "child_action"
-      assert child_event.data == %{child: true}
+      # Assert
+      assert event.game_id == "game-123"
+      assert event.guild_id == "guild-123"
+      assert event.mode == :knockout
+      assert event.round_number == 2
+      assert event.player_id == "player-123"
+      assert event.action == "delete"
+      assert event.data == %{key: "value"}
+      assert event.metadata.correlation_id == "corr-123"
+      assert event.metadata.causation_id == "corr-123"
+      assert event.metadata.actor_id == "player-123"
+    end
+  end
 
-      # Check for causation tracking
-      assert child_event.metadata.correlation_id == parent_metadata.correlation_id
-      assert child_event.metadata.causation_id != nil
-      assert child_event.metadata.actor_id == "child_actor"
+  describe "validate/1" do
+    test "returns :ok for valid event" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      event = ExampleEvent.new(
+        "game-123",
+        "guild-123",
+        "player-123",
+        "create",
+        %{key: "value"},
+        metadata
+      )
+
+      # Act
+      result = ExampleEvent.validate(event)
+
+      # Assert
+      assert result == :ok
     end
 
+    test "returns error for missing player_id" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      attrs = %{
+        game_id: "game-123",
+        guild_id: "guild-123",
+        mode: :two_player,
+        round_number: 1,
+        action: "create",
+        data: %{key: "value"},
+        metadata: metadata
+      }
+      event = struct(ExampleEvent, attrs)
+
+      # Act
+      result = ExampleEvent.validate(event)
+
+      # Assert
+      assert {:error, _} = result
+    end
+
+    test "returns error for invalid action" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      event = ExampleEvent.new(
+        "game-123",
+        "guild-123",
+        "player-123",
+        "invalid_action",
+        %{key: "value"},
+        metadata
+      )
+
+      # Act
+      result = ExampleEvent.validate(event)
+
+      # Assert
+      assert {:error, message} = result
+      assert message =~ "action must be one of"
+    end
+
+    test "returns error for invalid data type" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      attrs = %{
+        game_id: "game-123",
+        guild_id: "guild-123",
+        mode: :two_player,
+        round_number: 1,
+        player_id: "player-123",
+        action: "create",
+        data: "not a map",
+        metadata: metadata
+      }
+      event = struct(ExampleEvent, attrs)
+
+      # Act
+      result = ExampleEvent.validate(event)
+
+      # Assert
+      assert {:error, message} = result
+      assert message == "data must be a map"
+    end
+  end
+
+  describe "to_map/1 and from_map/1" do
+    test "serialization roundtrip preserves data" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      original = ExampleEvent.new(
+        "game-123",
+        "guild-123",
+        "player-123",
+        "create",
+        %{key: "value"},
+        metadata
+      )
+
+      # Act
+      serialized = ExampleEvent.to_map(original)
+      deserialized = ExampleEvent.from_map(serialized)
+
+      # Assert
+      assert deserialized.game_id == original.game_id
+      assert deserialized.guild_id == original.guild_id
+      assert deserialized.mode == original.mode
+      assert deserialized.round_number == original.round_number
+      assert deserialized.player_id == original.player_id
+      assert deserialized.action == original.action
+      assert deserialized.data == original.data
+      assert deserialized.metadata == original.metadata
+    end
+  end
+
+  describe "apply/2" do
     test "applies event to state" do
-      {:ok, metadata} = Metadata.new("source_123", %{
-        correlation_id: "corr_123",
-        actor_id: "player_123"
-      })
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      event = ExampleEvent.new(
+        "game-123",
+        "guild-123",
+        "player-123",
+        "create",
+        %{key: "value"},
+        metadata
+      )
+      state = %{actions: ["previous_action"]}
 
-      event = ExampleEvent.new("game_123", "guild_123", "player_123", "do_something", %{extra: "data"}, metadata)
+      # Act
+      {:ok, updated_state} = ExampleEvent.apply(event, state)
 
-      initial_state = %{}
-      {:ok, updated_state} = ExampleEvent.apply(event, initial_state)
-
-      assert updated_state.actions == ["do_something"]
-      assert updated_state.last_player_id == "player_123"
+      # Assert
+      assert updated_state.actions == ["create", "previous_action"]
+      assert updated_state.last_player_id == "player-123"
       assert updated_state.last_action_time == event.timestamp
+    end
+
+    test "returns error for invalid event" do
+      # Arrange
+      metadata = %{source_id: "test-123", correlation_id: "corr-123"}
+      attrs = %{
+        game_id: "game-123",
+        guild_id: "guild-123",
+        mode: :two_player,
+        round_number: 1,
+        player_id: "player-123",
+        action: "invalid_action",
+        data: %{key: "value"},
+        metadata: metadata
+      }
+      event = struct(ExampleEvent, attrs)
+      state = %{actions: ["previous_action"]}
+
+      # Act
+      result = ExampleEvent.apply(event, state)
+
+      # Assert
+      assert {:error, _} = result
     end
   end
 end

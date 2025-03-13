@@ -28,15 +28,6 @@
 }
 ```
 
-### Player Info
-```elixir
-%{
-  player_id: String.t(),
-  team_id: String.t(),
-  role: atom()
-}
-```
-
 ## Event Schemas
 
 ### GameStarted (v1)
@@ -89,8 +80,8 @@
   mode: atom(),
   round_number: pos_integer(),
   team_id: String.t(),
-  player1_info: player_info(),
-  player2_info: player_info(),
+  player1_id: String.t(),
+  player2_id: String.t(),
   player1_word: String.t(),
   player2_word: String.t(),
   guess_successful: boolean(),
@@ -108,8 +99,8 @@
   mode: atom(),
   round_number: pos_integer(),
   team_id: String.t(),
-  player1_info: player_info(),
-  player2_info: player_info(),
+  player1_id: String.t(),
+  player2_id: String.t(),
   reason: :timeout | :player_quit | :disconnected,
   abandoning_player_id: String.t(),
   last_guess: %{

@@ -57,7 +57,7 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     defstruct [:team_id, :previous_name, :new_name, :changed_at, :changed_by, :sequence_no, :event_type]
   end
 
-  def handle_event(%TeamInvitationCreated{} = event) do
+  def handle_event(%{__struct__: TeamInvitationCreated} = event) do
     invitation = %PendingInvitationView{
       invitation_id: event.invitation_id,
       inviter_id: event.inviter_id,
@@ -70,11 +70,11 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     {:ok, {:invitation_created, invitation}}
   end
 
-  def handle_event(%TeamInvitationAccepted{} = event) do
+  def handle_event(%{__struct__: TeamInvitationAccepted} = event) do
     {:ok, {:invitation_accepted, event.invitation_id}}
   end
 
-  def handle_event(%TeamCreated{} = event) do
+  def handle_event(%{__struct__: TeamCreated} = event) do
     team = %TeamView{
       team_id: event.team_id,
       name: event.name,
@@ -98,7 +98,7 @@ defmodule GameBot.Domain.Projections.TeamProjection do
   end
 
   # Add support for TeamMemberAdded event without requiring a team parameter
-  def handle_event(%TeamMemberAdded{} = event) do
+  def handle_event(%{__struct__: TeamMemberAdded} = event) do
     # When we don't have the team available, we just return the event info
     # The caller will need to handle this by loading and updating the team
     {:ok, {:member_added, %{
@@ -109,7 +109,7 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     }}}
   end
 
-  def handle_event(%TeamMemberAdded{} = event, %{team: team}) do
+  def handle_event(%{__struct__: TeamMemberAdded} = event, %{team: team}) do
     updated_team = %TeamView{team |
       player_ids: [event.player_id | team.player_ids],
       updated_at: event.added_at
@@ -117,7 +117,7 @@ defmodule GameBot.Domain.Projections.TeamProjection do
     {:ok, {:team_updated, updated_team}}
   end
 
-  def handle_event(%TeamUpdated{} = event, %{team: team, history: history}) do
+  def handle_event(%{__struct__: TeamUpdated} = event, %{team: team, history: history}) do
     # Only create history entry if name actually changed
     if event.name != team.name do
       updated_team = %TeamView{team |
