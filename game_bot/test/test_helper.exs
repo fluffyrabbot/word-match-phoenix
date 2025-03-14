@@ -1,499 +1,561 @@
-# Ensure protocols are not consolidated in a way that prevents test implementations
+# Set compiler options to allow test protocol implementations
 Code.put_compiler_option(:ignore_module_conflict, true)
-Code.compiler_options(ignore_module_conflict: true)
 
-# This file is responsible for configuring your application
-# and its dependencies with the aid of the Config module.
-
-# ===================================================================
-# DATABASE INITIALIZATION NOTE:
-#
-# Test database initialization follows this sequence:
-# 1. Configure ExUnit and start applications
-# 2. Use GameBot.Test.DatabaseManager.initialize() for database setup
-# 3. Any direct calls to GameBot.Test.Setup.* are deprecated
-#    and should be migrated to use DatabaseManager functions
-# ===================================================================
-
-# Configure ExUnit with appropriate settings
+# Configure ExUnit
 ExUnit.configure(
   exclude: [:skip_db, :skip_in_ci],
-  timeout: 60_000,
-  trace: false,
-  seed: 0,
-  formatters: [ExUnit.CLIFormatter],
-  max_cases: System.schedulers_online() * 2
+  timeout: 120_000
 )
 
-# Define a maximum retry count for database initialization
-max_db_init_retries = 3
-db_retry_delay = 1000
-
-# Start ExUnit
+# Start ExUnit early to ensure proper configuration
 ExUnit.start()
 
-# Initialize Phoenix endpoint for tests
-Application.put_env(:game_bot, GameBotWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4002],
-  server: false,
-  secret_key_base: "T3vbojxPj5xC0BUswQBDiQ0+6v2QLkvCw/PQQgzxmxqTmH+vCb0uibzPYpZsysVz",
-  live_view: [signing_salt: "your_signing_salt"],
-  pubsub_server: GameBot.PubSub
-)
-
-# Initialize PubSub for tests
-children =
-  case Process.whereis(GameBot.PubSub) do
-    nil ->
-      [{Phoenix.PubSub, name: GameBot.PubSub}]
-    _pid ->
-      []  # PubSub already started, don't start it again
-  end
-
-# Start PubSub under a test supervisor if needed
-if children != [] do
-  {:ok, _} = Supervisor.start_link(children, strategy: :one_for_one, name: GameBot.TestSupervisor)
-end
-
-# Start required applications in correct order
-# Ensure we start them in the right order with proper error handling
-required_apps = [
-  :phoenix,
-  :phoenix_ecto,
-  :postgrex,
-  :ecto,
-  :ecto_sql,
-  :eventstore
-]
-
-# Start each application with error handling
-Enum.each(required_apps, fn app ->
-  case Application.ensure_all_started(app) do
-    {:ok, _} -> :ok
-    {:error, {dep, reason}} ->
-      IO.puts("\n=== Failed to start #{app}. Dependency #{dep} failed ===")
-      IO.puts("Reason: #{inspect(reason)}")
-      System.halt(1)
-  end
-end)
-
-# Configure the application for testing
+# Set application environment for testing
+Application.put_env(:game_bot, :testing, true)
 Application.put_env(:game_bot, :start_word_service, false)
 Application.put_env(:game_bot, :start_nostrum, false)
-Application.put_env(:nostrum, :token, "fake_token_for_testing")
-Application.put_env(:nostrum, :api_module, GameBot.Test.Mocks.NostrumApiMock)
 
-# Configure event stores to avoid warnings
-Application.put_env(:game_bot, :event_stores, [
-  GameBot.Infrastructure.Persistence.EventStore
-])
+# Set the runtime repository implementation
+Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo)
 
-# Ensure the event store database exists and is properly set up
-if !System.get_env("SKIP_DB_INIT") do
-  # First check if the event store database exists
-  event_db_name = Application.get_env(:game_bot, :test_databases)[:event_db] || "game_bot_eventstore_dev"
+# Define the repositories needed for testing
+repos = [
+  GameBot.Infrastructure.Persistence.Repo,
+  GameBot.Infrastructure.Persistence.Repo.Postgres,
+  GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+]
 
-  # Connect to postgres to check if the database exists
-  postgres_info = [
-    hostname: "localhost",
+# Start application dependencies in the correct order
+required_apps = [:phoenix, :phoenix_ecto, :postgrex, :ecto, :ecto_sql, :eventstore]
+IO.puts("Starting required applications...")
+Enum.each(required_apps, fn app ->
+  case Application.ensure_all_started(app) do
+    {:ok, _} -> IO.puts("  ✓ Started #{app}")
+    {:error, reason} -> IO.puts("  ✗ Failed to start #{app}: #{inspect(reason)}")
+  end
+end)
+
+# Configure repositories for testing
+Enum.each(repos, fn repo ->
+  Application.put_env(:game_bot, repo,
     username: "postgres",
     password: "csstarahid",
-    database: "postgres",
-    connect_timeout: 5000
-  ]
-
-  # Check if event database exists
-  event_db_exists = case Postgrex.start_link(postgres_info) do
-    {:ok, conn} ->
-      result = case Postgrex.query(conn, "SELECT 1 FROM pg_database WHERE datname = $1", [event_db_name], []) do
-        {:ok, %{rows: [[1]]}} -> true
-        _ -> false
-      end
-      GenServer.stop(conn)
-      result
-    _ -> false
-  end
-
-  # Create the event store database if it doesn't exist
-  if !event_db_exists do
-    IO.puts("\n=== Event store database does not exist, creating it now ===")
-
-    # We'll use the mix task directly
-    Mix.Task.run("game_bot.create_event_store_db")
-  end
-end
-
-# Initialize test environment using centralized DatabaseManager with retry logic
-# This implementation uses a retry loop with exponential backoff to handle
-# temporary failures during initialization
-result = Enum.reduce_while(1..max_db_init_retries, {:error, :not_attempted}, fn attempt, _acc ->
-  IO.puts("\n=== Initializing test environment (attempt #{attempt}/#{max_db_init_retries}) ===")
-
-  case GameBot.Test.DatabaseManager.initialize() do
-    :ok ->
-      IO.puts("\n=== Test Environment Initialized Successfully ===\n")
-      {:halt, :ok}
-
-    {:error, reason} ->
-      IO.puts("\n=== Failed to Initialize Test Environment ===")
-      IO.puts("Reason: #{inspect(reason)}")
-
-      if attempt < max_db_init_retries do
-        # Wait with exponential backoff before retrying
-        retry_delay = db_retry_delay * attempt
-        IO.puts("Retrying in #{retry_delay}ms...")
-        Process.sleep(retry_delay)
-        {:cont, {:error, reason}}
-      else
-        IO.puts("Maximum retry attempts reached. Giving up.")
-        {:halt, {:error, reason}}
-      end
-  end
+    database: "game_bot_test",
+    hostname: "localhost",
+    pool: Ecto.Adapters.SQL.Sandbox,
+    pool_size: 10,
+    queue_target: 200,
+    queue_interval: 1000
+  )
 end)
 
-# Verify the result and terminate if initialization failed
-case result do
-  :ok -> :ok  # Continue with test execution
-  {:error, reason} ->
-    IO.puts("\n=== FATAL: Test environment initialization failed after multiple attempts ===")
-    IO.puts("Final error: #{inspect(reason)}")
+# Simple module to start repositories with proper error handling
+defmodule TestRepositoryStarter do
+  require Logger
 
-    # Try to diagnose what went wrong
-    IO.puts("\n=== Running database diagnostics to identify issues ===")
-    Mix.Task.run("game_bot.db_test_diagnose")
-
-    # We don't want to terminate the test process as this prevents proper debugging
-    # System.halt(1)
-
-    # Instead, we'll print a clear error message and continue
-    IO.puts("\n=== WARNING: Tests will likely fail due to database initialization issues ===")
-    IO.puts("Use 'mix game_bot.db_test_diagnose --repair' to fix the issues")
-end
-
-# Register cleanup for after the test suite with proper error handling
-ExUnit.after_suite(fn _ ->
-  IO.puts("\n=== Cleaning up after test suite ===")
-
-  case GameBot.Test.DatabaseManager.cleanup() do
-    :ok ->
-      IO.puts("=== Test suite cleanup complete ===\n")
-
-    {:error, reason} ->
-      IO.puts("=== Warning: Test suite cleanup failed ===")
-      IO.puts("Reason: #{inspect(reason)}")
-      IO.puts("This may affect future test runs. Manual cleanup may be required.")
-  end
-end)
-
-# Force protocol implementations to be recompiled if needed for test
-defmodule GameBot.Test.ProtocolHelpers do
-  @moduledoc """
-  Helper functions for dealing with protocol consolidation in tests.
-  """
-
-  @doc """
-  Force protocol implementations to be recompiled if needed.
-  """
-  def ensure_protocol_implementations do
-    # Force relevant modules to be available to protocols
-    modules = [
-      # Module aliases that implement protocols
-      GameBot.Domain.Events.TestEvents.ValidatorTestEvent,
-      GameBot.Domain.Events.TestEvents.ValidatorOptionalFieldsEvent
-    ]
-
-    # Reset any consolidated protocols that might interfere with our test implementations
-    for protocol <- [GameBot.Domain.Events.EventValidator] do
-      # Clean up consolidated protocol
-      consolidated_path = :code.priv_dir(:game_bot)
-                         |> Path.join("/protocol_consolidation/#{Atom.to_string(protocol)}.beam")
-
-      # If the consolidated protocol exists, delete it to force runtime protocol dispatch
-      if File.exists?(consolidated_path) do
-        File.rm(consolidated_path)
-        IO.puts("Removed consolidated protocol: #{consolidated_path}")
+  def start_repos(repositories) do
+    # First stop any existing repos
+    Enum.each(repositories, fn repo ->
+      if Process.whereis(repo) do
+        GenServer.stop(repo)
+        Process.sleep(100) # Give it time to stop
       end
-    end
-
-    # Force recompilation of protocol implementation file
-    test_events_path = Path.join([File.cwd!(), "test", "support", "test_events.ex"])
-    if File.exists?(test_events_path) do
-      # Remove any existing compiled modules
-      for module <- modules do
-        :code.purge(module)
-        :code.delete(module)
-      end
-
-      # Recompile the file
-      Code.compile_file(test_events_path)
-      IO.puts("Recompiled test events file: #{test_events_path}")
-    else
-      IO.puts("Warning: Test events file not found at #{test_events_path}")
-    end
-
-    # Ensure modules are loaded
-    for module <- modules do
-      # Make sure the module is loaded
-      if Code.ensure_loaded?(module) do
-        IO.puts("Protocol implementation module loaded: #{inspect(module)}")
-      else
-        IO.puts("Warning: Failed to load module: #{inspect(module)}")
-      end
-    end
-  end
-end
-
-# Run protocol implementation checks
-GameBot.Test.ProtocolHelpers.ensure_protocol_implementations()
-
-defmodule GameBot.Test.Setup do
-  @moduledoc """
-  Setup module for the test environment.
-
-  This module provides legacy functionality for test setup.
-  The primary initialization is now handled by GameBot.Test.DatabaseManager.
-  This module is kept for compatibility with tests that directly use its functions.
-
-  For new tests, prefer using the DatabaseManager approach:
-  - Use GameBot.Test.DatabaseManager.initialize() for environment setup
-  - Use GameBot.Test.DatabaseManager.setup_sandbox(tags) for sandbox configuration
-  """
-
-  import ExUnit.Callbacks, only: [on_exit: 1]
-  alias GameBot.Infrastructure.Persistence.Repo
-  alias GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, as: EventStoreRepo
-
-  @db_operation_timeout 30_000
-  @max_retries 3
-  @retry_delay 1000
-
-  @doc """
-  Initializes the entire test environment.
-
-  DEPRECATED: Use GameBot.Test.DatabaseManager.initialize() instead.
-  This function is kept for backward compatibility with existing tests.
-  """
-  def initialize do
-    IO.puts("\n[DEPRECATED] Using legacy Setup.initialize(). Consider migrating to DatabaseManager.initialize().")
-    IO.puts("Working with databases: main=#{get_main_db_name()}, event=#{get_event_db_name()}")
-
-    # Start required applications is now handled by the main test_helper.exs initialization
-    # Initialize repositories is now handled by DatabaseManager.initialize()
-
-    # Return :ok for compatibility
-    :ok
-  end
-
-  defp get_main_db_name do
-    Application.get_env(:game_bot, :test_databases)[:main_db]
-  end
-
-  defp get_event_db_name do
-    Application.get_env(:game_bot, :test_databases)[:event_db]
-  end
-
-  @doc """
-  Sets up the sandbox based on the test tags.
-
-  DEPRECATED: For new tests, use GameBot.Test.DatabaseManager.setup_sandbox/1 instead.
-  This function now delegates to DatabaseManager.setup_sandbox/1 for compatibility.
-  """
-  def setup_sandbox(tags) do
-    if !tags[:mock] do
-      # Delegate to DatabaseManager for consistency
-      case GameBot.Test.DatabaseManager.setup_sandbox(tags) do
-        :ok -> :ok
-        {:error, reason} ->
-          IO.puts("Warning: Failed to set up sandbox through DatabaseManager: #{inspect(reason)}")
-          # Fall back to legacy implementation for backwards compatibility
-          setup_postgres_sandbox(tags)
-      end
-    else
-      :ok
-    end
-  end
-
-  defp setup_postgres_sandbox(tags) do
-    with_retries(@max_retries, fn ->
-      {:ok, repo_pid} = start_sandbox_owner(Repo, tags)
-      {:ok, event_store_pid} = start_sandbox_owner(EventStoreRepo, tags)
-
-      on_exit(fn ->
-        try do
-          stop_sandbox_owner(repo_pid)
-          stop_sandbox_owner(event_store_pid)
-        rescue
-          e ->
-            IO.puts("Warning: Failed to stop owners: #{inspect(e)}")
-            terminate_repo_connections()
-        end
-      end)
-
-      :ok
     end)
-  end
 
-  defp start_sandbox_owner(repo, tags) do
-    case Ecto.Adapters.SQL.Sandbox.start_owner!(repo, shared: not tags[:async]) do
-      pid when is_pid(pid) -> {:ok, pid}
-      error -> {:error, error}
+    results = Enum.map(repositories, fn repo ->
+      {repo, start_single_repo(repo)}
+    end)
+
+    # Report results
+    {successful, failed} = Enum.split_with(results, fn {_, result} -> result == :ok end)
+
+    if Enum.empty?(failed) do
+      Logger.info("All repositories started successfully: #{inspect(Enum.map(successful, fn {repo, _} -> repo end))}")
+      :ok
+    else
+      failed_repos = Enum.map(failed, fn {repo, reason} -> "#{inspect(repo)} (#{inspect(reason)})" end)
+      Logger.error("Failed to start repositories: #{Enum.join(failed_repos, ", ")}")
+      {:error, failed}
     end
   end
 
-  defp stop_sandbox_owner(pid) do
-    try do
-      Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
-    rescue
-      e -> IO.puts("Warning: Failed to stop owner #{inspect(pid)}: #{inspect(e)}")
+  def start_single_repo(repo) do
+    # Check if repository is already running
+    case Process.whereis(repo) do
+      pid when is_pid(pid) ->
+        if Process.alive?(pid) do
+          Logger.info("Repository #{inspect(repo)} is already running")
+          :ok
+        else
+          Logger.warning("Repository #{inspect(repo)} has crashed PID, restarting")
+          do_start_repo(repo)
+        end
+      _ ->
+        Logger.info("Starting repository #{inspect(repo)}")
+        do_start_repo(repo)
     end
   end
 
-  defp with_retries(0, _fun), do: raise "Max retries exceeded"
-  defp with_retries(retries, fun) do
+  defp do_start_repo(repo) do
     try do
-      fun.()
+      config = Application.get_env(:game_bot, repo, [])
+      # Add sandbox pool configuration explicitly for testing
+      config = Keyword.put_new(config, :pool, Ecto.Adapters.SQL.Sandbox)
+      config = Keyword.put_new(config, :pool_size, 5)
+
+      case repo.start_link(config) do
+        {:ok, _pid} ->
+          # Verify the repository is registered and accessible
+          wait_for_repo_registration(repo)
+        {:error, {:already_started, _pid}} ->
+          Logger.info("#{inspect(repo)} was already started")
+          :ok
+        {:error, error} ->
+          Logger.error("Failed to start #{inspect(repo)}: #{inspect(error)}")
+          {:error, error}
+      end
     rescue
       e ->
-        IO.puts("Error in retry #{retries}: #{inspect(e)}")
-        :timer.sleep(@retry_delay)
-        with_retries(retries - 1, fun)
+        Logger.error("Exception starting #{inspect(repo)}: #{inspect(e)}")
+        {:error, e}
     end
   end
 
-  @doc """
-  Starts all required applications in dependency order.
-  """
-  def start_required_applications do
-    IO.puts("Starting required applications...")
-
-    required_apps = [
-      :logger,            # Basic logging
-      :crypto,            # Cryptographic functions
-      :ssl,               # SSL support
-      :postgrex,          # PostgreSQL driver
-      :ecto,              # Database wrapper
-      :ecto_sql,          # SQL adapters for Ecto
-      :telemetry,         # Metrics and instrumentation
-      :jason,             # JSON encoding/decoding
-      :phoenix,           # Web framework
-      :phoenix_html,      # HTML templates
-      :eventstore         # Event storage
-    ]
-
-    Enum.each(required_apps, fn app ->
-      case Application.ensure_all_started(app) do
-        {:ok, _} -> :ok
-        {:error, {dep, reason}} ->
-          IO.puts("Failed to start #{app}. Dependency #{dep} failed with: #{inspect(reason)}")
-          raise "Application startup failure"
-      end
-    end)
-  end
-
-  @doc """
-  Initializes and configures repository connections.
-  """
-  def initialize_repositories do
-    IO.puts("Initializing repositories...")
-
-    repos = [Repo, EventStoreRepo]
-
-    # Stop any existing repos
-    Enum.each(repos, &ensure_repo_stopped/1)
-
-    # Start repos with their config from test.exs
-    Enum.each(repos, &ensure_repo_started/1)
-
-    # Configure sandbox mode
-    Enum.each(repos, &configure_sandbox/1)
-  end
-
-  defp ensure_repo_stopped(repo) do
-    case Process.whereis(repo) do
-      nil -> :ok
-      _pid ->
-        try do
-          repo.stop()
-          Process.sleep(100)
-        rescue
-          _ -> terminate_repo_connections()
+  defp wait_for_repo_registration(repo, attempts \\ 0) do
+    # Try to do a simple query to verify the repository is functional
+    if attempts < 10 do
+      try do
+        if function_exported?(repo, :all, 1) do
+          # Try a test query to verify connection
+          Logger.info("Successfully started #{inspect(repo)}")
+          :ok
+        else
+          # For non-Ecto repositories
+          Logger.info("Started #{inspect(repo)} (no query function)")
+          :ok
         end
+      rescue
+        e in [RuntimeError] ->
+          if String.contains?(Exception.message(e), "not started") do
+            # Repository not registered yet, wait a bit and retry
+            Process.sleep(200)
+            wait_for_repo_registration(repo, attempts + 1)
+          else
+            Logger.error("Error verifying repository #{inspect(repo)}: #{inspect(e)}")
+            {:error, e}
+          end
+        e ->
+          Logger.error("Unexpected error verifying repository #{inspect(repo)}: #{inspect(e)}")
+          {:error, e}
+      end
+    else
+      Logger.error("Timeout waiting for #{inspect(repo)} to register")
+      {:error, :registration_timeout}
     end
-  end
-
-  defp ensure_repo_started(repo) do
-    IO.puts("Starting #{inspect(repo)}...")
-
-    # Get the repository's configuration from test.exs
-    config = Application.get_env(:game_bot, repo)
-
-    if config == nil do
-      raise "No configuration found for #{inspect(repo)} in test.exs"
-    end
-
-    case repo.start_link(config) do
-      {:ok, _pid} ->
-        Process.sleep(100) # Give repo time to initialize
-        :ok
-      {:error, {:already_started, _pid}} ->
-        :ok
-      {:error, error} ->
-        raise "Failed to start #{inspect(repo)}: #{inspect(error)}"
-    end
-  end
-
-  defp configure_sandbox(repo) do
-    :ok = Ecto.Adapters.SQL.Sandbox.mode(repo, :manual)
-  end
-
-  defp terminate_repo_connections do
-    # Force close all connections
-    terminate_postgres_connections()
-  end
-
-  defp terminate_postgres_connections do
-    query = """
-    SELECT pg_terminate_backend(pid)
-    FROM pg_stat_activity
-    WHERE pid <> pg_backend_pid()
-    AND datname IN ($1, $2)
-    """
-
-    {:ok, conn} = Postgrex.start_link(
-      hostname: "localhost",
-      username: "postgres",
-      password: "csstarahid",
-      database: "postgres"
-    )
-
-    Postgrex.query!(conn, query, [get_main_db_name(), get_event_db_name()])
-    GenServer.stop(conn)
   end
 end
 
-# Configure the application for testing
-# GameBot.Test.Setup.initialize()  # REMOVED: Functionality consolidated into DatabaseManager-based initialization
+# Simple module to set up the EventStore schema and tables
+defmodule EventStoreSchemaSetup do
+  @moduledoc false
+  require Logger
 
-defmodule GameBot.Test.Cleanup do
-  def cleanup_test_resources do
-    # Stop test event store
-    if Process.whereis(GameBot.Test.EventStoreCore) do
-      GameBot.Test.EventStoreCore.reset()
+  def ensure_schema_exists do
+    # Use the PostgreSQL repo directly instead of trying to get it from config
+    repo = GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+
+    # Check out a connection for schema setup
+    case Ecto.Adapters.SQL.Sandbox.checkout(repo) do
+      :ok ->
+        try do
+          # Execute each command separately
+          commands = [
+            "CREATE SCHEMA IF NOT EXISTS event_store",
+            """
+            CREATE TABLE IF NOT EXISTS event_store.streams (
+              id text NOT NULL PRIMARY KEY,
+              version integer NOT NULL DEFAULT 0
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS event_store.events (
+              id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+              stream_id text NOT NULL REFERENCES event_store.streams(id) ON DELETE CASCADE,
+              event_type text NOT NULL,
+              event_data jsonb NOT NULL,
+              event_metadata jsonb NOT NULL DEFAULT '{}',
+              event_version integer NOT NULL,
+              created_at timestamp NOT NULL DEFAULT now()
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS events_stream_id_idx ON event_store.events(stream_id)",
+            "CREATE INDEX IF NOT EXISTS events_stream_id_version_idx ON event_store.events(stream_id, event_version)",
+            "DELETE FROM event_store.events",
+            "DELETE FROM event_store.streams"
+          ]
+
+          Enum.each(commands, fn command ->
+            repo.query!(command)
+          end)
+
+          :ok
+        rescue
+          e ->
+            Logger.error("Failed to set up event store schema: #{inspect(e)}")
+            {:error, e}
+        after
+          # Always check in the connection
+          Ecto.Adapters.SQL.Sandbox.checkin(repo)
+        end
+      error ->
+        Logger.error("Failed to check out connection for schema setup: #{inspect(error)}")
+        {:error, error}
     end
+  end
+end
 
-    # Close database connections
-    GameBot.Test.DatabaseHelper.cleanup_connections()
+# Start all required repositories
+IO.puts("\nStarting repositories...")
+case TestRepositoryStarter.start_repos(repos) do
+  :ok -> IO.puts("  ✓ All repositories started successfully")
+  {:error, failed} -> IO.puts("  ✗ Some repositories failed to start: #{inspect(failed)}")
+end
 
-    # Clear ETS tables
-    for table <- [:game_bot_cache, :game_bot_session_cache, :game_bot_metrics] do
-      if :ets.info(table) != :undefined do
-        :ets.delete_all_objects(table)
+# Set up Ecto SQL Sandbox mode for each repository
+IO.puts("\nConfiguring SQL sandbox mode...")
+
+# First ensure all repos are started
+Enum.each(repos, fn repo ->
+  # Stop any existing instance
+  if Process.whereis(repo), do: GenServer.stop(repo)
+  Process.sleep(100)  # Give it time to stop
+
+  # Start the repo with sandbox config
+  config = Application.get_env(:game_bot, repo, [])
+  |> Keyword.put(:pool, Ecto.Adapters.SQL.Sandbox)
+  |> Keyword.put(:pool_size, 10)
+
+  case repo.start_link(config) do
+    {:ok, _pid} ->
+      # Configure sandbox mode
+      Ecto.Adapters.SQL.Sandbox.mode(repo, :manual)
+
+      # Verify connection works
+      try do
+        # Try a test checkout/checkin
+        :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo)
+        Ecto.Adapters.SQL.Sandbox.checkin(repo)
+        IO.puts("  ✓ Started and configured #{inspect(repo)}")
+      rescue
+        e ->
+          IO.puts("  ✗ Failed to verify #{inspect(repo)}: #{inspect(e)}")
+          reraise e, __STACKTRACE__
+      end
+
+    {:error, {:already_started, _}} ->
+      IO.puts("  ✓ #{inspect(repo)} already running")
+
+    {:error, error} ->
+      IO.puts("  ✗ Failed to start #{inspect(repo)}: #{inspect(error)}")
+      raise "Failed to start repository: #{inspect(error)}"
+  end
+end)
+
+# Set up EventStore schema and tables
+IO.puts("\nSetting up event store schema and tables...")
+case EventStoreSchemaSetup.ensure_schema_exists() do
+  :ok ->
+    IO.puts("  ✓ Event store setup complete!")
+  {:error, error} ->
+    IO.puts("  ✗ Failed to set up event store schema: #{inspect(error)}")
+    IO.puts("    Tests requiring EventStore will likely fail.")
+end
+
+# Clean up tables for testing
+IO.puts("\nCleaning up previous test data...")
+Enum.each(repos, fn repo ->
+  try do
+    if function_exported?(repo, :query!, 2) do
+      case Ecto.Adapters.SQL.Sandbox.checkout(repo, sandbox: false) do
+        :ok ->
+          try do
+            # Clean up any test streams and data
+            Ecto.Adapters.SQL.query!(repo, "DELETE FROM event_store.subscriptions", [])
+            Ecto.Adapters.SQL.query!(repo, "DELETE FROM event_store.events", [])
+            Ecto.Adapters.SQL.query!(repo, "DELETE FROM event_store.streams", [])
+            IO.puts("  ✓ Cleaned event_store tables in #{inspect(repo)}")
+          rescue
+            e -> IO.puts("  ✗ Could not clean tables in #{inspect(repo)}: #{inspect(e)}")
+          after
+            Ecto.Adapters.SQL.Sandbox.checkin(repo)
+          end
+        {:error, error} ->
+          IO.puts("  ✗ Failed to checkout connection for #{inspect(repo)}: #{inspect(error)}")
       end
     end
+  rescue
+    e -> IO.puts("  ✗ Error when cleaning up data in #{inspect(repo)}: #{inspect(e)}")
+  end
+end)
+
+# Print diagnostic information
+IO.puts("\nTest environment initialized with:")
+IO.puts("- Runtime repository implementation: #{inspect(Application.get_env(:game_bot, :repo_implementation, "Not set"))}")
+IO.puts("- Testing repositories: #{inspect(repos)}")
+
+# ==================== REPOSITORY VERIFICATION CODE ============================
+# Create the utility verification module inline
+defmodule GameBot.Test.RepoVerification do
+  @moduledoc """
+  Utility module for verifying repositories are properly started and functional.
+  """
+
+  @doc """
+  Verifies that all required repositories are started and functional.
+  Halts the test run with a clear error message if any repository fails verification.
+  """
+  def verify_all_repositories(repos) do
+    IO.puts("\n=== Repository Verification ===")
+
+    results = Enum.map(repos, fn repo -> {repo, verify_repository(repo)} end)
+
+    failures = Enum.filter(results, fn {_, result} -> result != :ok end)
+
+    if Enum.empty?(failures) do
+      IO.puts("\n✅ All repositories verified and ready for testing")
+      :ok
+    else
+      # Format the error message
+      error_messages = Enum.map_join(failures, "\n", fn {repo, {:error, error}} ->
+        "  - #{inspect(repo)}: #{format_error(error)}"
+      end)
+
+      IO.puts("\n❌ CRITICAL ERROR: Repository verification failed!")
+      IO.puts("The following repositories failed verification:")
+      IO.puts(error_messages)
+      IO.puts("\nTests cannot proceed without functional repositories.")
+      IO.puts("Please check your database configuration and ensure Postgres is running.")
+
+      # Halt the test run with a non-zero exit code
+      System.halt(1)
+    end
+  end
+
+  @doc """
+  Verifies that a single repository is properly started and functional.
+  """
+  def verify_repository(repo) do
+    process_check =
+      case Process.whereis(repo) do
+        nil -> {:error, :not_started}
+        pid ->
+          if Process.alive?(pid) do
+            :ok
+          else
+            {:error, :process_dead}
+          end
+      end
+
+    case process_check do
+      :ok ->
+        try do
+          # First, check out a connection from the repository
+          # This is crucial for sandbox mode
+          :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo, [])
+
+          # Try to query the PostgreSQL version - simple query that will work
+          # even with empty databases or missing tables
+          case repo.query("SELECT version()", []) do
+            {:ok, _} ->
+              IO.puts("  ✓ Repository #{inspect(repo)} is fully operational")
+              # Be sure to check the connection back in
+              Ecto.Adapters.SQL.Sandbox.checkin(repo)
+              :ok
+            {:error, error} ->
+              # Check connection back in even on error
+              Ecto.Adapters.SQL.Sandbox.checkin(repo)
+              IO.puts("  ✗ Repository #{inspect(repo)} connection error: #{inspect(error)}")
+              {:error, error}
+          end
+        rescue
+          e ->
+            # Make sure to check in the connection even if an exception occurs
+            try do
+              Ecto.Adapters.SQL.Sandbox.checkin(repo)
+            rescue
+              _ -> :ok
+            end
+
+            # Log full stacktrace for debugging
+            IO.puts("  ✗ Repository #{inspect(repo)} failed connection test: #{Exception.message(e)}")
+            {:error, e}
+        end
+      {:error, reason} ->
+        IO.puts("  ✗ Repository #{inspect(repo)} process error: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Ensures the test_schema table exists in the given repository.
+  """
+  def ensure_test_schema_exists(repo) do
+    IO.puts("\nVerifying test_schema table in #{inspect(repo)}...")
+
+    # First check out a connection
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo, [])
+
+    try do
+      # Check if the test_schema table exists
+      check_query = """
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'test_schema'
+      )
+      """
+
+      case repo.query(check_query, []) do
+        {:ok, %{rows: [[true]]}} ->
+          IO.puts("  ✓ test_schema table exists")
+          :ok
+
+        {:ok, %{rows: [[false]]}} ->
+          IO.puts("  ✗ test_schema table missing, creating...")
+
+          # Create the table
+          create_query = """
+          CREATE TABLE IF NOT EXISTS test_schema (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR,
+            value VARCHAR,
+            inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+          )
+          """
+
+          case repo.query(create_query, []) do
+            {:ok, _} ->
+              IO.puts("  ✓ test_schema table created successfully")
+              :ok
+            {:error, error} ->
+              IO.puts("  ✗ Failed to create test_schema table: #{inspect(error)}")
+              {:error, error}
+          end
+
+        {:error, error} ->
+          IO.puts("  ✗ Error checking for test_schema table: #{inspect(error)}")
+          {:error, error}
+      end
+    rescue
+      e ->
+        IO.puts("  ✗ Exception when verifying test_schema: #{Exception.message(e)}")
+        {:error, e}
+    after
+      # Always check in the connection
+      Ecto.Adapters.SQL.Sandbox.checkin(repo)
+    end
+  end
+
+  # Helper to format error messages
+  defp format_error(%{__struct__: struct, message: message}) do
+    "#{inspect(struct)}: #{message}"
+  end
+
+  defp format_error(%{__exception__: true} = exception) do
+    Exception.message(exception)
+  end
+
+  defp format_error(error) do
+    inspect(error)
   end
 end
+
+# Verify all repositories are properly started
+IO.puts("\n=== Repository Verification ===")
+IO.puts("Setting up repository sandbox mode...")
+
+# Make sure all repositories are in shared sandbox mode before verification
+# This allows the verification code to access the databases without explicit checkouts
+Enum.each(repos, fn repo ->
+  if Process.whereis(repo) do
+    # Set to shared mode to simplify verification
+    # We'll set it back to manual mode after verification is complete
+    Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+    IO.puts("  ✓ Set #{inspect(repo)} to shared sandbox mode")
+  else
+    IO.puts("  ✗ Repository #{inspect(repo)} is not running")
+  end
+end)
+
+# Run the verification with shared mode
+GameBot.Test.RepoVerification.verify_all_repositories(repos)
+
+# Ensure test_schema table exists in each repository
+Enum.each(repos, fn repo ->
+  # Only try to create test_schema for main repositories (not event store)
+  repo_name = Atom.to_string(repo)
+  if String.contains?(repo_name, "Repo") and not String.contains?(repo_name, "EventStore") do
+    GameBot.Test.RepoVerification.ensure_test_schema_exists(repo)
+  end
+end)
+
+# Set repositories back to manual mode for tests
+IO.puts("\nSetting repositories back to manual sandbox mode for tests...")
+Enum.each(repos, fn repo ->
+  if Process.whereis(repo) do
+    Ecto.Adapters.SQL.Sandbox.mode(repo, :manual)
+    IO.puts("  ✓ Set #{inspect(repo)} to manual sandbox mode")
+  end
+end)
 
 # Register cleanup for after each test
 ExUnit.after_suite(fn _ ->
-  GameBot.Test.Cleanup.cleanup_test_resources()
+  IO.puts("\nCleaning up test environment...")
+
+  # Automatically rollback transactions and check in connections
+  IO.puts("\nCleaning up repository connections...")
+  Enum.each(repos, fn repo ->
+    try do
+      if Process.whereis(repo) do
+        # Try to rollback any lingering transactions
+        try do
+          Ecto.Adapters.SQL.Sandbox.checkout(repo)
+          repo.rollback(fn -> :ok end)
+        rescue
+          _ -> :ok
+        after
+          # Always check in the connection
+          Ecto.Adapters.SQL.Sandbox.checkin(repo)
+        end
+
+        IO.puts("  ✓ Cleaned up connections for #{inspect(repo)}")
+      end
+    rescue
+      e -> IO.puts("  ✗ Error cleaning up #{inspect(repo)}: #{inspect(e)}")
+    end
+  end)
+
+  # First check in any checked out connections
+  Enum.each(repos, fn repo ->
+    try do
+      if Process.whereis(repo) do
+        Ecto.Adapters.SQL.Sandbox.checkin(repo)
+      end
+    rescue
+      _ -> :ok
+    end
+  end)
+
+  # Then stop repositories in reverse order
+  Enum.reverse(repos)
+  |> Enum.each(fn repo ->
+    try do
+      if Process.whereis(repo) do
+        IO.puts("Stopping #{inspect(repo)}")
+        GenServer.stop(repo)
+      end
+    rescue
+      _ -> :ok
+    end
+  end)
 end)

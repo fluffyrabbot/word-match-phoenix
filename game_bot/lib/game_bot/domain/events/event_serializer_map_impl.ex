@@ -85,8 +85,8 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
 
             # GuessProcessed fields
             team_id: data["team_id"],
-            player1_info: data["player1_info"],
-            player2_info: data["player2_info"],
+            player1_id: data["player1_id"],
+            player2_id: data["player2_id"],
             player1_word: data["player1_word"],
             player2_word: data["player2_word"],
             guess_successful: data["guess_successful"],

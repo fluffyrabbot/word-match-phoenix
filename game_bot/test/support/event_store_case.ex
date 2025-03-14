@@ -35,25 +35,14 @@ defmodule GameBot.EventStoreCase do
   end
 
   setup_all do
-    # Only run the shared setup once across all tests
-    unless Process.get(@shared_setup_complete) do
-      # Ensure event store schema and tables exist
-      ensure_event_store_schema()
+    # Only verify the event store schema exists - DO NOT start repositories
+    # since they are already started in test_helper.exs
+    ensure_event_store_schema_exists()
 
-      # Start repositories if they're not already running
-      start_all_repos()
-
-      # Configure shared sandbox mode for all repositories
-      configure_shared_sandbox()
-
-      # Mark shared setup as complete
-      Process.put(@shared_setup_complete, true)
-
-      # Register cleanup for test process termination
-      ExUnit.after_suite(fn(_) ->
-        cleanup_connections()
-      end)
-    end
+    # Register cleanup for test process termination
+    ExUnit.after_suite(fn(_) ->
+      cleanup_connections()
+    end)
 
     :ok
   end
@@ -80,10 +69,29 @@ defmodule GameBot.EventStoreCase do
       # Clear unexpected messages that might interfere with connection handling
       clear_test_mailbox()
 
+      # Explicitly rollback any lingering transactions
+      Enum.each(@repos, fn repo ->
+        try do
+          if Process.whereis(repo) do
+            try do
+              # Try to rollback any lingering transactions
+              Sandbox.checkout(repo)
+              repo.rollback(fn -> :ok end)
+            rescue
+              _ -> :ok
+            end
+          end
+        rescue
+          e -> Logger.warning("Error rolling back transactions for #{inspect(repo)}: #{inspect(e)}")
+        end
+      end)
+
       # Check in connections after each test
       Enum.each(@repos, fn repo ->
         try do
-          Sandbox.checkin(repo)
+          if Process.whereis(repo) do
+            Sandbox.checkin(repo)
+          end
         rescue
           e -> Logger.warning("Error checking in repository #{inspect(repo)}: #{inspect(e)}")
         end
@@ -134,25 +142,12 @@ defmodule GameBot.EventStoreCase do
 
   # Private Functions
 
-  # Start all repositories if not already running
-  defp start_all_repos do
-    Enum.each(@repos, fn repo ->
-      if not is_repo_running?(repo) do
-        Logger.info("Starting #{inspect(repo)} for test suite")
-        {:ok, _} = repo.start_link([pool: Ecto.Adapters.SQL.Sandbox, pool_size: 5])
-      end
-    end)
-  end
-
-  # Configure shared sandbox mode for all repositories
-  defp configure_shared_sandbox do
-    Enum.each(@repos, fn repo ->
-      # Set manual mode for the repository
-      Ecto.Adapters.SQL.Sandbox.mode(repo, :manual)
-
-      # Checkout a connection with a long timeout
-      Ecto.Adapters.SQL.Sandbox.checkout(repo, [ownership_timeout: 60_000])
-    end)
+  # Check if a repository is running without trying to start it
+  defp is_repo_running?(repo) do
+    case Process.whereis(repo) do
+      pid when is_pid(pid) -> Process.alive?(pid)
+      nil -> false
+    end
   end
 
   # Clean database state before each test
@@ -173,98 +168,88 @@ defmodule GameBot.EventStoreCase do
     end
   end
 
-  # Check if a repository is running
-  defp is_repo_running?(repo) do
-    case Process.whereis(repo) do
-      pid when is_pid(pid) -> Process.alive?(pid)
-      nil -> false
+  # Ensure the event store schema is properly set up
+  defp ensure_event_store_schema_exists do
+    IO.puts("\nVerifying event_store schema exists...")
+
+    repo = GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+
+    # Make sure the repository is already running
+    if !Process.whereis(repo) do
+      raise "EventStore repository is not running. It should be started in test_helper.exs."
+    end
+
+    # Get sandbox connection
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo, ownership_timeout: 60_000)
+
+    try do
+      # Create the event store schema and tables if they don't exist
+      repo.query!("CREATE SCHEMA IF NOT EXISTS event_store", [])
+
+      repo.query!("""
+      CREATE TABLE IF NOT EXISTS event_store.streams (
+        id TEXT PRIMARY KEY,
+        version BIGINT NOT NULL DEFAULT 0
+      )
+      """, [])
+
+      repo.query!("""
+      CREATE TABLE IF NOT EXISTS event_store.events (
+        event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        stream_id TEXT NOT NULL REFERENCES event_store.streams(id) ON DELETE CASCADE,
+        event_type TEXT NOT NULL,
+        event_data JSONB NOT NULL,
+        event_metadata JSONB NOT NULL DEFAULT '{}',
+        event_version BIGINT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+      """, [])
+
+      repo.query!("""
+      CREATE TABLE IF NOT EXISTS event_store.subscriptions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        stream_id TEXT NOT NULL REFERENCES event_store.streams(id) ON DELETE CASCADE,
+        subscriber_pid TEXT NOT NULL,
+        options JSONB NOT NULL DEFAULT '{}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+      """, [])
+
+      IO.puts("  ✓ Event store schema and tables verified")
+      :ok
+    rescue
+      e ->
+        # Log the error
+        IO.puts("  ✗ Error in ensure_event_store_schema_exists: #{Exception.message(e)}")
+        reraise e, __STACKTRACE__
+    after
+      # Always check in the connection
+      Ecto.Adapters.SQL.Sandbox.checkin(repo)
     end
   end
 
-  # Helper function to ensure event_store schema and tables exist
-  defp ensure_event_store_schema do
-    Logger.info("Ensuring event_store schema and tables exist...")
-
-    # First checkout a connection for this operation
-    :ok = Sandbox.checkout(Repo, [ownership_timeout: @checkout_timeout])
-
-    # Check if schema exists
-    schema_exists? = case Repo.query("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'event_store'", []) do
-      {:ok, %{rows: []}} -> false
-      {:ok, _} -> true
-      _ -> false
-    end
-
-    unless schema_exists? do
-      Logger.info("Creating event_store schema and tables...")
-
-      # Create schema
-      Repo.query!("CREATE SCHEMA IF NOT EXISTS event_store", [])
-
-      # Create streams table
-      Repo.query!("""
-        CREATE TABLE IF NOT EXISTS event_store.streams (
-          id text NOT NULL,
-          version bigint NOT NULL,
-          created_at timestamp without time zone DEFAULT now() NOT NULL,
-          PRIMARY KEY(id)
-        );
-      """, [])
-
-      # Create events table
-      Repo.query!("""
-        CREATE TABLE IF NOT EXISTS event_store.events (
-          event_id bigserial NOT NULL,
-          stream_id text NOT NULL,
-          event_type text NOT NULL,
-          event_data jsonb NOT NULL,
-          event_metadata jsonb NOT NULL,
-          event_version bigint NOT NULL,
-          created_at timestamp without time zone DEFAULT now() NOT NULL,
-          PRIMARY KEY(event_id),
-          FOREIGN KEY(stream_id) REFERENCES event_store.streams(id)
-        );
-      """, [])
-
-      # Create subscriptions table
-      Repo.query!("""
-        CREATE TABLE IF NOT EXISTS event_store.subscriptions (
-          id bigserial NOT NULL,
-          stream_id text NOT NULL,
-          subscriber_pid text NOT NULL,
-          options jsonb,
-          created_at timestamp without time zone DEFAULT now() NOT NULL,
-          PRIMARY KEY(id),
-          FOREIGN KEY(stream_id) REFERENCES event_store.streams(id)
-        );
-      """, [])
-
-      Logger.info("Event store schema and tables created successfully")
-    end
-
-    # Check in the connection when done
-    Sandbox.checkin(Repo)
+  # Don't try to start repos - verify they're already running
+  defp start_all_repos do
+    # Don't try to start repos - they should already be started in test_helper.exs
+    Enum.each(@repos, fn repo ->
+      if !is_repo_running?(repo) do
+        raise "Repository #{inspect(repo)} is not running. All repositories should be started in test_helper.exs."
+      end
+    end)
   end
 
   # Cleanup connections when the test suite is done
   defp cleanup_connections do
-    Logger.info("Cleaning up database connections...")
-
-    # First try to check in connections
+    # Safely clean up each repo
     Enum.each(@repos, fn repo ->
       try do
-        Ecto.Adapters.SQL.Sandbox.checkin(repo)
-      rescue
-        _ -> :ok
-      end
-    end)
-
-    # Then stop repositories
-    Enum.each(@repos, fn repo ->
-      try do
-        repo.stop()
-      rescue
-        _ -> :ok
+        if Process.whereis(repo) do
+          # First check in any checked out connections
+          Sandbox.checkin(repo)
+        end
+      catch
+        :exit, _ ->
+          IO.puts("Repository #{inspect(repo)} connection was already checked in")
       end
     end)
   end

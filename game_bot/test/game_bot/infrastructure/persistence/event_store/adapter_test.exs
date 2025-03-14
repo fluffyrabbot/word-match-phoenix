@@ -6,30 +6,29 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
 
   # Setup and teardown
   setup do
-    # Ensure repositories are started
-    RepositoryManager.ensure_all_started()
-
     # Ensure test event store is properly configured
     Application.put_env(:game_bot, :event_store_adapter, GameBot.Test.EventStoreCore)
 
-    # Generate a unique stream ID for this test
-    stream_id = "test-stream-#{System.unique_integer([:positive])}"
+    # Check out connection from the repository
+    repository = GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(repository)
 
-    # Start the test event store if not already started
+    # Generate a unique test stream ID that won't be confused with a GenServer name
+    random_suffix = :rand.uniform(1000)
+    stream_id = "test-stream-#{random_suffix}"
+
+    # Start the test event store
     case GameBot.Test.EventStoreCore.start_link() do
       {:ok, pid} ->
-        on_exit(fn ->
-          try do
-            GameBot.Test.EventStoreCore.reset()
-            Process.exit(pid, :normal)
-          catch
-            _, _ -> :ok
-          end
-        end)
+        # Configure adapter to use our test event store core
+        Application.put_env(:game_bot, :event_store_adapter, GameBot.Test.EventStoreCore)
+        # Return the pid and stream id
         {:ok, %{event_store_pid: pid, stream_id: stream_id}}
       {:error, {:already_started, pid}} ->
         # Reset the store if it's already running
         GameBot.Test.EventStoreCore.reset()
+        # Configure adapter to use our test event store core
+        Application.put_env(:game_bot, :event_store_adapter, GameBot.Test.EventStoreCore)
         {:ok, %{event_store_pid: pid, stream_id: stream_id}}
       error ->
         error
@@ -44,8 +43,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
       # Make sure we're using the stream ID correctly in the test
       event = Map.put(event, :stream_id, stream_id)
 
-      # Append to stream
+      # First test through the adapter facade
       assert {:ok, 1} = Adapter.append_to_stream(stream_id, :no_stream, [event])
+
+      # Now verify the version through the adapter
+      assert {:ok, 1} = Adapter.stream_version(stream_id)
     end
 
     test "read_stream_forward/4 delegates to configured adapter", %{stream_id: stream_id} do
@@ -58,11 +60,11 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
       # Make sure we're using the same stream ID for all events
       events = Enum.map(events, fn event -> Map.put(event, :stream_id, stream_id) end)
 
-      # Append to stream
+      # Append to stream using the adapter facade
       assert {:ok, 2} = Adapter.append_to_stream(stream_id, :no_stream, events)
 
-      # Read from stream
-      assert {:ok, read_events} = Adapter.read_stream_forward(stream_id)
+      # Read from stream using the adapter facade
+      assert {:ok, read_events, _, _} = Adapter.read_stream_forward(stream_id)
       assert length(read_events) == 2
     end
 
@@ -73,13 +75,13 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
       # Make sure we're using the stream ID correctly in the test
       event = Map.put(event, :stream_id, stream_id)
 
-      # Check initial version
+      # Check initial version using adapter facade
       assert {:ok, 0} = Adapter.stream_version(stream_id)
 
-      # Append to stream
+      # Append to stream using adapter facade
       assert {:ok, 1} = Adapter.append_to_stream(stream_id, :no_stream, [event])
 
-      # Check updated version
+      # Verify version updated through adapter facade
       assert {:ok, 1} = Adapter.stream_version(stream_id)
     end
 

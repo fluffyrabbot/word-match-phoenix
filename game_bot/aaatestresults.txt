@@ -1,0 +1,1147 @@
+Setting up event store schema and tables...
+Cleaning up previous event store schema...
+Event store setup complete!
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Starting repositories...
+Setting up event store schema and tables...
+00:48:12.465 [error] Error setting up EventStore schema: %DBConnection.OwnershipError{message: "cannot find ownership process for #PID<0.94.0>.\n\nWhen using ownership, you must manage connections in one\nof the four ways:\n\n* By explicitly checking out a connection\n* By explicitly allowing a spawned process\n* By running the pool in shared mode\n* By using :caller option with allowed process\n\nThe first two options require every new process to explicitly\ncheck a connection out or be allowed by calling checkout or\nallow respectively.\n\nThe third option requires a {:shared, pid} mode to be set.\nIf using shared mode in tests, make sure your tests are not\nasync.\n\nThe fourth option requires [caller: pid] to be used when\nchecking out a connection from the pool. The caller process\nshould already be allowed on a connection.\n\nIf you are reading this error, it means you have not done one\nof the steps above or that the owner process has crashed.\n\nSee Ecto.Adapters.SQL.Sandbox docs for more information."}
+⚠️ Warning: Failed to set up event store schema: %DBConnection.OwnershipError{message: "cannot find ownership process for #PID<0.94.0>.\n\nWhen using ownership, you must manage connections in one\nof the four ways:\n\n* By explicitly checking out a connection\n* By explicitly allowing a spawned process\n* By running the pool in shared mode\n* By using :caller option with allowed process\n\nThe first two options require every new process to explicitly\ncheck a connection out or be allowed by calling checkout or\nallow respectively.\n\nThe third option requires a {:shared, pid} mode to be set.\nIf using shared mode in tests, make sure your tests are not\nasync.\n\nThe fourth option requires [caller: pid] to be used when\nchecking out a connection from the pool. The caller process\nshould already be allowed on a connection.\n\nIf you are reading this error, it means you have not done one\nof the steps above or that the owner process has crashed.\n\nSee Ecto.Adapters.SQL.Sandbox docs for more information."}
+Tests requiring EventStore will likely fail.
+
+Test environment initialized with:
+- Runtime repository implementation: "Not set"
+- Testing repositories: [GameBot.Infrastructure.Persistence.Repo, GameBot.Infrastructure.Persistence.Repo.Postgres, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres]
+Running ExUnit with seed: 504564, max_cases: 32
+Excluding tags: [:skip_db, :skip_in_ci]
+
+............00:48:12.843 [warning] Invalid event format for version validation: %{foo: "bar"}
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+........00:48:12.929 [error] Error processing event with version 1: %RuntimeError{message: "Test exception"}
+................................................................
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+...................................................Event2 structure: %GameBot.Domain.Events.GameEvents.GuessProcessed{game_id: "game123", guild_id: "guild456", mode: :standard, round_number: 1, team_id: "team1", player1_id: "playerbob", player2_id: "playeralice", player1_word: "apple", player2_word: "banana", guess_successful: true, match_score: 10, guess_count: 1, round_guess_count: 1, total_guesses: 5, guess_duration: 30, player1_duration: -1, player2_duration: 30, timestamp: ~U[2025-03-14 07:48:13.177000Z], metadata: %{correlation_id: "corr123", source_id: "src123"}}
+player1_duration: -1
+............
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+Test Event with Empty Team: %GameBot.Domain.Events.GameEvents.GameStarted{
+  game_id: "game-123",
+  guild_id: "guild-123",
+  mode: :two_player,
+  timestamp: ~U[2025-03-14 07:48:13.177000Z],
+  metadata: %{
+    "correlation_id" => "corr-123",
+    "guild_id" => "guild-123",
+    "source_id" => "msg-123"
+  },
+  round_number: 1,
+  teams: %{"team1" => []},
+  team_ids: ["team1", "team2"],
+  player_ids: ["player1", "player2", "player3", "player4"],
+  config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+  started_at: ~U[2025-03-14 07:48:13.177000Z]
+}
+Test Event Teams Structure: %{"team1" => []}
+Validation result: {:error, "player1_duration must be a non-negative integer"}
+.........Event1 Team IDs: ["team1", "team2", "team3"]
+.Event1 Teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]}
+Event1 Type: GameBot.Domain.Events.GameEvents.GameStarted
+Validation result: {:error, "team_ids contains unknown team: team3"}
+Validation failed with message: team_ids contains unknown team: team3
+.Created TestEvent: %GameBot.Domain.Events.TestEvents.TestEvent{
+  game_id: "game-123",
+  guild_id: "guild-123",
+  mode: :knockout,
+  timestamp: ~U[2023-01-01 12:00:00Z],
+  metadata: %{},
+  count: 42,
+  score: -10,
+  tags: MapSet.new(["tag1", "tag2"]),
+  nested_data: %{},
+  optional_field: nil,
+  round_number: 1,
+  teams: %{"team1" => []},
+  team_ids: ["team1", "team2"],
+  player_ids: ["player1", "player2", "player3", "player4"],
+  player1_info: {123456789, "player1", "Player One"},
+  player2_info: {987654321, "player2", "Player Two"},
+  player1_word: "word1",
+  player2_word: "word2",
+  guess_successful: true,
+  match_score: 10,
+  guess_count: 1,
+  round_guess_count: 1,
+  total_guesses: 1,
+  guess_duration: 1000,
+  config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+  started_at: ~U[2025-03-14 07:48:13.279000Z],
+  roles: %{},
+  team_id: "team1"
+}
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+..
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+.................CustomTranslator @event_registry: [{"custom_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.CustomTranslator, 2}]
+CustomTranslator @migrations: [{"custom_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.custom_v1_to_v2/1}]
+TestTranslator @event_registry: [{"other_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator, 2}, {"test_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator, 4}]
+TestTranslator @migrations: [{"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.other_v1_to_v2/1}, {"test_event", 3, 4, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v3_to_v4/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+
+
+  1) test GuessProcessed serializes and deserializes correctly (GameBot.Domain.Events.GameEventsTest)
+     test/game_bot/domain/events/game_events_test.exs:200
+     ** (KeyError) key :player1_id not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :two_player,
+       timestamp: ~U[2025-03-14 07:48:13.454000Z],
+       metadata: %{
+         "correlation_id" => "corr-123",
+         "guild_id" => "guild-123",
+         "source_id" => "msg-123"
+       },
+       count: nil,
+       score: nil,
+       tags: MapSet.new([]),
+       nested_data: nil,
+       optional_field: nil,
+       round_number: 1,
+       teams: nil,
+       team_ids: nil,
+       player_ids: nil,
+       player1_info: nil,
+       player2_info: nil,
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: nil,
+       started_at: nil,
+       roles: nil,
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_info
+           * :player1_word
+           * :player2_info
+           * :player2_word
+           * :player_ids
+
+     code: assert reconstructed.player1_id == original.player1_id
+     stacktrace:
+       test/game_bot/domain/events/game_events_test.exs:210: (test)
+
+.................................ComplexTranslator @event_registry: [{"complex_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ComplexTranslator, 3}]
+ComplexTranslator @migrations: [{"complex_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"complex_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+........................ErrorTranslator @event_registry: [{"error_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ErrorTranslator, 2}]
+ErrorTranslator @migrations: [{"error_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.error_v1_to_v2/1}]
+...................==================================================================================
+DEPRECATED MODULE: Use GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest
+
+This module is deprecated and only exists for backward compatibility.
+Please update any references to use the Adapter.PostgresTest module directly.
+==================================================================================
+
+.
+
+  2) test adapter functions delete_stream/3 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:80
+     ** (FunctionClauseError) no function clause matching in GenServer.whereis/1
+
+     The following arguments were given to GenServer.whereis/1:
+
+         # 1
+         "test-stream-478"
+
+     Attempted function clauses (showing 6 out of 6):
+
+         def whereis(pid) when -is_pid(pid)-
+         def whereis(name) when -is_atom(name)-
+         def whereis(-{:global, name}-)
+         def whereis(-{:via, mod, name}-)
+         def whereis(-{name, local}-) when -is_atom(name)- and -local == node()-
+         def whereis(-{name, node} = server-) when -is_atom(name)- and -is_atom(node)-
+
+     code: assert {:ok, 1} = Adapter.append_to_stream(stream_id, :no_stream, [event])
+     stacktrace:
+       (elixir 1.18.2) lib/gen_server.ex:1286: GenServer.whereis/1
+       (elixir 1.18.2) lib/gen_server.ex:1119: GenServer.call/3
+       (game_bot 0.1.0) lib/game_bot/test/event_store_core.ex:419: GameBot.Test.EventStoreCore.get_operation_timeout/2
+       (game_bot 0.1.0) lib/game_bot/test/event_store_core.ex:72: GameBot.Test.EventStoreCore.append_to_stream/4
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:88: (test)
+
+
+
+  3) test adapter functions stream_version/2 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:63
+     ** (UndefinedFunctionError) function GameBot.Test.EventStoreCore.stream_version/2 is undefined or private. Did you mean:
+
+           * get_stream_version/1
+           * get_stream_version/2
+           * get_stream_version/3
+
+     code: assert {:ok, 0} = Adapter.stream_version(stream_id)
+     stacktrace:
+       (game_bot 0.1.0) GameBot.Test.EventStoreCore.stream_version("test-stream-461", [])
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:71: (test)
+
+
+
+  4) test adapter functions append_to_stream/4 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:31
+     match (=) failed
+     code:  assert {:ok, 1} =
+              GameBot.Test.EventStoreCore.append_to_stream(:test_event_store_core, stream_id, :no_stream, [
+                event
+              ])
+     left:  {:ok, 1}
+     right: {:error,
+             {:wrong_expected_version,
+              [expected: :no_stream, current: 0]}}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:39: (test)
+
+
+
+  5) test adapter functions read_stream_forward/4 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:45
+     match (=) failed
+     code:  assert {:ok, 2} =
+              GameBot.Test.EventStoreCore.append_to_stream(
+                :test_event_store_core,
+                stream_id,
+                :no_stream,
+                events
+              )
+     left:  {:ok, 2}
+     right: {:error,
+             {:wrong_expected_version,
+              [expected: :no_stream, current: 0]}}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:56: (test)
+
+...
+
+  6) test stop_all stops all repositories (GameBot.Infrastructure.Persistence.RepositoryManagerTest)
+     test/game_bot/infrastructure/persistence/repository_manager_test.exs:99
+     Assertion with != failed, both sides are exactly equal
+     code: assert Process.whereis(Repo) != nil
+     left: nil
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repository_manager_test.exs:105: (test)
+
+........................
+
+  7) test error handling handles event store errors (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:165
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: EventStore.read_stream_forward("nonexistent-stream")
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.read_stream_forward/4
+       test/game_bot/test/database_manager_test.exs:168: (test)
+
+
+
+  8) test async tests concurrent event store operations (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:54
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: assert {:ok, _} = EventStore.append_to_stream(stream_id, :any_version, [event])
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.append_to_stream/4
+       test/game_bot/test/database_manager_test.exs:58: (test)
+
+.
+
+  9) test cleanup cleans up resources after test (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:137
+     ** (exit) exited in: GenServer.call(#PID<0.2268.0>, {:checkout, [post_checkout: #Function<0.14963859/2 in Ecto.Adapters.SQL.Sandbox.checkout/2>, pre_checkin: #Function<1.14963859/3 in Ecto.Adapters.SQL.Sandbox.checkout/2>, pool: DBConnection.Ownership, repo: GameBot.Infrastructure.Persistence.Repo, pool_size: 10, queue_target: 5000, queue_interval: 5000, timeout: 30000, ownership_timeout: 30000]}, :infinity)
+         ** (EXIT) no process: the process is not alive or there's no process currently associated with the given name, possibly because its application isn't started
+     stacktrace:
+       (elixir 1.18.2) lib/gen_server.ex:1128: GenServer.call/3
+       (db_connection 2.7.0) lib/db_connection/ownership.ex:103: DBConnection.Ownership.ownership_checkout/2
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:551: Ecto.Adapters.SQL.Sandbox.checkout/2
+       (game_bot 0.1.0) lib/game_bot/test/database_manager.ex:502: GameBot.Test.DatabaseManager.configure_sandbox_mode/3
+       (elixir 1.18.2) lib/enum.ex:987: Enum."-each/2-lists^foreach/1-0-"/2
+       (game_bot 0.1.0) lib/game_bot/test/database_manager.ex:302: GameBot.Test.DatabaseManager.do_setup_sandbox/1
+       test/game_bot/test/database_manager_test.exs:119: GameBot.Test.DatabaseManagerTest.__ex_unit_setup_4_0/1
+       GameBot.Test.DatabaseManagerTest.__ex_unit_describe_4/1
+
+
+
+ 10) test sync tests handles database errors gracefully (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:34
+     ** (Postgrex.Error) ERROR 42883 (undefined_function) function invalid_function() does not exist
+
+         query: SELECT invalid_function()
+
+         hint: No function matches the given name and argument types. You might need to add explicit type casts.
+     code: assert {:error, _} = Repo.transaction(fn ->
+     stacktrace:
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1096: Ecto.Adapters.SQL.raise_sql_call_error/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+       (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+       test/game_bot/test/database_manager_test.exs:35: (test)
+
+.
+
+ 11) test sync tests event store operations (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:25
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: assert {:ok, _} = EventStore.append_to_stream(stream_id, :any_version, [event])
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.append_to_stream/4
+       test/game_bot/test/database_manager_test.exs:29: (test)
+
+00:48:34.244 [error] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres failed to start
+00:48:34.244 [error] Repository GameBot.Infrastructure.Persistence.Repo is not running, sandbox setup failed
+00:48:34.244 [error] Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is not running, sandbox setup failed
+
+
+ 12) test error handling handles transaction failures (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:159
+     ** (Postgrex.Error) ERROR 42P01 (undefined_table) relation "nonexistent_table" does not exist
+
+         query: SELECT * FROM nonexistent_table
+     code: assert {:error, _} = Repo.transaction(fn ->
+     stacktrace:
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1096: Ecto.Adapters.SQL.raise_sql_call_error/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+       (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+       test/game_bot/test/database_manager_test.exs:160: (test)
+
+...............In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Before insert, implementation is: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Executing insert through Postgres module
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Mock insert called
+Mock insert was called: true
+Insert result: {:ok, %GameBot.Infrastructure.Persistence.Repo.MockTest.TestSchema{__meta__: #Ecto.Schema.Metadata<:built, "test_schema">, id: 1, name: "test", value: 42, inserted_at: nil, updated_at: nil}}
+.In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Setting up transaction mock expectation
+Before transaction, implementation is: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Executing transaction through Postgres module
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Mock transaction called with callback
+Inside transaction callback
+Mock transaction was called: true
+Transaction result: {:ok, :transaction_result}
+.In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Setting up error transaction mock expectation
+Before error transaction, implementation is: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Executing transaction that should fail
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.MockRepo
+Mock transaction returning error
+Mock transaction was called for error case: true
+Transaction error result: {:error, :mock_error}
+.*********..
+
+ 13) test diagnostic: Repository initialization (GameBot.DiagnosticTest)
+     test/diagnostic_test.exs:78
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist
+     code: results = Enum.map(repos, fn repo ->
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/diagnostic_test.exs:89: anonymous fn/1 in GameBot.DiagnosticTest."test diagnostic: Repository initialization"/1
+       (elixir 1.18.2) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+       test/diagnostic_test.exs:86: (test)
+
+..........................................00:48:38.277 [error] Repository GameBot.Infrastructure.Persistence.Repo failed to start
+00:48:38.277 [error] Repository GameBot.Infrastructure.Persistence.Repo is not running, sandbox setup failed
+...00:48:42.262 [warning] Event store is not running, cannot reset
+.00:48:42.550 [warning] Exit when stopping GameBot.Infrastructure.Persistence.Repo: {{:shutdown, {:sys, :terminate, [#PID<0.2866.0>, :normal, 5000]}}, {GenServer, :stop, [GameBot.Infrastructure.Persistence.Repo, :normal, 5000]}}
+00:48:43.413 [warning] Event store is not running, cannot reset
+.00:48:43.670 [warning] Exit when stopping GameBot.Infrastructure.Persistence.Repo: {:noproc, {GenServer, :stop, [GameBot.Infrastructure.Persistence.Repo, :normal, 5000]}}
+00:48:44.467 [warning] Event store is not running, cannot reset
+.00:48:44.717 [warning] Exit when stopping GameBot.Infrastructure.Persistence.Repo: {:noproc, {GenServer, :stop, [GameBot.Infrastructure.Persistence.Repo, :normal, 5000]}}
+00:48:45.796 [warning] Event store is not running, cannot reset
+.
+
+ 14) test basic operations with EventStore (GameBot.Infrastructure.Persistence.EventStore.SimpleTest)
+     test/game_bot/infrastructure/persistence/event_store/simple_test.exs:23
+     EventStore is not running
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/simple_test.exs:14: GameBot.Infrastructure.Persistence.EventStore.SimpleTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/simple_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.SimpleTest.__ex_unit__/2
+
+............00:48:47.188 [warning] Event store is not running, cannot reset
+
+
+ 15) test GET / (GameBotWeb.PageControllerTest)
+     test/game_bot_web/controllers/page_controller_test.exs:4
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: the table identifier does not refer to an existing ETS table
+
+     code: conn = get(conn, ~p"/")
+     stacktrace:
+       (stdlib 6.2) :ets.lookup(GameBotWeb.Endpoint, :secret_key_base)
+       (game_bot 0.1.0) deps/phoenix/lib/phoenix/endpoint.ex:529: GameBotWeb.Endpoint.config/2
+       (game_bot 0.1.0) lib/game_bot_web/endpoint.ex:1: GameBotWeb.Endpoint.call/2
+       (phoenix 1.7.20) lib/phoenix/test/conn_test.ex:225: Phoenix.ConnTest.dispatch/5
+       test/game_bot_web/controllers/page_controller_test.exs:5: (test)
+
+....00:48:47.192 [error] Error calculating base stats: %RuntimeError{message: "Game start event not found"}
+......DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: Test - All edges: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Test - All edge info: [{[:"$e" | 2], {"other_event", 1}, {"other_event", 2}, []}, {[:"$e" | 1], {"test_event", 2}, {"test_event", 3}, []}, {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}]
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+
+
+ 16) test subscription handling subscribe to stream (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:250
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected exception: could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist", details: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}, source: nil}}
+     code: for {impl, name} <- @implementations do
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:149: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.with_subscription_local/4
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:257: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test subscription handling subscribe to stream"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:253: (test)
+
+
+
+ 17) test subscription handling multiple subscribers (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:269
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected exception: could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist", details: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}, source: nil}}
+     code: for {impl, name} <- @implementations do
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:149: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.with_subscription_local/4
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:277: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test subscription handling multiple subscribers"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:272: (test)
+
+.
+
+ 18) test stream operations concurrent operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:229
+     Assertion with == failed
+     code:  assert Enum.count(results, &match?({:ok, _}, &1)) == 1
+     left:  0
+     right: 1
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:239: anonymous fn/2 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test stream operations concurrent operations"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:230: (test)
+
+
+
+ 19) test stream operations append and read events (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:189
+     match (=) failed
+     code:  assert {:ok, _} = impl.append_to_stream(stream_id, 0, events, timeout: @db_timeout)
+     left:  {:ok, _}
+     right: {:error,
+             %GameBot.Infrastructure.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+               message: "Unexpected exception: could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist",
+               details: %RuntimeError{
+                 message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"
+               },
+               source: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:199: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test stream operations append and read events"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:195: (test)
+
+
+
+ 20) test stream operations stream versioning (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:210
+     match (=) failed
+     code:  assert {:ok, _} = impl.append_to_stream(stream_id, 0, [event1])
+     left:  {:ok, _}
+     right: {:error,
+             %GameBot.Infrastructure.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+               message: "Unexpected exception: could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist",
+               details: %RuntimeError{
+                 message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"
+               },
+               source: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:218: anonymous fn/4 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test stream operations stream versioning"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:214: (test)
+
+
+
+ 21) test performance characteristics concurrent read performance (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:368
+     match (=) failed
+     code:  assert {:ok, _} = impl.append_to_stream(stream_id, 0, events)
+     left:  {:ok, _}
+     right: {:error,
+             %GameBot.Infrastructure.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+               message: "Unexpected exception: could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist",
+               details: %RuntimeError{
+                 message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"
+               },
+               source: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:375: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test performance characteristics concurrent read performance"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:371: (test)
+
+
+
+ 22) test error handling transaction boundaries (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:307
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     code: for {impl, name} <- @implementations do
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto 3.12.5) lib/ecto/repo/supervisor.ex:176: Ecto.Repo.Supervisor.tuplet/2
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:34: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.transaction/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:313: anonymous fn/2 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test error handling transaction boundaries"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:308: (test)
+
+
+
+ 23) test performance characteristics batch operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:337
+     ** (MatchError) no match of right hand side value: {0, {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected exception: could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist", details: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}, source: nil}}}
+     code: for {impl, name} <- @implementations do
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:344: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.IntegrationTest."test performance characteristics batch operations"/1
+       (elixir 1.18.2) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:340: (test)
+
+..
+
+ 24) test event store and repository interaction event store and repository interaction rolls back both event store and repository on error (GameBot.Infrastructure.Persistence.IntegrationTest)
+     test/game_bot/infrastructure/persistence/integration_test.exs:136
+     ** (exit) exited in: DBConnection.Holder.checkout(#PID<0.3140.0>, [log: #Function<13.132594008/1 in Ecto.Adapters.SQL.with_log/3>, pool: DBConnection.Ownership, repo: GameBot.Infrastructure.Persistence.Repo, pool_size: 10, ownership_timeout: 60000, queue_target: 5000, queue_interval: 5000, timeout: 30000])
+         ** (EXIT) no process: the process is not alive or there's no process currently associated with the given name, possibly because its application isn't started
+     stacktrace:
+       (db_connection 2.7.0) lib/db_connection/holder.ex:97: DBConnection.Holder.checkout/3
+       (db_connection 2.7.0) lib/db_connection.ex:1326: DBConnection.checkout/3
+       (db_connection 2.7.0) lib/db_connection.ex:1651: DBConnection.run/6
+       (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+       (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+       (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/integration_test.exs:125: anonymous fn/0 in GameBot.Infrastructure.Persistence.IntegrationTest.__ex_unit_setup_1/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+     The following output was logged:
+     00:48:47.473 [error] Failed to start TestEventStore: {:error, {:already_started, #PID<0.3169.0>}}
+     
+.
+
+ 25) test list_replays/1 returns empty list when no replays match filters (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:269
+     Assertion with == failed
+     code:  assert list == []
+     left:  {:ok, []}
+     right: []
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:283: (test)
+
+
+
+ 26) test log_access/6 returns error on failed insert (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:310
+     match (=) failed
+     code:  assert {:error, changeset} = result
+     left:  {:error, changeset}
+     right: :ok
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:324: (test)
+
+
+
+ 27) test get_replay/2 retrieves a replay with events (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:138
+     ** (ErlangError) Erlang error: {:not_mocked, GameBot.Replay.EventStoreAccess}
+     stacktrace:
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck_proc.erl:491: :meck_proc.gen_server/3
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck.erl:484: :meck.unload/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+.
+
+ 28) test list_replays/1 lists replays with filters (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:243
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: not a list
+
+     code: assert length(list) == 1
+     stacktrace:
+       :erlang.length({:ok, []})
+       test/game_bot/replay/storage_test.exs:264: (test)
+
+.
+
+ 29) test store_replay/1 stores a replay successfully (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:63
+     ** (KeyError) key :replay_id not found in: {:ok,
+      %{
+        mode: :two_player,
+        start_time: ~U[2025-03-14 06:48:48.758000Z],
+        created_at: ~U[2025-03-14 07:48:48.758000Z],
+        game_id: "test-game-4548",
+        replay_id: "f1649fbb-a8be-4cf5-b3cf-d943a1c561b6",
+        display_name: "test-replay-123",
+        end_time: ~U[2025-03-14 07:48:48.758000Z],
+        event_count: 42,
+        base_stats: %{
+          total_guesses: 75,
+          rounds: 10,
+          duration_seconds: 3600,
+          player_count: 2,
+          team_count: 2
+        },
+        mode_stats: %{
+          successful_guesses: 50,
+          failed_guesses: 25,
+          team_scores: %{"team1" => 30, "team2" => 20},
+          winning_team: "team1",
+          average_guess_time: 15.5
+        },
+        version_map: %{"game_completed" => 1, "game_started" => 1}
+      }}
+
+     If you are using the dot syntax, such as map.field, make sure the left-hand side of the dot is a map
+     code: assert stored_replay.replay_id == replay.replay_id
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:76: (test)
+
+
+
+ 30) test cleanup_old_replays/1 handles delete errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:351
+     match (=) failed
+     code:  assert {:error, "database error"} = result
+     left:  {:error, "database error"}
+     right: {:ok, {:ok, 0}}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:366: (test)
+
+00:48:49.068 [error] Failed to store replay: [display_name: {"has already been taken", []}]
+
+
+ 31) test store_replay/1 handles insert errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:82
+     match (=) failed
+     code:  assert {:error, %Ecto.Changeset{} = error_changeset} = result
+     left:  {:error, %Ecto.Changeset{} = error_changeset}
+     right: {:ok,
+             {:error,
+              #Ecto.Changeset<
+                action: nil,
+                changes: %{},
+                errors: [
+                  display_name: {"has already been taken", []}
+                ],
+                data: nil,
+                valid?: false,
+                ...
+              >}}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:97: (test)
+
+
+
+ 32) test list_replays/1 lists replays with default params (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:219
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: not a list
+
+     code: assert length(list) == 2
+     stacktrace:
+       :erlang.length({:ok, []})
+       test/game_bot/replay/storage_test.exs:239: (test)
+
+.00:48:49.578 [error] Failed to load events for replay f51978e6-4d70-4ae3-b708-1143f72eded8: :stream_not_found
+
+
+ 33) test get_replay/2 handles event loading errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:177
+     ** (ErlangError) Erlang error: {:not_mocked, GameBot.Replay.EventStoreAccess}
+     stacktrace:
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck_proc.erl:491: :meck_proc.gen_server/3
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck.erl:484: :meck.unload/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+
+
+ 34) test cleanup_old_replays/1 deletes old replays (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:331
+     Assertion with == failed
+     code:  assert count == 5
+     left:  {:ok, 0}
+     right: 5
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:347: (test)
+
+.
+
+ 35) test insert_record/2 successfully inserts valid record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:77
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 36) test insert_record/2 handles validation errors (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:83
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 37) test insert_record/2 handles constraint violations (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:88
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 38) test delete_record/2 handles concurrent deletions (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:122
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 39) test execute_transaction/1 handles nested transactions (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:64
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 40) test execute_transaction/1 successfully executes transaction (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:44
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 41) test execute_transaction/1 rolls back on error (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:53
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 42) test delete_record/2 successfully deletes record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:116
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 43) test update_record/2 successfully updates record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:96
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+
+
+ 44) test update_record/2 handles concurrent modifications (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:105
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:28: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:1: GameBot.Infrastructure.Persistence.Repo.PostgresTest.__ex_unit__/2
+
+00:49:01.123 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:01.123 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:02.087 [warning] Event store is not running, cannot reset
+.00:49:02.521 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:02.521 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:03.631 [warning] Event store is not running, cannot reset
+.00:49:04.026 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+.00:49:04.787 [warning] Event store is not running, cannot reset
+00:49:06.057 [warning] Event store is not running, cannot reset
+.00:49:06.480 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:06.480 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:07.316 [warning] Event store is not running, cannot reset
+.00:49:07.743 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:08.603 [warning] Event store is not running, cannot reset
+.00:49:09.067 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:10.098 [warning] Event store is not running, cannot reset
+.00:49:10.537 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:11.524 [warning] Event store is not running, cannot reset
+.00:49:11.976 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:11.976 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:12.903 [warning] Event store is not running, cannot reset
+.00:49:13.353 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:14.252 [warning] Event store is not running, cannot reset
+.00:49:14.710 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:14.710 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:15.755 [warning] Event store is not running, cannot reset
+.00:49:16.227 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:16.227 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:16.998 [warning] Event store is not running, cannot reset
+.00:49:17.452 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+00:49:17.452 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+00:49:18.361 [warning] Event store is not running, cannot reset
+.......00:49:18.361 [error] GenServer GameBot.Domain.Events.HandlerTest.TestEventHandler terminating
+** (RuntimeError) simulated crash
+    test/game_bot/domain/events/handler_test.exs:62: GameBot.Domain.Events.HandlerTest.TestEventHandler.handle_info/2
+    (stdlib 6.2) gen_server.erl:2345: :gen_server.try_handle_info/3
+    (stdlib 6.2) gen_server.erl:2433: :gen_server.handle_msg/6
+    (stdlib 6.2) proc_lib.erl:329: :proc_lib.init_p_do_apply/3
+Last message: {:simulate_crash}
+............................00:49:20.338 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :concurrency, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Wrong expected version", details: %{actual: 2, expected: 1}, source: nil}}
+..................************TestTranslator.event_modules(): [{"other_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}, {"test_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}]
+TestTranslator.event_versions(): [{"other_event", 2}, {"test_event", 4}]
+TestTranslator.event_migrations(): [{"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.other_v1_to_v2/1}, {"test_event", 3, 4, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v3_to_v4/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+CustomTranslator.event_modules(): [{"custom_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.CustomTranslator}]
+CustomTranslator.event_versions(): [{"custom_event", 2}]
+CustomTranslator.event_migrations(): [{"custom_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.custom_v1_to_v2/1}]
+ComplexTranslator.event_modules(): [{"complex_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ComplexTranslator}]
+ComplexTranslator.event_versions(): [{"complex_event", 3}]
+ComplexTranslator.event_migrations(): [{"complex_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"complex_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+ErrorTranslator.event_modules(): [{"error_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ErrorTranslator}]
+ErrorTranslator.event_versions(): [{"error_event", 2}]
+ErrorTranslator.event_migrations(): [{"error_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.error_v1_to_v2/1}]
+Building graph with:
+  Event registry: [{"other_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}, {"test_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}]
+  Versions: [{"other_event", 2}, {"test_event", 4}]
+  Migrations: [{"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.other_v1_to_v2/1}, {"test_event", 3, 4, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v3_to_v4/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+  Adding vertex: {other_event, 1}
+  Adding vertex: {other_event, 2}
+  Adding vertex: {test_event, 1}
+  Adding vertex: {test_event, 2}
+  Adding vertex: {test_event, 3}
+  Adding vertex: {test_event, 4}
+  Adding edge: {other_event, 1} -> {other_event, 2}
+  Adding edge: {test_event, 3} -> {test_event, 4}
+  Adding edge: {test_event, 2} -> {test_event, 3}
+  Adding edge: {test_event, 1} -> {test_event, 2}
+Graph has 6 vertices: [{"test_event", 2}, {"test_event", 1}, {"test_event", 4}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+Graph has 4 edges: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 3], [:"$e" | 0]]
+Building graph with:
+  Event registry: [{"complex_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ComplexTranslator}]
+  Versions: [{"complex_event", 3}]
+  Migrations: [{"complex_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"complex_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+  Adding vertex: {complex_event, 1}
+  Adding vertex: {complex_event, 2}
+  Adding vertex: {complex_event, 3}
+  Adding edge: {complex_event, 2} -> {complex_event, 3}
+  Adding edge: {complex_event, 1} -> {complex_event, 2}
+Graph has 3 vertices: [{"complex_event", 2}, {"complex_event", 3}, {"complex_event", 1}]
+Graph has 2 edges: [[:"$e" | 1], [:"$e" | 0]]
+...
+
+ 45) test transaction boundaries respects timeout settings (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:149
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 46) test transaction boundaries supports nested transactions (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:173
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 47) test execute/3 logs guild context when provided (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:195
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 48) test execute_steps/3 stops execution on first error (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:260
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 49) test transaction boundaries handles exceptions by rolling back (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:136
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 50) test transaction boundaries commits all changes on success (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:105
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 51) test transaction boundaries rolls back all changes on error (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:121
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 52) test execute_steps/3 executes multiple steps with guild context (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:240
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 53) test execute/3 logs without guild context when not provided (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:209
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+
+ 54) test execute/3 adds guild_id to error context on failure (GameBot.Infrastructure.Persistence.Repo.TransactionTest)
+     test/game_bot/infrastructure/persistence/repo/transaction_test.exs:222
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:592: Ecto.Adapters.SQL.query/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:95: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit_setup_1/1
+       test/game_bot/infrastructure/persistence/repo/transaction_test.exs:1: GameBot.Infrastructure.Persistence.Repo.TransactionTest.__ex_unit__/2
+
+
+Finished in 79.3 seconds (2.8s async, 76.4s sync)
+548 tests, 54 failures, 26 excluded, 9 skipped
+00:49:31.869 [error] Task #PID<0.700.0> started from #PID<0.94.0> terminating
+** (stop) exited in: GenServer.stop(GameBot.Infrastructure.Persistence.Repo, :normal, 5000)
+    ** (EXIT) no process: the process is not alive or there's no process currently associated with the given name, possibly because its application isn't started
+    (elixir 1.18.2) lib/gen_server.ex:1079: GenServer.stop/3
+    (game_bot 0.1.0) test/support/event_store_case.ex:262: anonymous fn/1 in GameBot.EventStoreCase.cleanup_connections/0
+    (elixir 1.18.2) lib/enum.ex:987: Enum."-each/2-lists^foreach/1-0-"/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:67: ExUnit.Runner.run_with_trap/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:30: ExUnit.Runner.run/2
+    (ex_unit 1.18.2) lib/ex_unit.ex:509: ExUnit.maybe_repeated_run/4
+    (elixir 1.18.2) lib/task/supervised.ex:101: Task.Supervised.invoke_mfa/2
+    (elixir 1.18.2) lib/task/supervised.ex:36: Task.Supervised.reply/4
+Function: #Function<0.77447545/0 in ExUnit.async_run/0>
+    Args: []

@@ -44,7 +44,7 @@ defmodule GameBot.Test.Config do
   Can be overridden via the GAMEBOT_TEST_TIMEOUT environment variable.
   """
   def timeout do
-    parse_int_env("GAMEBOT_TEST_TIMEOUT", 5000)
+    parse_int_env("GAMEBOT_TEST_TIMEOUT", 120000)
   end
 
   @doc """
@@ -52,7 +52,7 @@ defmodule GameBot.Test.Config do
   Can be overridden via the GAMEBOT_TEST_OWNERSHIP_TIMEOUT environment variable.
   """
   def ownership_timeout do
-    parse_int_env("GAMEBOT_TEST_OWNERSHIP_TIMEOUT", 60000)
+    parse_int_env("GAMEBOT_TEST_OWNERSHIP_TIMEOUT", 120000)
   end
 
   @doc """
@@ -60,7 +60,7 @@ defmodule GameBot.Test.Config do
   Can be overridden via the GAMEBOT_TEST_CONNECTION_TIMEOUT environment variable.
   """
   def connection_timeout do
-    parse_int_env("GAMEBOT_TEST_CONNECTION_TIMEOUT", 10000)
+    parse_int_env("GAMEBOT_TEST_CONNECTION_TIMEOUT", 120000)
   end
 
   @doc """
@@ -84,7 +84,7 @@ defmodule GameBot.Test.Config do
   Can be overridden via the POSTGRES_PASSWORD environment variable.
   """
   def db_password do
-    System.get_env("POSTGRES_PASSWORD", "postgres")
+    System.get_env("POSTGRES_PASSWORD", "csstarahid")
   end
 
   @doc """

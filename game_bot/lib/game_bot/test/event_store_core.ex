@@ -68,17 +68,43 @@ defmodule GameBot.Test.EventStoreCore do
   Appends events to a stream with concurrency control via expected_version.
   """
   def append_to_stream(server \\ __MODULE__, stream_id, expected_version, events) do
+    # Handle case where first parameter might actually be a stream_id (string)
+    {actual_server, actual_stream_id, actual_expected_version, actual_events} =
+      case {server, stream_id, expected_version, events} do
+        # If the "server" is a binary and looks like a stream_id, it's likely the stream_id was passed first
+        {server, stream_id, expected_version, events} when is_binary(server) ->
+          {__MODULE__, server, stream_id, expected_version}
+        # Normal case with correct parameter ordering
+        {server, stream_id, expected_version, events} ->
+          {server, stream_id, expected_version, events}
+      end
+
     # Get the configured timeout or use default
-    timeout = get_operation_timeout(server, :append_to_stream)
-    GenServer.call(server, {:append_to_stream, stream_id, expected_version, events, []}, timeout)
+    timeout = get_operation_timeout(actual_server, :append_to_stream)
+    GenServer.call(
+      actual_server,
+      {:append_to_stream, actual_stream_id, actual_expected_version, actual_events, []},
+      timeout
+    )
   end
 
   @doc """
   Reads events from a stream starting from the given version,
   moving forward through the stream up to the max_count.
   """
-  def read_stream_forward(server \\ __MODULE__, stream_id, start_version, count) do
-    GenServer.call(server, {:read_stream_forward, stream_id, start_version, count})
+  def read_stream_forward(server \\ __MODULE__, stream_id, start_version \\ 0, count \\ 1000) do
+    # Handle case where server might be a stream_id
+    {actual_server, actual_stream_id, actual_start_version, actual_count} =
+      case {server, stream_id, start_version, count} do
+        # If server is a binary, it's likely the stream_id
+        {server, start_version, count, _} when is_binary(server) and is_integer(start_version) ->
+          {__MODULE__, server, start_version, count}
+        # Normal case
+        {server, stream_id, start_version, count} ->
+          {server, stream_id, start_version, count}
+      end
+
+    GenServer.call(actual_server, {:read_stream_forward, actual_stream_id, actual_start_version, actual_count})
   end
 
   @doc """
@@ -120,14 +146,44 @@ defmodule GameBot.Test.EventStoreCore do
   Gets the current version of a stream.
   """
   def get_stream_version(server \\ __MODULE__, stream_id, opts \\ []) do
-    GenServer.call(server, {:stream_version, stream_id, opts})
+    # Handle case where server might be a stream_id
+    {actual_server, actual_stream_id, actual_opts} =
+      case {server, stream_id, opts} do
+        # If server is a binary, it's likely the stream_id
+        {server, opts, _} when is_binary(server) and is_list(opts) ->
+          {__MODULE__, server, opts}
+        # Normal case
+        {server, stream_id, opts} ->
+          {server, stream_id, opts}
+      end
+
+    GenServer.call(actual_server, {:stream_version, actual_stream_id, actual_opts})
+  end
+
+  @doc """
+  Gets the current version of a stream (alias for get_stream_version for adapter compatibility).
+  """
+  def stream_version(stream_id, opts \\ []) do
+    # Always use the module name as the server to avoid trying to use stream_id as a GenServer name
+    get_stream_version(__MODULE__, stream_id, opts)
   end
 
   @doc """
   Deletes a stream.
   """
-  def delete_stream(server \\ __MODULE__, stream_id, expected_version, opts \\ []) do
-    GenServer.call(server, {:delete_stream, stream_id, expected_version, opts})
+  def delete_stream(server \\ __MODULE__, stream_id, expected_version \\ :any_version, opts \\ []) do
+    # Handle case where server might be a stream_id
+    {actual_server, actual_stream_id, actual_expected_version, actual_opts} =
+      case {server, stream_id, expected_version, opts} do
+        # If server is a binary, it's likely the stream_id
+        {server, expected_version, opts, _} when is_binary(server) ->
+          {__MODULE__, server, expected_version, opts}
+        # Normal case
+        {server, stream_id, expected_version, opts} ->
+          {server, stream_id, expected_version, opts}
+      end
+
+    GenServer.call(actual_server, {:delete_stream, actual_stream_id, actual_expected_version, actual_opts})
   end
 
   @doc """
@@ -404,6 +460,11 @@ defmodule GameBot.Test.EventStoreCore do
     :ok
   end
 
+  defp check_version(%{version: 0}, :no_stream) do
+    # When stream has version 0 and expected is :no_stream, this is valid
+    :ok
+  end
+
   defp check_version(%{version: current}, expected) when expected == current do
     :ok
   end
@@ -415,12 +476,21 @@ defmodule GameBot.Test.EventStoreCore do
   # Private Helpers
 
   defp get_operation_timeout(server, operation) do
+    # If server is a binary (string), it's likely a stream_id being incorrectly passed
+    # In that case, use the module name as the actual server
+    actual_server = case server do
+      server when is_binary(server) -> __MODULE__
+      server -> server
+    end
+
+    # Get the timeout value for the specific operation
     try do
-      case GenServer.call(server, {:get_operation_timeout, operation}) do
-        {:ok, timeout} -> timeout
+      case GenServer.call(actual_server, {:get_operation_timeout, operation}) do
+        timeout when is_integer(timeout) -> timeout
         _ -> @default_timeout
       end
     rescue
+      # If anything goes wrong, fall back to the default timeout
       _ -> @default_timeout
     end
   end
@@ -430,4 +500,11 @@ defmodule GameBot.Test.EventStoreCore do
   defp should_apply_delay?(:read_stream_forward, delay) when delay > 0, do: true
   defp should_apply_delay?(:read_stream_backward, delay) when delay > 0, do: true
   defp should_apply_delay?(_, _), do: false
+
+  # Add handler for getting operation timeout
+  @impl GenServer
+  def handle_call({:get_operation_timeout, operation}, _from, state) do
+    timeout = Map.get(state.operation_timeouts, operation, @default_timeout)
+    {:reply, timeout, state}
+  end
 end

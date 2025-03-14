@@ -37,7 +37,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
 
     # Add to_map function for serialization
     def to_map(event) do
-      event.data
+      Map.from_struct(event.data)
     end
   end
 
@@ -47,44 +47,31 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.IntegrationTest do
 
   # Setup for database connections
   setup do
-    # Use direct database connection instead of DatabaseManager
-    # Start applications directly
-    {:ok, _} = Application.ensure_all_started(:postgrex)
-    {:ok, _} = Application.ensure_all_started(:ecto_sql)
+    # Generate a unique stream ID for this test
+    stream_id = "test-stream-#{:rand.uniform(999999)}"
 
-    # Connect directly to the database
-    config = [
-      username: "postgres",
-      password: "csstarahid",  # Using the password from the test output
-      hostname: "localhost",
-      database: "game_bot_eventstore_test",
-      pool_size: 2,
-      timeout: 30_000
-    ]
+    # Check out connection from the repository
+    repository = GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(repository)
 
-    # Start the connection
-    {:ok, conn} = Postgrex.start_link(config)
+    # Allow async tasks to access the connection
+    Ecto.Adapters.SQL.Sandbox.allow(repository, self(), Process.whereis(repository))
 
-    # Create event_store schema and tables if they don't exist
-    create_event_store_schema(conn)
+    # Clean up any existing test data
+    cleanup_streams(stream_id)
 
-    # Clean up test database before each test
-    Postgrex.query!(conn, "TRUNCATE event_store.streams, event_store.events, event_store.subscriptions CASCADE", [])
+    # Return the stream ID for use in the tests
+    {:ok, %{stream_id: stream_id, repository: repository}}
+  end
 
-    # Clean up on exit
-    on_exit(fn ->
-      # Delay slightly to allow connections to complete
-      Process.sleep(100)
-
-      # Close the connection
-      if Process.alive?(conn), do: GenServer.stop(conn)
-
-      # Additional cleanup
-      cleanup_connections()
-    end)
-
-    # Return the connection to use in tests
-    %{conn: conn}
+  # Helper function to clean up test data
+  defp cleanup_streams(stream_id) do
+    try do
+      # Try to delete any previous test streams with this ID
+      EventStore.delete_stream(stream_id, :any_version)
+    rescue
+      _ -> :ok  # Ignore errors if stream doesn't exist
+    end
   end
 
   # Helper to create event_store schema and tables

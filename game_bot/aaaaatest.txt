@@ -1,0 +1,2344 @@
+Setting up event store schema and tables...
+Cleaning up previous event store schema...
+Event store setup complete!
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Starting required applications...
+  ✓ Started phoenix
+  ✓ Started phoenix_ecto
+  ✓ Started postgrex
+  ✓ Started ecto
+  ✓ Started ecto_sql
+  ✓ Started eventstore
+
+Starting repositories...
+  ✓ All repositories started successfully
+
+Configuring SQL sandbox mode...
+  ✓ Started and configured GameBot.Infrastructure.Persistence.Repo
+  ✓ Started and configured GameBot.Infrastructure.Persistence.Repo.Postgres
+  ✓ Started and configured GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+
+Setting up event store schema and tables...
+  ✓ Event store setup complete!
+
+Cleaning up previous test data...
+  ✓ Cleaned event_store tables in GameBot.Infrastructure.Persistence.Repo
+  ✓ Cleaned event_store tables in GameBot.Infrastructure.Persistence.Repo.Postgres
+  ✓ Cleaned event_store tables in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+
+Test environment initialized with:
+- Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+- Testing repositories: [GameBot.Infrastructure.Persistence.Repo, GameBot.Infrastructure.Persistence.Repo.Postgres, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres]
+
+=== Repository Verification ===
+Setting up repository sandbox mode...
+  ✓ Set GameBot.Infrastructure.Persistence.Repo to shared sandbox mode
+  ✓ Set GameBot.Infrastructure.Persistence.Repo.Postgres to shared sandbox mode
+  ✓ Set GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres to shared sandbox mode
+
+=== Repository Verification ===
+  ✓ Repository GameBot.Infrastructure.Persistence.Repo is fully operational
+  ✓ Repository GameBot.Infrastructure.Persistence.Repo.Postgres is fully operational
+  ✓ Repository GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres is fully operational
+
+✅ All repositories verified and ready for testing
+
+Verifying test_schema table in GameBot.Infrastructure.Persistence.Repo...
+  ✓ test_schema table exists
+
+Verifying test_schema table in GameBot.Infrastructure.Persistence.Repo.Postgres...
+  ✓ test_schema table exists
+
+Setting repositories back to manual sandbox mode for tests...
+  ✓ Set GameBot.Infrastructure.Persistence.Repo to manual sandbox mode
+  ✓ Set GameBot.Infrastructure.Persistence.Repo.Postgres to manual sandbox mode
+  ✓ Set GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres to manual sandbox mode
+Running ExUnit with seed: 130504, max_cases: 1
+Excluding tags: [:skip_db, :skip_in_ci]
+
+
+GameBot.Domain.Events.GuessEventsTest [test/game_bot/domain/events/guess_events_test.exs]
+  * test GuessProcessed converts to and from map [L#74]CustomTranslator @event_registry: [{"custom_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.CustomTranslator, 2}]
+  * test GuessProcessed converts to and from map (156.8ms) [L#74]
+  * test GuessProcessed creates a valid event with unsuccessful guess [L#34]  * test GuessProcessed creates a valid event with unsuccessful guess (0.00ms) [L#34]
+  * test GuessProcessed fails validation with missing required fields [L#60]  * test GuessProcessed fails validation with missing required fields (0.00ms) [L#60]
+  * test GuessProcessed creates a valid event with successful guess [L#6]  * test GuessProcessed creates a valid event with successful guess (0.1ms) [L#6]
+
+GameBot.Infrastructure.ErrorHelpersTest [test/game_bot/infrastructure/error_helpers_test.exs]
+  * test with_retries/3 returns successful result immediately [L#41]CustomTranslator @migrations: [{"custom_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.custom_v1_to_v2/1}]
+  * test with_retries/3 returns successful result immediately (49.0ms) [L#41]
+  * test wrap_error/2 handles serialization errors [L#28]  * test wrap_error/2 handles serialization errors (0.00ms) [L#28]
+  * test format_changeset_error/1 formats changeset error message with interpolation [L#233]  * test format_changeset_error/1 formats changeset error message with interpolation (0.00ms) [L#233]
+  * test translate_error/2 translates contextual tuples [L#211]  * test translate_error/2 translates contextual tuples (0.00ms) [L#211]
+  * test translate_error/2 translates common error atoms [L#159]  * test translate_error/2 translates common error atoms (0.00ms) [L#159]
+  * test with_retries/3 gives up after max retries [L#71]  * test with_retries/3 gives up after max retries (5.1ms) [L#71]
+  * test wrap_error/2 handles raised exceptions [L#23]  * test wrap_error/2 handles raised exceptions (0.1ms) [L#23]
+  * test with_retries/3 retries on connection errors [L#46]  * test with_retries/3 retries on connection errors (2.9ms) [L#46]
+  * test with_retries/3 applies jitter to retry delay [L#118]  * test with_retries/3 applies jitter to retry delay (3.7ms) [L#118]
+  * test wrap_error/2 passes through Error structs [L#12]  * test wrap_error/2 passes through Error structs (0.00ms) [L#12]
+  * test translate_error/2 passes through Error structs [L#153]  * test translate_error/2 passes through Error structs (0.00ms) [L#153]
+  * test with_retries/3 doesn't retry on non-retryable errors [L#103]  * test with_retries/3 doesn't retry on non-retryable errors (0.00ms) [L#103]
+  * test wrap_error/2 transforms simple error atoms [L#18]  * test wrap_error/2 transforms simple error atoms (0.00ms) [L#18]
+  * test translate_error/2 translates EventStore errors [L#170]  * test translate_error/2 translates EventStore errors (0.00ms) [L#170]
+  * test wrap_error/2 passes through successful results [L#7]  * test wrap_error/2 passes through successful results (0.00ms) [L#7]
+  * test translate_error/2 translates validation tuples [L#206]  * test translate_error/2 translates validation tuples (0.00ms) [L#206]
+  * test with_retries/3 adds retry context to errors [L#80]  * test with_retries/3 adds retry context to errors (0.00ms) [L#80]
+  * test translate_error/2 wraps unknown errors as system errors [L#225]  * test translate_error/2 wraps unknown errors as system errors (0.00ms) [L#225]
+  * test translate_error/2 translates stream-related error atoms [L#195]  * test translate_error/2 translates stream-related error atoms (0.00ms) [L#195]
+
+GameBot.Replay.EventVerifierTest [test/game_bot/replay/event_verifier_test.exs]
+  * test verify_event_sequence/1 detects duplicate versions [L#51]  * test verify_event_sequence/1 detects duplicate versions (53.7ms) [L#51]
+  * test verify_event_sequence/1 detects version gaps [L#40]  * test verify_event_sequence/1 detects version gaps (0.00ms) [L#40]
+  * test verify_game_stream/2 uses custom required events [L#175]  * test verify_game_stream/2 uses custom required events (0.00ms) [L#175]
+  * test verify_game_stream/2 returns error when sequence verification fails [L#133]  * test verify_game_stream/2 returns error when sequence verification fails (0.00ms) [L#133]
+  * test validate_game_completion/1 returns error for incomplete game [L#75]  * test validate_game_completion/1 returns error for incomplete game (0.00ms) [L#75]
+  * test verify_event_sequence/1 returns ok for unordered but sequential events [L#29]  * test verify_event_sequence/1 returns ok for unordered but sequential events (0.00ms) [L#29]
+  * test validate_game_completion/1 returns ok for completed game [L#64]  * test validate_game_completion/1 returns ok for completed game (0.00ms) [L#64]
+  * test check_required_events/2 returns ok for empty required list [L#111]  * test check_required_events/2 returns ok for empty required list (0.00ms) [L#111]
+  * test verify_event_sequence/1 returns ok for single event [L#12]  * test verify_event_sequence/1 returns ok for single event (0.00ms) [L#12]
+  * test verify_game_stream/2 returns ok for valid game stream [L#122]  * test verify_game_stream/2 returns ok for valid game stream (0.1ms) [L#122]
+  * test check_required_events/2 returns error when some required events missing [L#99]  * test check_required_events/2 returns error when some required events missing (0.00ms) [L#99]
+  * test verify_event_sequence/1 returns ok for sequential events [L#18]  * test verify_event_sequence/1 returns ok for sequential events (0.00ms) [L#18]
+  * test verify_game_stream/2 returns error when required events missing [L#143]  * test verify_game_stream/2 returns error when required events missing (0.00ms) [L#143]
+  * test verify_event_sequence/1 returns error for empty sequence [L#7]  * test verify_event_sequence/1 returns error for empty sequence (0.00ms) [L#7]
+  * test verify_game_stream/2 skips completion check when disabled [L#164]  * test verify_game_stream/2 skips completion check when disabled (0.00ms) [L#164]
+  * test check_required_events/2 returns ok when all required events present [L#87]  * test check_required_events/2 returns ok when all required events present (0.1ms) [L#87]
+  * test verify_game_stream/2 returns error when completion check fails [L#154]  * test verify_game_stream/2 returns error when completion check fails (0.00ms) [L#154]
+
+GameBot.Domain.Events.EventValidatorTest [test/game_bot/domain/events/event_validator_test.exs]
+  * test validate/1 validates metadata content [L#95]TestTranslator @event_registry: [{"other_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator, 2}, {"test_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator, 4}]
+TestTranslator @migrations: [{"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.other_v1_to_v2/1}, {"test_event", 3, 4, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v3_to_v4/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+  * test validate/1 validates metadata content (95.6ms) [L#95]
+  * test validate/1 returns error for invalid event-specific field values [L#81]  * test validate/1 returns error for invalid event-specific field values (0.00ms) [L#81]
+  * test error messages provides descriptive error messages [L#155]  * test error messages provides descriptive error messages (0.1ms) [L#155]
+  * test validate/1 returns error for missing event-specific fields [L#73]  * test validate/1 returns error for missing event-specific fields (0.00ms) [L#73]
+  * test validate_fields/1 handles optional fields correctly [L#119]  * test validate_fields/1 handles optional fields correctly (0.1ms) [L#119]
+  * test validate/1 returns error for missing base fields [L#41]  * test validate/1 returns error for missing base fields (0.00ms) [L#41]
+  * test validate/1 returns error for invalid base field values [L#58]  * test validate/1 returns error for invalid base field values (61.0ms) [L#58]
+  * test validate/1 returns :ok for a valid event [L#36]  * test validate/1 returns :ok for a valid event (0.00ms) [L#36]
+
+GameBot.Domain.Events.ValidatorTest [test/game_bot/domain/events/validator_test.exs]
+  * test GameStarted validator validates valid GameStarted event [L#81]ComplexTranslator @event_registry: [{"complex_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ComplexTranslator, 3}]
+ComplexTranslator @migrations: [{"complex_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"complex_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+  * test GameStarted validator validates valid GameStarted event (198.8ms) [L#81]
+  * test EventValidatorHelpers collection validation helpers work correctly [L#67]ErrorTranslator @event_registry: [{"error_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ErrorTranslator, 2}]
+ErrorTranslator @migrations: [{"error_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.error_v1_to_v2/1}]
+  * test EventValidatorHelpers collection validation helpers work correctly (55.5ms) [L#67]
+  * test GuessProcessed validator validates non-negative duration [L#220]Event2 structure: %GameBot.Domain.Events.GameEvents.GuessProcessed{game_id: "game123", guild_id: "guild456", mode: :standard, round_number: 1, team_id: "team1", player1_id: "playerbob", player2_id: "playeralice", player1_word: "apple", player2_word: "banana", guess_successful: true, match_score: 10, guess_count: 1, round_guess_count: 1, total_guesses: 5, guess_duration: 30, player1_duration: -1, player2_duration: 30, timestamp: ~U[2025-03-14 10:11:42.151000Z], metadata: %{correlation_id: "corr123", source_id: "src123"}}
+player1_duration: -1
+Validation result: {:error, "player1_duration must be a non-negative integer"}
+Event1 Team IDs: ["team1", "team2", "team3"]
+  * test GuessProcessed validator validates non-negative duration (214.5ms) [L#220]
+Event1 Teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]}
+  * test GameStarted validator detects invalid teams structure [L#115]Event1 Type: GameBot.Domain.Events.GameEvents.GameStarted
+Validation result: {:error, "team_ids contains unknown team: team3"}
+Validation failed with message: team_ids contains unknown team: team3
+  * test GameStarted validator detects invalid teams structure (0.2ms) [L#115]
+  * test EventValidatorHelpers numeric validation helpers work correctly [L#53]  * test EventValidatorHelpers numeric validation helpers work correctly (0.00ms) [L#53]
+  * test GameStarted validator detects invalid round_number [L#107]  * test GameStarted validator detects invalid round_number (0.00ms) [L#107]
+  * test GuessProcessed validator detects missing required fields [L#204]  * test GuessProcessed validator detects missing required fields (0.00ms) [L#204]
+  * test EventValidatorHelpers validate_required detects missing fields [L#37]  * test EventValidatorHelpers validate_required detects missing fields (0.00ms) [L#37]
+  * test GuessProcessed validator validates positive counts [L#212]  * test GuessProcessed validator validates positive counts (0.00ms) [L#212]
+  * test GuessProcessed validator validates valid GuessProcessed event [L#178]  * test GuessProcessed validator validates valid GuessProcessed event (0.00ms) [L#178]
+  * test EventValidatorHelpers validate_id validates string IDs [L#46]  * test EventValidatorHelpers validate_id validates string IDs (0.00ms) [L#46]
+  * test EventValidatorHelpers validate_base_fields validates required base fields [L#11]  * test EventValidatorHelpers validate_base_fields validates required base fields (0.00ms) [L#11]
+  * test GameStarted validator detects future timestamps [L#166]  * test GameStarted validator detects future timestamps (0.00ms) [L#166]
+
+GameBot.Domain.Events.ValidationHelpersTest [test/game_bot/domain/events/validation_helpers_test.exs]
+  * test validate_string_value/2 returns error with field name for nil [L#50]  * test validate_string_value/2 returns error with field name for nil (11.2ms) [L#50]
+  * test validate_string_value/2 returns :ok for non-empty strings [L#45]  * test validate_string_value/2 returns :ok for non-empty strings (0.00ms) [L#45]
+  * test ensure_metadata_fields/2 does not overwrite existing required fields [L#140]  * test ensure_metadata_fields/2 does not overwrite existing required fields (0.00ms) [L#140]
+  * test ensure_metadata_fields/2 adds required fields to empty metadata [L#115]  * test ensure_metadata_fields/2 adds required fields to empty metadata (5.6ms) [L#115]
+  * test validate_datetime_not_future/1 returns error for non-DateTime values [L#85]  * test validate_datetime_not_future/1 returns error for non-DateTime values (0.00ms) [L#85]
+  * test validate_string_value/2 returns error with field name for non-string values [L#58]  * test validate_string_value/2 returns error with field name for non-string values (0.00ms) [L#58]
+  * test validate_string_value/1 returns error for non-string values [L#37]  * test validate_string_value/1 returns error for non-string values (0.00ms) [L#37]
+  * test validate_string_value/2 returns error with field name for empty string [L#54]  * test validate_string_value/2 returns error with field name for empty string (0.00ms) [L#54]
+  * test validate_datetime_not_future/1 returns error for future dates [L#76]  * test validate_datetime_not_future/1 returns error for future dates (0.00ms) [L#76]
+  * test validate_string_value/1 returns error for nil [L#29]  * test validate_string_value/1 returns error for nil (0.00ms) [L#29]
+  * test validate_datetime_not_future/1 returns error for nil [L#81]  * test validate_datetime_not_future/1 returns error for nil (0.00ms) [L#81]
+  * test ensure_metadata_fields/2 handles string keys in metadata [L#159]  * test ensure_metadata_fields/2 handles string keys in metadata (0.1ms) [L#159]
+  * test validate_datetime_not_future/1 returns :ok for current date [L#71]  * test validate_datetime_not_future/1 returns :ok for current date (0.00ms) [L#71]
+  * test validate_string_value/1 returns error for empty string [L#33]  * test validate_string_value/1 returns error for empty string (0.00ms) [L#33]
+  * test validate_not_future/2 returns changeset with no errors for past dates [L#92]  * test validate_not_future/2 returns changeset with no errors for past dates (0.00ms) [L#92]
+  * test validate_string_value/1 returns :ok for non-empty strings [L#24]  * test validate_string_value/1 returns :ok for non-empty strings (0.00ms) [L#24]
+  * test validate_not_future/2 returns changeset with error for future dates [L#106]  * test validate_not_future/2 returns changeset with error for future dates (0.00ms) [L#106]
+  * test validate_datetime_not_future/1 returns :ok for past dates [L#66]  * test validate_datetime_not_future/1 returns :ok for past dates (0.00ms) [L#66]
+  * test ensure_metadata_fields/2 preserves existing metadata fields [L#124]  * test ensure_metadata_fields/2 preserves existing metadata fields (0.00ms) [L#124]
+  * test validate_not_future/2 returns changeset with no errors for current date [L#99]  * test validate_not_future/2 returns changeset with no errors for current date (0.00ms) [L#99]
+
+GameBot.Infrastructure.ErrorTest [test/game_bot/infrastructure/error_test.exs]
+  * test helper functions concurrency_error/3 [L#53]  * test helper functions concurrency_error/3 (0.00ms) [L#53]
+  * test helper functions not_found_error/3 [L#47]  * test helper functions not_found_error/3 (0.00ms) [L#47]
+  * test helper functions connection_error/3 [L#65]  * test helper functions connection_error/3 (0.00ms) [L#65]
+  * test helper functions validation_error/3 [L#41]  * test helper functions validation_error/3 (0.00ms) [L#41]
+  * test helper functions timeout_error/3 [L#59]  * test helper functions timeout_error/3 (0.00ms) [L#59]
+  * test helper functions stream_size_error/3 [L#83]  * test helper functions stream_size_error/3 (0.00ms) [L#83]
+  * test new/5 creates an error struct with optional fields as nil [L#17]  * test new/5 creates an error struct with optional fields as nil (0.1ms) [L#17]
+  * test helper functions serialization_error/3 [L#77]  * test helper functions serialization_error/3 (0.00ms) [L#77]
+  * test message/1 formats error message with all fields [L#29]  * test message/1 formats error message with all fields (0.00ms) [L#29]
+  * test new/5 creates an error struct with all fields [L#7]  * test new/5 creates an error struct with all fields (0.00ms) [L#7]
+  * test helper functions system_error/3 [L#71]  * test helper functions system_error/3 (0.00ms) [L#71]
+
+GameBot.Domain.Events.EventStructureSerializationTest [test/game_bot/domain/events/event_structure_serialization_test.exs]
+  * test EventStructure serialization handles nil values [L#168]  * test EventStructure serialization handles nil values (0.00ms) [L#168]
+  * test EventStructure serialization serializes and deserializes complex nested structures [L#119]  * test EventStructure serialization serializes and deserializes complex nested structures (0.1ms) [L#119]
+  * test EventStructure serialization serializes and deserializes MapSet objects [L#97]  * test EventStructure serialization serializes and deserializes MapSet objects (0.00ms) [L#97]
+  * test EventStructure serialization handles real event metadata serialization [L#197]  * test EventStructure serialization handles real event metadata serialization (0.1ms) [L#197]
+  * test EventStructure serialization serializes and deserializes nested maps [L#36]  * test EventStructure serialization serializes and deserializes nested maps (0.00ms) [L#36]
+  * test EventStructure serialization serializes and deserializes lists of maps [L#68]  * test EventStructure serialization serializes and deserializes lists of maps (0.1ms) [L#68]
+  * test EventStructure serialization serializes and deserializes DateTime objects [L#16]  * test EventStructure serialization serializes and deserializes DateTime objects (0.00ms) [L#16]
+
+GameBot.Infrastructure.Persistence.EventStore.Serialization.StandaloneSerializerTest [test/game_bot/infrastructure/persistence/event_store/serialization/standalone_serializer_test.exs]
+  * test validate/2 returns error for invalid data [L#113]  * test validate/2 returns error for invalid data (excluded) [L#113]
+  * test validate/2 validates valid data [L#102]  * test validate/2 validates valid data (excluded) [L#102]
+  * test deserialize/2 returns error for missing fields [L#95]  * test deserialize/2 returns error for missing fields (excluded) [L#95]
+  * test version/0 returns a positive integer [L#120]  * test version/0 returns a positive integer (excluded) [L#120]
+  * test serialize/2 returns error for invalid event [L#85]  * test serialize/2 returns error for invalid event (excluded) [L#85]
+  * test deserialize/2 returns error for invalid format [L#91]  * test deserialize/2 returns error for invalid format (excluded) [L#91]
+  * test serialize/2 successfully serializes a simple event [L#69]  * test serialize/2 successfully serializes a simple event (excluded) [L#69]
+
+GameBot.Bot.CommandHandlerTest [test/game_bot/bot/command_handler_test.exs]
+  * test event correlation maintains correlation chain across multiple events [L#103]  * test event correlation maintains correlation chain across multiple events (4.8ms) [L#103]
+  * test handle_team_create/2 creates team event with proper metadata [L#65]  * test handle_team_create/2 creates team event with proper metadata (0.00ms) [L#65]
+  * test handle_guess/4 creates guess event with inherited metadata [L#83]  * test handle_guess/4 creates guess event with inherited metadata (0.00ms) [L#83]
+  * test handle_start_game/3 creates game started event with proper metadata [L#40]  * test handle_start_game/3 creates game started event with proper metadata (0.00ms) [L#40]
+
+GameBot.Domain.Events.EventBuilderTest [test/game_bot/domain/events/event_builder_test.exs]
+  * test event serialization deserializes map to event with from_map [L#131]  * test event serialization deserializes map to event with from_map (10.9ms) [L#131]
+  * test event serialization serializes event to map with to_map [L#101]  * test event serialization serializes event to map with to_map (0.00ms) [L#101]
+  * test GameEvents behavior implementation gets event type through behavior functions [L#179]  * test GameEvents behavior implementation gets event type through behavior functions (0.00ms) [L#179]
+  * test event creation with EventBuilder returns error when field has incorrect type [L#80]  * test event creation with EventBuilder returns error when field has incorrect type (0.00ms) [L#80]
+  * test GameEvents behavior implementation validates events through the behavior functions [L#160]  * test GameEvents behavior implementation validates events through the behavior functions (0.00ms) [L#160]
+  * test event creation with EventBuilder returns error with invalid attributes [L#43]  * test event creation with EventBuilder returns error with invalid attributes (0.00ms) [L#43]
+  * test event creation with EventBuilder returns error with invalid metadata [L#61]  * test event creation with EventBuilder returns error with invalid metadata (0.00ms) [L#61]
+  * test event creation with EventBuilder creates a valid event with proper attributes [L#7]  * test event creation with EventBuilder creates a valid event with proper attributes (0.00ms) [L#7]
+  * test GameEvents behavior implementation gets event version through behavior functions [L#183]  * test GameEvents behavior implementation gets event version through behavior functions (0.00ms) [L#183]
+
+GameBot.Domain.Events.GameEvents.ExampleEventTest [test/game_bot/domain/events/game_events/example_event_test.exs]
+  * test validate/1 returns error for missing player_id [L#144]  * test validate/1 returns error for missing player_id (0.00ms) [L#144]
+  * test validate/1 returns :ok for valid event [L#125]  * test validate/1 returns :ok for valid event (7.3ms) [L#125]
+  * test validate/1 returns error for invalid data type [L#185]  * test validate/1 returns error for invalid data type (0.00ms) [L#185]
+  * test from_parent/4 creates a valid event from a parent event [L#87]  * test from_parent/4 creates a valid event from a parent event (0.1ms) [L#87]
+  * test validate/1 returns error for invalid action [L#165]  * test validate/1 returns error for invalid action (0.00ms) [L#165]
+  * test apply/2 returns error for invalid event [L#261]  * test apply/2 returns error for invalid event (0.00ms) [L#261]
+  * test new/6 creates a valid event with individual parameters [L#41]  * test new/6 creates a valid event with individual parameters (0.00ms) [L#41]
+  * test apply/2 applies event to state [L#239]  * test apply/2 applies event to state (0.00ms) [L#239]
+  * test new/6 accepts metadata result tuple [L#66]  * test new/6 accepts metadata result tuple (0.00ms) [L#66]
+  * test new/1 creates a valid event with all required fields [L#8]  * test new/1 creates a valid event with all required fields (0.00ms) [L#8]
+  * test to_map/1 and from_map/1 serialization roundtrip preserves data [L#210]  * test to_map/1 and from_map/1 serialization roundtrip preserves data (0.1ms) [L#210]
+
+GameBot.Replay.VersionCompatibilityTest [test/game_bot/replay/version_compatibility_test.exs]
+  * test build_version_map/1 builds a map of event types to versions [L#36]  * test build_version_map/1 builds a map of event types to versions (6.5ms) [L#36]
+  * test latest_version/1 returns error for unsupported event type [L#29]  * test latest_version/1 returns error for unsupported event type (0.00ms) [L#29]
+  * test validate_replay_compatibility/1 returns errors for incompatible events [L#214]  * test validate_replay_compatibility/1 returns errors for incompatible events (0.1ms) [L#214]
+  * test process_versioned_event/3 uses version 1 as default when event_version is nil [L#180]  * test process_versioned_event/3 uses version 1 as default when event_version is nil (0.00ms) [L#180]
+  * test process_versioned_event/3 processes event with correct handler [L#119]  * test process_versioned_event/3 processes event with correct handler (9.4ms) [L#119]
+  * test build_version_map/1 uses most common version for each event type [L#59]  * test build_version_map/1 uses most common version for each event type (0.00ms) [L#59]
+  * test latest_version/1 returns latest version for supported event type [L#24]  * test latest_version/1 returns latest version for supported event type (0.00ms) [L#24]
+  * test build_version_map/1 handles empty event list [L#54]  * test build_version_map/1 handles empty event list (0.00ms) [L#54]
+  * test validate_event/1 returns error for invalid event format [L#100]03:11:42.365 [warning] Invalid event format for version validation: %{foo: "bar"}
+  * test validate_event/1 returns error for invalid event format (3.3ms) [L#100]
+03:11:42.368 [error] Error processing event with version 1: %RuntimeError{message: "Test exception"}
+  * test check_version/2 returns error for unsupported version [L#12]  * test check_version/2 returns error for unsupported version (0.00ms) [L#12]
+  * test validate_event/1 returns error for unsupported version [L#107]  * test validate_event/1 returns error for unsupported version (0.00ms) [L#107]
+  * test validate_replay_compatibility/1 handles empty event list [L#236]  * test validate_replay_compatibility/1 handles empty event list (0.00ms) [L#236]
+  * test validate_event/1 validates event with string keys [L#90]  * test validate_event/1 validates event with string keys (0.00ms) [L#90]
+  * test check_version/2 returns error for unsupported event type [L#17]  * test check_version/2 returns error for unsupported event type (0.00ms) [L#17]
+  * test process_versioned_event/3 uses default handler when version not found [L#134]  * test process_versioned_event/3 uses default handler when version not found (0.00ms) [L#134]
+  * test check_version/2 returns :ok for supported version [L#7]  * test check_version/2 returns :ok for supported version (0.00ms) [L#7]
+Test Event with Empty Team: %GameBot.Domain.Events.GameEvents.GameStarted{
+  game_id: "game-123",
+  guild_id: "guild-123",
+  mode: :two_player,
+  timestamp: ~U[2025-03-14 10:11:42.368000Z],
+  metadata: %{
+    "correlation_id" => "corr-123",
+    "guild_id" => "guild-123",
+    "source_id" => "msg-123"
+  },
+  round_number: 1,
+  teams: %{"team1" => []},
+  team_ids: ["team1", "team2"],
+  player_ids: ["player1", "player2", "player3", "player4"],
+  config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+  started_at: ~U[2025-03-14 10:11:42.368000Z]
+}
+  * test process_versioned_event/3 handles exceptions in handler [L#166]Test Event Teams Structure: %{"team1" => []}
+  * test process_versioned_event/3 handles exceptions in handler (0.1ms) [L#166]
+  * test validate_event/1 validates event with atom keys [L#80]  * test validate_event/1 validates event with atom keys (0.00ms) [L#80]
+  * test validate_replay_compatibility/1 validates compatible event set [L#197]  * test validate_replay_compatibility/1 validates compatible event set (0.00ms) [L#197]
+  * test process_versioned_event/3 returns error when no handler available [L#151]  * test process_versioned_event/3 returns error when no handler available (0.00ms) [L#151]
+
+GameBot.Domain.Events.GameEventsTest [test/game_bot/domain/events/game_events_test.exs]
+  * test GameStarted validates team structure [L#109]Created TestEvent: %GameBot.Domain.Events.TestEvents.TestEvent{
+  game_id: "game-123",
+  guild_id: "guild-123",
+  mode: :knockout,
+  timestamp: ~U[2023-01-01 12:00:00Z],
+  metadata: %{},
+  count: 42,
+  score: -10,
+  tags: MapSet.new(["tag1", "tag2"]),
+  nested_data: %{},
+  optional_field: nil,
+  round_number: 1,
+  teams: %{"team1" => []},
+  team_ids: ["team1", "team2"],
+  player_ids: ["player1", "player2", "player3", "player4"],
+  player1_id: "alice",
+  player2_id: "bob",
+  player1_word: "word1",
+  player2_word: "word2",
+  guess_successful: true,
+  match_score: 10,
+  guess_count: 1,
+  round_guess_count: 1,
+  total_guesses: 1,
+  guess_duration: 1000,
+  config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+  started_at: ~U[2025-03-14 10:11:42.370000Z],
+  roles: %{},
+  team_id: "team1"
+}
+  * test GameStarted validates team structure (12.0ms) [L#109]
+  * test GameStarted validates field types [L#98]  * test GameStarted validates field types (0.00ms) [L#98]
+  * test GuessProcessed validates match score [L#187]  * test GuessProcessed validates match score (0.00ms) [L#187]
+  * test GuessProcessed event_type/0 returns correct string [L#146]  * test GuessProcessed event_type/0 returns correct string (0.00ms) [L#146]
+  * test GameStarted validates required fields [L#87]  * test GameStarted validates required fields (0.00ms) [L#87]
+  * test GameStarted serializes and deserializes correctly [L#127]  * test GameStarted serializes and deserializes correctly (5.9ms) [L#127]
+  * test GuessProcessed validates required fields [L#159]  * test GuessProcessed validates required fields (0.1ms) [L#159]
+  * test GameStarted event_version/0 returns correct version [L#78]  * test GameStarted event_version/0 returns correct version (0.00ms) [L#78]
+  * test GuessProcessed validates numeric constraints [L#173]  * test GuessProcessed validates numeric constraints (0.00ms) [L#173]
+  * test GuessProcessed validates valid event [L#154]  * test GuessProcessed validates valid event (0.00ms) [L#154]
+  * test GameStarted validates valid event [L#82]  * test GameStarted validates valid event (0.00ms) [L#82]
+  * test GuessProcessed serializes and deserializes correctly [L#200]  * test GuessProcessed serializes and deserializes correctly (1.6ms) [L#200]
+  * test GameStarted event_type/0 returns correct string [L#74]  * test GameStarted event_type/0 returns correct string (0.00ms) [L#74]
+  * test GuessProcessed event_version/0 returns correct version [L#150]  * test GuessProcessed event_version/0 returns correct version (0.00ms) [L#150]
+
+GameBot.Bot.ListenerTest [test/game_bot/bot/listener_test.exs]
+  * test handle_event/1 with messages enforces rate limiting [L#167]  * test handle_event/1 with messages enforces rate limiting (305.9ms) [L#167]
+  * test handle_event/1 with messages rejects empty messages [L#154]  * test handle_event/1 with messages rejects empty messages (105.2ms) [L#154]
+  * test error handling handles Nostrum API errors gracefully [L#209]  * test error handling handles Nostrum API errors gracefully (219.1ms) [L#209]
+  * test handle_event/1 with messages accepts valid messages [L#148]  * test handle_event/1 with messages accepts valid messages (158.4ms) [L#148]
+  * test handle_event/1 with messages detects spam messages [L#191]  * test handle_event/1 with messages detects spam messages (40.9ms) [L#191]
+  * test handle_event/1 with interactions rejects invalid interaction types [L#124]  * test handle_event/1 with interactions rejects invalid interaction types (33.0ms) [L#124]
+  * test handle_event/1 with interactions handles API errors in interaction responses [L#136]  * test handle_event/1 with interactions handles API errors in interaction responses (162.0ms) [L#136]
+  * test handle_event/1 with interactions accepts valid interaction types [L#118]  * test handle_event/1 with interactions accepts valid interaction types (156.0ms) [L#118]
+
+GameBot.Infrastructure.Persistence.EventStore.Serialization.ValidatorTest [test/game_bot/infrastructure/persistence/event_store/serialization/validator_test.exs]
+  * test validate_structure/1 detects missing fields [L#111]  * test validate_structure/1 detects missing fields (3.8ms) [L#111]
+  * test validate_structure/1 accepts alternative key names [L#100]  * test validate_structure/1 accepts alternative key names (0.00ms) [L#100]
+  * test validate_structure/1 rejects non-map inputs [L#148]  * test validate_structure/1 rejects non-map inputs (0.00ms) [L#148]
+  * test validate_structure/1 validates properly structured event data [L#82]  * test validate_structure/1 validates properly structured event data (0.00ms) [L#82]
+  * test validate_structure/1 validates field types [L#126]  * test validate_structure/1 validates field types (0.00ms) [L#126]
+  * test validate_event_data/2 accepts unknown event types with basic validation [L#199]  * test validate_event_data/2 accepts unknown event types with basic validation (0.00ms) [L#199]
+  * test validate/1 returns error for invalid events [L#52]  * test validate/1 returns error for invalid events (0.00ms) [L#52]
+  * test validate_event_data/2 rejects invalid input types [L#208]  * test validate_event_data/2 rejects invalid input types (0.00ms) [L#208]
+  * test validate_event_data/2 validates guess_processed data [L#180]  * test validate_event_data/2 validates guess_processed data (0.00ms) [L#180]
+  * test validate/1 handles protocol not implemented gracefully [L#72]  * test validate/1 handles protocol not implemented gracefully (2.1ms) [L#72]
+  * test validate/1 validates valid events [L#11]  * test validate/1 validates valid events (0.00ms) [L#11]
+  * test validate_event_data/2 validates game_started data [L#156]  * test validate_event_data/2 validates game_started data (0.00ms) [L#156]
+
+GameBot.Domain.Events.PipelineTest [test/game_bot/domain/events/pipeline_test.exs]
+  * test enrich/1 passes through error [L#158]  * test enrich/1 passes through error (1.3ms) [L#158]
+  * test enrich/1 enriches event metadata [L#127]  * test enrich/1 enriches event metadata (0.00ms) [L#127]
+  * test validate/1 fails validation for negative player2_duration [L#95]  * test validate/1 fails validation for negative player2_duration (1.1ms) [L#95]
+  * test validate/1 fails validation for invalid event [L#36]  * test validate/1 fails validation for invalid event (0.00ms) [L#36]
+  * test validate/1 fails validation for negative player1_duration [L#65]  * test validate/1 fails validation for negative player1_duration (0.00ms) [L#65]
+  * test validate/1 validates a valid event with player durations [L#7]  * test validate/1 validates a valid event with player durations (0.00ms) [L#7]
+
+GameBot.Domain.Events.EventSerializerTest [test/game_bot/domain/events/event_serializer_test.exs]
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+  * test from_map/1 deserializes base fields correctly [L#98]  * test from_map/1 deserializes base fields correctly (1.2ms) [L#98]
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+======= EXECUTING EVENT_SERIALIZER_TEST =======
+
+  1) test from_map/1 deserializes base fields correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:98
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.585000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "aa148e9c87467999fc2ca35bab132654",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["tag1", "tag2"]),
+       nested_data: %{},
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.585000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(original)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:100: (test)
+
+  * test to_map/1 handles nil values correctly [L#83]  * test to_map/1 handles nil values correctly (0.1ms) [L#83]
+
+  2) test to_map/1 handles nil values correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:83
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.586000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "74094bcacab848653cb4f40d7b42d360",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: nil,
+       nested_data: nil,
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.586000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(event)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:89: (test)
+
+  * test error handling handles invalid DateTime strings [L#217]  * test error handling handles invalid DateTime strings (1.2ms) [L#217]
+  * test from_map/1 deserializes MapSet correctly [L#119]  * test from_map/1 deserializes MapSet correctly (0.1ms) [L#119]
+
+  3) test from_map/1 deserializes MapSet correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:119
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.588000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "caded6ee2005e665121591f18c1fa993",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["a", "b", "c"]),
+       nested_data: %{},
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.588000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(original)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:121: (test)
+
+  * test to_map/1 serializes nested structures correctly [L#61]  * test to_map/1 serializes nested structures correctly (0.1ms) [L#61]
+
+  4) test to_map/1 serializes nested structures correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:61
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.588000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "2a19348671ffb7e6019bd8910c3a8b49",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["tag1", "tag2"]),
+       nested_data: %{
+         "list" => [1, "two", ~U[2025-03-14 10:11:43.588000Z]],
+         "map" => %{"key" => "value"},
+         "number" => 42,
+         "string" => "value",
+         "time" => ~U[2025-03-14 10:11:43.588000Z]
+       },
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.588000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(event)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:72: (test)
+
+  * test from_map/1 deserializes numeric fields correctly [L#110]  * test from_map/1 deserializes numeric fields correctly (0.1ms) [L#110]
+
+  5) test from_map/1 deserializes numeric fields correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:110
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.588000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "139fdc88b7a7dc1ed4f58b1dfc71226e",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["tag1", "tag2"]),
+       nested_data: %{},
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.588000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(original)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:112: (test)
+
+  * test from_map/1 preserves data types through serialization cycle [L#164]  * test from_map/1 preserves data types through serialization cycle (0.00ms) [L#164]
+
+  6) test from_map/1 preserves data types through serialization cycle (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:164
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.588000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "e8c0667c39f505cf375fcd596bb12a0e",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["a", "b"]),
+       nested_data: %{
+         "list" => [1, "two", ~U[2025-03-14 10:11:43.588000Z]],
+         "map" => %{"key" => "value"},
+         "number" => 42,
+         "string" => "value",
+         "time" => ~U[2025-03-14 10:11:43.588000Z]
+       },
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.588000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(original)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:177: (test)
+
+  * test to_map/1 serializes numeric fields correctly [L#46]  * test to_map/1 serializes numeric fields correctly (0.1ms) [L#46]
+
+  7) test to_map/1 serializes numeric fields correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:46
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.588000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "187df4921d07ea6f405a1062c3a611eb",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["tag1", "tag2"]),
+       nested_data: %{},
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.588000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(event)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:48: (test)
+
+  * test from_map/1 handles invalid mode atoms [L#191]  * test from_map/1 handles invalid mode atoms (2.4ms) [L#191]
+  * test from_map/1 handles nil values correctly [L#150]  * test from_map/1 handles nil values correctly (0.1ms) [L#150]
+
+  8) test from_map/1 handles nil values correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:150
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.590000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "4750c11fad310ed91354c0a6077334c4",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: nil,
+       nested_data: nil,
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.590000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(original)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:156: (test)
+
+  * test to_map/1 serializes MapSet correctly [L#54]  * test to_map/1 serializes MapSet correctly (0.1ms) [L#54]
+
+  9) test to_map/1 serializes MapSet correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:54
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.590000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "721bce46cae7a9dfac1449269c9aa567",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["a", "b", "c"]),
+       nested_data: %{},
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.590000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(event)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:56: (test)
+
+  * test to_map/1 serializes base fields correctly [L#35]  * test to_map/1 serializes base fields correctly (0.00ms) [L#35]
+
+ 10) test to_map/1 serializes base fields correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:35
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.590000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "eeaddfccebd5eb25f1f2917025caedd6",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["tag1", "tag2"]),
+       nested_data: %{},
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.590000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(event)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:37: (test)
+
+  * test from_map/1 deserializes nested structures correctly [L#127]  * test from_map/1 deserializes nested structures correctly (0.00ms) [L#127]
+
+ 11) test from_map/1 deserializes nested structures correctly (GameBot.Domain.Events.EventSerializerTest)
+     test/game_bot/domain/events/event_serializer_test.exs:127
+     ** (KeyError) key :player1_info not found in: %GameBot.Domain.Events.TestEvents.TestEvent{
+       game_id: "game-123",
+       guild_id: "guild-123",
+       mode: :knockout,
+       timestamp: ~U[2025-03-14 10:11:43.590000Z],
+       metadata: {:ok,
+        %{
+          guild_id: "guild_id",
+          correlation_id: "46bd3f7b6415c051696caa1d11ae8b05",
+          source_id: "1234",
+          actor_id: "1234"
+        }},
+       count: 42,
+       score: -10,
+       tags: MapSet.new(["tag1", "tag2"]),
+       nested_data: %{
+         "list" => [1, "two", ~U[2025-03-14 10:11:43.590000Z]],
+         "map" => %{"key" => "value"},
+         "number" => 42,
+         "string" => "value",
+         "time" => ~U[2025-03-14 10:11:43.590000Z]
+       },
+       optional_field: nil,
+       round_number: 1,
+       teams: %{"team1" => ["player1", "player2"], "team2" => ["player3", "player4"]},
+       team_ids: ["team1", "team2"],
+       player_ids: ["player1", "player2", "player3", "player4"],
+       player1_id: "alice",
+       player2_id: "bob",
+       player1_word: "word1",
+       player2_word: "word2",
+       guess_successful: true,
+       match_score: 10,
+       guess_count: 1,
+       round_guess_count: 1,
+       total_guesses: 1,
+       guess_duration: 1000,
+       config: %{round_limit: 10, time_limit: 300, score_limit: 100},
+       started_at: ~U[2025-03-14 10:11:43.590000Z],
+       roles: %{},
+       team_id: "team1"
+     }. Did you mean:
+
+           * :player1_id
+           * :player1_word
+           * :player2_id
+           * :player2_word
+           * :player_ids
+
+     code: map = EventSerializer.to_map(original)
+     stacktrace:
+       (game_bot 0.1.0) lib/game_bot/domain/events/test_events.ex:232: GameBot.Domain.Events.EventSerializer.GameBot.Domain.Events.TestEvents.TestEvent.to_map/1
+       test/game_bot/domain/events/event_serializer_test.exs:138: (test)
+
+
+GameBot.Infrastructure.Persistence.EventStore.SerializerValidationTest [test/game_bot/infrastructure/persistence/event_store/serializer_validation_test.exs]
+  * test deserialize/3 with validation rejects deserializing to invalid events [L#126]  * test deserialize/3 with validation rejects deserializing to invalid events (1.7ms) [L#126]
+  * test deserialize/3 with validation rejects serialized data with invalid structure [L#114]  * test deserialize/3 with validation rejects serialized data with invalid structure (0.00ms) [L#114]
+  * test end-to-end serialization with validation rejects invalid events in both directions [L#183]  * test end-to-end serialization with validation rejects invalid events in both directions (0.00ms) [L#183]
+  * test deserialize/3 with validation deserializes and validates valid events [L#87]  * test deserialize/3 with validation deserializes and validates valid events (3.2ms) [L#87]
+  * test deserialize/3 with validation allows bypassing validation on deserialization [L#151]  * test deserialize/3 with validation allows bypassing validation on deserialization (0.00ms) [L#151]
+  * test serialize/2 with validation rejects invalid events [L#39]  * test serialize/2 with validation rejects invalid events (0.00ms) [L#39]
+  * test serialize/2 with validation allows bypassing validation [L#54]  * test serialize/2 with validation allows bypassing validation (0.1ms) [L#54]
+  * test serialize/2 with validation serializes valid events [L#11]  * test serialize/2 with validation serializes valid events (0.00ms) [L#11]
+  * test end-to-end serialization with validation round-trip serialization preserves data integrity [L#223]  * test end-to-end serialization with validation round-trip serialization preserves data integrity (0.1ms) [L#223]
+
+GameBot.Domain.Projections.TeamProjectionGuildIsolationTest [test/game_bot/domain/projections/team_projection_guild_isolation_test.exs]
+  * test guild isolation team member operations respect guild isolation [L#93]  * test guild isolation team member operations respect guild isolation (2.1ms) [L#93]
+  * test guild isolation get_team respects guild isolation [L#60]  * test guild isolation get_team respects guild isolation (0.00ms) [L#60]
+  * test guild isolation find_team_by_player respects guild isolation [L#82]  * test guild isolation find_team_by_player respects guild isolation (0.00ms) [L#82]
+  * test guild isolation different guilds can have teams with same team_id [L#49]  * test guild isolation different guilds can have teams with same team_id (0.00ms) [L#49]
+
+GameBot.Domain.Events.EventStructureTest [test/game_bot/domain/events/event_structure_test.exs]
+  * test validate_metadata/1 returns error when metadata is missing required fields [L#62]  * test validate_metadata/1 returns error when metadata is missing required fields (0.1ms) [L#62]
+  * test validate_metadata/1 returns :ok when metadata has required fields [L#57]  * test validate_metadata/1 returns :ok when metadata has required fields (0.00ms) [L#57]
+  * test serialization handles nil values [L#182]  * test serialization handles nil values (0.00ms) [L#182]
+  * test serialization serializes and deserializes MapSet [L#159]  * test serialization serializes and deserializes MapSet (0.00ms) [L#159]
+  * test parse_timestamp/1 raises an error for invalid timestamp format [L#109]  * test parse_timestamp/1 raises an error for invalid timestamp format (0.00ms) [L#109]
+  * test validate_types/2 validates types correctly [L#76]  * test validate_types/2 validates types correctly (0.00ms) [L#76]
+==================================================================================
+DEPRECATED MODULE: Use GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest
+
+This module is deprecated and only exists for backward compatibility.
+Please update any references to use the Adapter.PostgresTest module directly.
+==================================================================================
+
+  * test validate_base_fields/1 validates timestamp is not in future [L#49]  * test validate_base_fields/1 validates timestamp is not in future (0.00ms) [L#49]
+  * test validate_metadata/1 returns error when metadata is not a map [L#68]  * test validate_metadata/1 returns error when metadata is not a map (0.00ms) [L#68]
+  * test parse_timestamp/1 parses valid ISO8601 timestamp [L#100]  * test parse_timestamp/1 parses valid ISO8601 timestamp (0.00ms) [L#100]
+  * test validate_base_fields/1 validates required fields exist [L#39]  * test validate_base_fields/1 validates required fields exist (0.00ms) [L#39]
+  * test parse_timestamp/1 handles nil input [L#105]  * test parse_timestamp/1 handles nil input (0.00ms) [L#105]
+  * test serialization preserves non-struct maps [L#189]  * test serialization preserves non-struct maps (0.00ms) [L#189]
+  * test validate_types/2 ignores nil values [L#92]  * test validate_types/2 ignores nil values (0.00ms) [L#92]
+  * test validate_base_fields/1 returns error for missing fields [L#44]  * test validate_base_fields/1 returns error for missing fields (0.00ms) [L#44]
+  * test create_event_map/5 creates a valid event map with all base fields [L#117]  * test create_event_map/5 creates a valid event map with all base fields (0.00ms) [L#117]
+  * test base_fields/0 returns the expected base fields [L#32]  * test base_fields/0 returns the expected base fields (0.00ms) [L#32]
+  * test serialization serializes and deserializes DateTime [L#152]  * test serialization serializes and deserializes DateTime (0.00ms) [L#152]
+  * test validate_types/2 returns error for invalid type [L#86]  * test validate_types/2 returns error for invalid type (0.00ms) [L#86]
+  * test serialization serializes and deserializes nested structures [L#166]  * test serialization serializes and deserializes nested structures (0.00ms) [L#166]
+  * test create_event_map/5 creates a valid event map with custom timestamp [L#130]  * test create_event_map/5 creates a valid event map with custom timestamp (0.00ms) [L#130]
+
+GameBot.Domain.Events.MetadataTest [test/game_bot/domain/events/metadata_test.exs]
+  * test from_discord_message/2 creates metadata from Discord message [L#48]  * test from_discord_message/2 creates metadata from Discord message (0.00ms) [L#48]
+  * test new/2 accepts source_id as first argument [L#40]  * test new/2 accepts source_id as first argument (0.00ms) [L#40]
+  * test validate/1 validates correlation_id is required [L#138]  * test validate/1 validates correlation_id is required (0.00ms) [L#138]
+  * test from_discord_interaction/2 creates metadata from discord interaction [L#75]  * test from_discord_interaction/2 creates metadata from discord interaction (0.00ms) [L#75]
+  * test new/2 returns error when correlation_id is missing [L#35]  * test new/2 returns error when correlation_id is missing (0.00ms) [L#35]
+  * test from_discord_message/2 handles missing guild_id [L#61]  * test from_discord_message/2 handles missing guild_id (0.00ms) [L#61]
+  * test with_causation/2 adds causation ID from string [L#119]  * test with_causation/2 adds causation ID from string (0.00ms) [L#119]
+  * test new/2 accepts string keys [L#19]  * test new/2 accepts string keys (0.00ms) [L#19]
+  * test validate/1 validates source_id is required [L#129]  * test validate/1 validates source_id is required (0.00ms) [L#129]
+  * test with_causation/2 adds causation ID from event [L#110]  * test with_causation/2 adds causation ID from event (0.00ms) [L#110]
+  * test new/2 returns error when source_id is missing [L#30]  * test new/2 returns error when source_id is missing (0.00ms) [L#30]
+  * test validate/1 validates input must be a map [L#147]  * test validate/1 validates input must be a map (0.00ms) [L#147]
+  * test new/2 creates valid metadata with required fields [L#6]  * test new/2 creates valid metadata with required fields (0.00ms) [L#6]
+  * test from_parent_event/2 preserves correlation and adds causation [L#93]  * test from_parent_event/2 preserves correlation and adds causation (0.00ms) [L#93]
+  * test validate/1 accepts valid metadata [L#151]  * test validate/1 accepts valid metadata (0.00ms) [L#151]
+
+GameBot.Domain.Events.TeamEventsTest [test/game_bot/domain/events/team_events_test.exs]
+  * test TeamUpdated new/4 creates a valid event [L#112]  * test TeamUpdated new/4 creates a valid event (0.00ms) [L#112]
+  * test TeamCreated from_map/1 creates event from map [L#85]  * test TeamCreated from_map/1 creates event from map (0.00ms) [L#85]
+  * test TeamMemberRemoved validate/1 validates the event [L#298]  * test TeamMemberRemoved validate/1 validates the event (0.1ms) [L#298]
+  * test TeamMemberAdded validate/1 validates the event [L#237]  * test TeamMemberAdded validate/1 validates the event (0.00ms) [L#237]
+  * test TeamUpdated validate/1 validates the event [L#141]  * test TeamUpdated validate/1 validates the event (0.00ms) [L#141]
+  * test TeamCreated to_map/1 converts event to map [L#63]  * test TeamCreated to_map/1 converts event to map (0.00ms) [L#63]
+  * test TeamUpdated new/4 returns error for invalid team [L#133]  * test TeamUpdated new/4 returns error for invalid team (0.00ms) [L#133]
+  * test TeamMemberAdded new/5 creates a valid event [L#203]  * test TeamMemberAdded new/5 creates a valid event (0.00ms) [L#203]
+  * test TeamCreated new/5 returns error for invalid team [L#31]  * test TeamCreated new/5 returns error for invalid team (0.1ms) [L#31]
+  * test TeamMemberAdded new/5 returns error for invalid data [L#226]  * test TeamMemberAdded new/5 returns error for invalid data (0.00ms) [L#226]
+  * test TeamUpdated from_map/1 creates event from map [L#178]  * test TeamUpdated from_map/1 creates event from map (0.00ms) [L#178]
+  * test TeamCreated validate/1 validates the event [L#45]  * test TeamCreated validate/1 validates the event (0.00ms) [L#45]
+  * test TeamMemberRemoved new/6 creates a valid event [L#257]  * test TeamMemberRemoved new/6 creates a valid event (0.00ms) [L#257]
+  * test TeamCreated new/5 creates a valid event [L#8]  * test TeamCreated new/5 creates a valid event (0.00ms) [L#8]
+  * test TeamMemberRemoved new/6 returns error for invalid data [L#287]  * test TeamMemberRemoved new/6 returns error for invalid data (0.1ms) [L#287]
+  * test TeamUpdated to_map/1 converts event to map [L#158]  * test TeamUpdated to_map/1 converts event to map (0.00ms) [L#158]
+  * test TeamMemberRemoved new/6 works with nil reason [L#282]  * test TeamMemberRemoved new/6 works with nil reason (0.00ms) [L#282]
+
+GameBot.Domain.GameModes.BaseModeTypesTest [test/game_bot/domain/game_modes/base_mode_types_test.exs]
+  * test return type validation handle_guess_abandoned/4 returns properly structured data [L#37]  * test return type validation handle_guess_abandoned/4 returns properly structured data (1.8ms) [L#37]
+  * test return type validation initialize_game/4 returns properly structured data [L#10]  * test return type validation initialize_game/4 returns properly structured data (0.00ms) [L#10]
+
+GameBot.Infrastructure.Persistence.EventStore.PostgresTest [test/game_bot/infrastructure/persistence/event_store/postgres_test.exs]
+  * test module is deprecated [L#27]  * test module is deprecated (0.1ms) [L#27]
+
+GameBot.Infrastructure.Persistence.EventStore.AdapterTest [test/game_bot/infrastructure/persistence/event_store/adapter_test.exs]
+  * test adapter functions delete_stream/3 delegates to configured adapter [L#88]  * test adapter functions delete_stream/3 delegates to configured adapter (1.5ms) [L#88]
+  * test adapter functions read_stream_forward/4 delegates to configured adapter [L#53]  * test adapter functions read_stream_forward/4 delegates to configured adapter (0.3ms) [L#53]
+  * test adapter functions stream_version/2 delegates to configured adapter [L#71]  * test adapter functions stream_version/2 delegates to configured adapter (0.2ms) [L#71]
+  * test adapter functions append_to_stream/4 delegates to configured adapter [L#39]  * test adapter functions append_to_stream/4 delegates to configured adapter (0.2ms) [L#39]
+
+GameBot.Infrastructure.Persistence.EventStore.SimpleTest [test/game_bot/infrastructure/persistence/event_store/simple_test.exs]
+  * test basic operations with EventStore [L#23]Testing append_to_stream with test-stream-5637
+Successfully appended event, stream version: 1
+Testing read_stream_forward with test-stream-5637
+Successfully read events, count: 1
+  * test basic operations with EventStore (128.6ms) [L#23]
+
+ 12) test basic operations with EventStore (GameBot.Infrastructure.Persistence.EventStore.SimpleTest)
+     test/game_bot/infrastructure/persistence/event_store/simple_test.exs:23
+     Event data doesn't match
+     code: assert_append_and_read(EventStore, stream_id, event)
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/simple_test.exs:36: (test)
+
+
+GameBot.Replay.EventStoreAccessTest [test/game_bot/replay/event_store_access_test.exs]
+  * test fetch_game_events/2 handles other errors from the event store [L#178]03:11:44.307 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:45.402 [warning] Event store is not running, cannot reset
+  * test fetch_game_events/2 handles other errors from the event store (573.2ms) [L#178]
+  * test fetch_game_events/2 returns stream_not_found error when game doesn't exist [L#169]03:11:46.318 [warning] Event store is not running, cannot reset
+  * test fetch_game_events/2 returns stream_not_found error when game doesn't exist (352.1ms) [L#169]
+  * test game_exists?/1 propagates errors from adapter [L#247]03:11:46.472 [error] Postgrex.Protocol (#PID<0.772.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.767.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.768.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.773.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.771.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.775.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.769.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.770.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.766.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:46.472 [error] Postgrex.Protocol (#PID<0.774.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:47.338 [warning] Event store is not running, cannot reset
+  * test game_exists?/1 propagates errors from adapter (418.6ms) [L#247]
+  * test get_stream_version/1 returns correct version for existing stream [L#200]03:11:47.700 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+03:11:47.700 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:48.316 [warning] Event store is not running, cannot reset
+  * test get_stream_version/1 returns correct version for existing stream (362.4ms) [L#200]
+  * test fetch_game_events/2 handles pagination correctly [L#157]03:11:48.487 [error] Postgrex.Protocol (#PID<0.773.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.488 [error] Postgrex.Protocol (#PID<0.774.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.488 [error] Postgrex.Protocol (#PID<0.771.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.488 [error] Postgrex.Protocol (#PID<0.769.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.487 [error] Postgrex.Protocol (#PID<0.768.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.488 [error] Postgrex.Protocol (#PID<0.767.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.488 [error] Postgrex.Protocol (#PID<0.772.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.487 [error] Postgrex.Protocol (#PID<0.775.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.488 [error] Postgrex.Protocol (#PID<0.766.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.487 [error] Postgrex.Protocol (#PID<0.770.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:48.706 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:49.295 [warning] Event store is not running, cannot reset
+  * test fetch_game_events/2 handles pagination correctly (391.0ms) [L#157]
+  * test fetch_game_events/2 recovers and returns partial results when error occurs after fetching some events [L#187]03:11:49.635 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+03:11:49.635 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:50.241 [warning] Event store is not running, cannot reset
+  * test fetch_game_events/2 recovers and returns partial results when error occurs after fetching some events (339.7ms) [L#187]
+  * test game_exists?/1 returns true with version for existing game [L#229]03:11:50.503 [error] Postgrex.Protocol (#PID<0.770.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.771.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.768.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.766.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.767.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.769.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.772.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.774.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.773.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.503 [error] Postgrex.Protocol (#PID<0.775.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:50.640 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+03:11:50.640 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:51.647 [warning] Event store is not running, cannot reset
+  * test game_exists?/1 returns true with version for existing game (398.3ms) [L#229]
+  * test fetch_game_events/2 returns empty list when stream exists but has no events [L#137]03:11:51.989 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+03:11:51.989 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:52.515 [error] Postgrex.Protocol (#PID<0.766.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.775.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.773.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.768.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.771.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.767.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.772.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.770.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.769.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.516 [error] Postgrex.Protocol (#PID<0.774.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:52.903 [warning] Event store is not running, cannot reset
+  * test fetch_game_events/2 returns empty list when stream exists but has no events (341.4ms) [L#137]
+  * test game_exists?/1 returns stream_not_found for non-existent game [L#238]03:11:53.208 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:53.722 [warning] Event store is not running, cannot reset
+  * test game_exists?/1 returns stream_not_found for non-existent game (304.1ms) [L#238]
+  * test get_stream_version/1 propagates errors from adapter [L#218]03:11:54.518 [error] Postgrex.Protocol (#PID<0.768.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.772.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.775.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.766.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.771.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.767.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.769.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.770.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.774.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.518 [error] Postgrex.Protocol (#PID<0.773.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:54.736 [warning] Event store is not running, cannot reset
+  * test get_stream_version/1 propagates errors from adapter (363.0ms) [L#218]
+  * test fetch_game_events/2 respects max_events option [L#146]03:11:55.727 [warning] Event store is not running, cannot reset
+  * test fetch_game_events/2 respects max_events option (353.4ms) [L#146]
+
+ 13) test fetch_game_events/2 respects max_events option (GameBot.Replay.EventStoreAccessTest)
+     test/game_bot/replay/event_store_access_test.exs:146
+     ** (exit) exited in: GenServer.call(GameBot.Test.Mocks.EventStoreCore, :reset_state, 5000)
+         ** (EXIT) no process: the process is not alive or there's no process currently associated with the given name, possibly because its application isn't started
+     stacktrace:
+       (elixir 1.18.2) lib/gen_server.ex:1128: GenServer.call/3
+       test/game_bot/replay/event_store_access_test.exs:37: anonymous fn/1 in GameBot.Replay.EventStoreAccessTest.__ex_unit_setup_1/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+  * test fetch_game_events/2 successfully fetches events when stream exists [L#125]03:11:56.071 [warning] Error checking in GameBot.Infrastructure.Persistence.Repo: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist"}
+03:11:56.071 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:56.520 [error] Postgrex.Protocol (#PID<0.772.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.520 [error] Postgrex.Protocol (#PID<0.768.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.520 [error] Postgrex.Protocol (#PID<0.771.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.521 [error] Postgrex.Protocol (#PID<0.766.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.521 [error] Postgrex.Protocol (#PID<0.775.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.521 [error] Postgrex.Protocol (#PID<0.767.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.521 [error] Postgrex.Protocol (#PID<0.773.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.521 [error] Postgrex.Protocol (#PID<0.770.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.521 [error] Postgrex.Protocol (#PID<0.769.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.521 [error] Postgrex.Protocol (#PID<0.774.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+03:11:56.769 [warning] Event store is not running, cannot reset
+  * test fetch_game_events/2 successfully fetches events when stream exists (343.4ms) [L#125]
+  * test get_stream_version/1 returns 0 for new stream [L#209]03:11:57.086 [warning] Error checking in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres: %RuntimeError{message: "could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist"}
+03:11:57.588 [warning] Event store is not running, cannot reset
+  * test get_stream_version/1 returns 0 for new stream (315.6ms) [L#209]
+
+GameBot.Infrastructure.Persistence.RepositoryManagerTest [test/game_bot/infrastructure/persistence/repository_manager_test.exs]
+  * test stop_all stops all repositories [L#99]  * test stop_all stops all repositories (1490.6ms) [L#99]
+  * test ensure_started starts a single repository [L#57]  * test ensure_started starts a single repository (1857.9ms) [L#57]
+  * test reset_all stops and restarts all repositories [L#69]  * test reset_all stops and restarts all repositories (1969.6ms) [L#69]
+  * test ensure_all_started starts all repositories [L#42]  * test ensure_all_started starts all repositories (1302.8ms) [L#42]
+
+GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest [test/game_bot/infrastructure/persistence/event_store/serialization/graph_test.exs]
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+  * test migration graph creation path finding returns correct paths [L#198]DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+  * test migration graph creation path finding returns correct paths (1.8ms) [L#198]
+  * test migration graph creation graph is created with correct vertices and edges [L#151]DEBUG: SimpleTranslator migrations: [{"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v1_to_v2/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.v2_to_v3/1}, {"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.GraphTest.TestMigrations.other_v1_to_v2/1}]
+DEBUG: Event types: [{"test_event", 1}, {"test_event", 2}, {"test_event", 3}, {"other_event", 1}, {"other_event", 2}]
+DEBUG: Added vertex {"test_event", 1}
+DEBUG: Added vertex {"test_event", 2}
+DEBUG: Added vertex {"test_event", 3}
+DEBUG: Added vertex {"other_event", 1}
+DEBUG: Added vertex {"other_event", 2}
+DEBUG: Added edge [:"$e" | 0] from {"test_event", 1} to {"test_event", 2}
+DEBUG: Added edge [:"$e" | 1] from {"test_event", 2} to {"test_event", 3}
+DEBUG: Added edge [:"$e" | 2] from {"other_event", 1} to {"other_event", 2}
+DEBUG: All edges in graph: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Vertices: [{"test_event", 2}, {"test_event", 1}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+DEBUG: Looking for edge from test_event 1->2
+DEBUG: Checking edge from {"test_event", 1} to {"test_event", 2}
+DEBUG: Out edges for {"test_event", 1}: [[:"$e" | 0]]
+DEBUG: Edge info for [:"$e" | 0]: {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}
+DEBUG: Comparing {"test_event", 2} with {"test_event", 2}
+DEBUG: has_edge? result: true
+DEBUG: Edge exists? true
+DEBUG: Test - All edges: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 0]]
+DEBUG: Test - All edge info: [{[:"$e" | 2], {"other_event", 1}, {"other_event", 2}, []}, {[:"$e" | 1], {"test_event", 2}, {"test_event", 3}, []}, {[:"$e" | 0], {"test_event", 1}, {"test_event", 2}, []}]
+  * test migration graph creation graph is created with correct vertices and edges (0.4ms) [L#151]
+
+GameBot.Domain.Events.HandlerTest [test/game_bot/domain/events/handler_test.exs]
+  * test Handler behavior handles events properly [L#123]  * test Handler behavior handles events properly (2.3ms) [L#123]
+  * test Handler behavior recovers from crashes [L#131]03:12:07.154 [error] GenServer GameBot.Domain.Events.HandlerTest.TestEventHandler terminating
+** (RuntimeError) simulated crash
+    test/game_bot/domain/events/handler_test.exs:62: GameBot.Domain.Events.HandlerTest.TestEventHandler.handle_info/2
+    (stdlib 6.2) gen_server.erl:2345: :gen_server.try_handle_info/3
+    (stdlib 6.2) gen_server.erl:2433: :gen_server.handle_msg/6
+    (stdlib 6.2) proc_lib.erl:329: :proc_lib.init_p_do_apply/3
+Last message: {:simulate_crash}
+  * test Handler behavior recovers from crashes (26.0ms) [L#131]
+  * test Handler behavior initializes and subscribes to interests [L#108]  * test Handler behavior initializes and subscribes to interests (0.4ms) [L#108]
+
+GameBot.Replay.Utils.StatsCalculatorTest [test/game_bot/replay/utils/stats_calculator_test.exs]
+  * test calculate_knockout_stats/1 calculates knockout stats correctly [L#87]  * test calculate_knockout_stats/1 calculates knockout stats correctly (2.3ms) [L#87]
+  * test calculate_two_player_stats/1 handles no successful guesses [L#68]  * test calculate_two_player_stats/1 handles no successful guesses (0.1ms) [L#68]
+  * test calculate_race_stats/1 calculates race stats correctly [L#129]  * test calculate_race_stats/1 calculates race stats correctly (0.00ms) [L#129]
+  * test calculate_two_player_stats/1 calculates two-player stats correctly [L#50]  * test calculate_two_player_stats/1 calculates two-player stats correctly (0.00ms) [L#50]
+  * test calculate_knockout_stats/1 handles game without completion [L#112]  * test calculate_knockout_stats/1 handles game without completion (0.00ms) [L#112]
+  * test calculate_base_stats/1 handles missing game_completed event [L#26]  * test calculate_base_stats/1 handles missing game_completed event (0.00ms) [L#26]
+  * test calculate_mode_stats/2 routes to appropriate calculator function [L#172]  * test calculate_mode_stats/2 routes to appropriate calculator function (0.1ms) [L#172]
+  * test calculate_base_stats/1 returns error when game_started event is missing [L#39]  * test calculate_base_stats/1 returns error when game_started event is missing (0.00ms) [L#39]
+03:12:07.184 [error] Error calculating base stats: %RuntimeError{message: "Game start event not found"}
+  * test calculate_base_stats/1 calculates base stats correctly [L#8]  * test calculate_base_stats/1 calculates base stats correctly (0.00ms) [L#8]
+  * test calculate_race_stats/1 handles race without completion event [L#151]  * test calculate_race_stats/1 handles race without completion event (0.1ms) [L#151]
+
+GameBot.Test.DatabaseSetupTest [test/game_bot/test/database_setup_test.exs]
+  * test cleanup_resources/0 cleans up test databases [L#64]  * test cleanup_resources/0 cleans up test databases (excluded) [L#64]
+  * test setup_test_databases/0 creates databases with unique names [L#36]  * test setup_test_databases/0 creates databases with unique names (excluded) [L#36]
+
+GameBot.Test.DatabaseManagerTest [test/game_bot/test/database_manager_test.exs]
+  * test cleanup skips database setup when tagged [L#132]  * test cleanup skips database setup when tagged (excluded) [L#132]
+  * test shared connection tests operations from multiple processes [L#71]  * test shared connection tests operations from multiple processes (969.2ms) [L#71]
+  * test async tests concurrent event store operations [L#54]  * test async tests concurrent event store operations (497.8ms) [L#54]
+
+ 14) test async tests concurrent event store operations (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:54
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: assert {:ok, _} = EventStore.append_to_stream(stream_id, :any_version, [event])
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.append_to_stream/4
+       test/game_bot/test/database_manager_test.exs:58: (test)
+
+  * test error handling handles event store errors [L#165]  * test error handling handles event store errors (740.5ms) [L#165]
+
+ 15) test error handling handles event store errors (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:165
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: EventStore.read_stream_forward("nonexistent-stream")
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.read_stream_forward/4
+       test/game_bot/test/database_manager_test.exs:168: (test)
+
+  * test connection pool management handles connection checkout timeout [L#99]  * test connection pool management handles connection checkout timeout (799.4ms) [L#99]
+  * test async tests concurrent database operations [L#47]  * test async tests concurrent database operations (1147.5ms) [L#47]
+  * test connection pool management respects max concurrent tests limit [L#93]  * test connection pool management respects max concurrent tests limit (567.9ms) [L#93]
+  * test error handling handles invalid queries [L#153]  * test error handling handles invalid queries (630.6ms) [L#153]
+  * test sync tests event store operations [L#25]  * test sync tests event store operations (775.4ms) [L#25]
+
+ 16) test sync tests event store operations (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:25
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: assert {:ok, _} = EventStore.append_to_stream(stream_id, :any_version, [event])
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.append_to_stream/4
+       test/game_bot/test/database_manager_test.exs:29: (test)
+
+  * test error handling handles transaction failures [L#159]  * test error handling handles transaction failures (604.6ms) [L#159]
+
+ 17) test error handling handles transaction failures (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:159
+     ** (Postgrex.Error) ERROR 42P01 (undefined_table) relation "nonexistent_table" does not exist
+
+         query: SELECT * FROM nonexistent_table
+     code: assert {:error, _} = Repo.transaction(fn ->
+     stacktrace:
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1096: Ecto.Adapters.SQL.raise_sql_call_error/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+       (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+       test/game_bot/test/database_manager_test.exs:160: (test)
+
+  * test cleanup cleans up resources after test [L#137]  * test cleanup cleans up resources after test (437.6ms) [L#137]
+  * test sync tests handles database errors gracefully [L#34]  * test sync tests handles database errors gracefully (670.7ms) [L#34]
+
+ 18) test sync tests handles database errors gracefully (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:34
+     ** (Postgrex.Error) ERROR 42883 (undefined_function) function invalid_function() does not exist
+
+         query: SELECT invalid_function()
+
+         hint: No function matches the given name and argument types. You might need to add explicit type casts.
+     code: assert {:error, _} = Repo.transaction(fn ->
+     stacktrace:
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1096: Ecto.Adapters.SQL.raise_sql_call_error/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+       (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+       test/game_bot/test/database_manager_test.exs:35: (test)
+
+  * test sync tests basic database operations [L#18]  * test sync tests basic database operations (831.3ms) [L#18]
+
+GameBot.Infrastructure.Persistence.IntegrationTest [test/game_bot/infrastructure/persistence/integration_test.exs]
+  * test event store and repository interaction event store and repository interaction rolls back both event store and repository on error [L#136]Warning: Failed to drop test table: %DBConnection.OwnershipError{message: "cannot find ownership process for #PID<0.3246.0>.\n\nWhen using ownership, you must manage connections in one\nof the four ways:\n\n* By explicitly checking out a connection\n* By explicitly allowing a spawned process\n* By running the pool in shared mode\n* By using :caller option with allowed process\n\nThe first two options require every new process to explicitly\ncheck a connection out or be allowed by calling checkout or\nallow respectively.\n\nThe third option requires a {:shared, pid} mode to be set.\nIf using shared mode in tests, make sure your tests are not\nasync.\n\nThe fourth option requires [caller: pid] to be used when\nchecking out a connection from the pool. The caller process\nshould already be allowed on a connection.\n\nIf you are reading this error, it means you have not done one\nof the steps above or that the owner process has crashed.\n\nSee Ecto.Adapters.SQL.Sandbox docs for more information."}
+  * test event store and repository interaction event store and repository interaction rolls back both event store and repository on error (306.5ms) [L#136]
+
+GameBot.Infrastructure.Persistence.Repo.PostgresTest [test/game_bot/infrastructure/persistence/repo/postgres_test.exs]
+  * test insert_record/2 handles constraint violations [L#88]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test insert_record/2 handles constraint violations (287.2ms) [L#88]
+
+ 19) test insert_record/2 handles constraint violations (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:88
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}", details: nil}}
+     code: {:ok, _} = Postgres.insert_record(%TestSchema{name: "unique", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:89: (test)
+
+  * test insert_record/2 handles validation errors [L#83]  * test insert_record/2 handles validation errors (1.7ms) [L#83]
+
+ 20) test insert_record/2 handles validation errors (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:83
+     ** (exit) exited in: DBConnection.Holder.checkout(#PID<0.3299.0>, [log: #Function<13.132594008/1 in Ecto.Adapters.SQL.with_log/3>, pool: DBConnection.Ownership, repo: GameBot.Infrastructure.Persistence.Repo.Postgres, timeout: 15000, pool_size: 10, queue_target: 200, queue_interval: 1000])
+         ** (EXIT) shutdown: "owner #PID<0.3297.0> exited"
+     stacktrace:
+       (db_connection 2.7.0) lib/db_connection/holder.ex:97: DBConnection.Holder.checkout/3
+       (db_connection 2.7.0) lib/db_connection/holder.ex:78: DBConnection.Holder.checkout/3
+       (db_connection 2.7.0) lib/db_connection.ex:1326: DBConnection.checkout/3
+       (db_connection 2.7.0) lib/db_connection.ex:1651: DBConnection.run/6
+       (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+       (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+       (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+  * test update_record/2 handles concurrent modifications [L#105]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test update_record/2 handles concurrent modifications (3.3ms) [L#105]
+
+ 21) test update_record/2 handles concurrent modifications (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:105
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:106: (test)
+
+  * test insert_record/2 successfully inserts valid record [L#77]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test insert_record/2 successfully inserts valid record (2.9ms) [L#77]
+
+ 22) test insert_record/2 successfully inserts valid record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:77
+     match (=) failed
+     code:  assert {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     left:  {:ok, record}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}",
+               details: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:78: (test)
+
+  * test update_record/2 successfully updates record [L#96]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test update_record/2 successfully updates record (2.9ms) [L#96]
+
+ 23) test update_record/2 successfully updates record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:96
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:97: (test)
+
+  * test execute_transaction/1 rolls back on error [L#53]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test execute_transaction/1 rolls back on error (3.1ms) [L#53]
+
+ 24) test execute_transaction/1 rolls back on error (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:53
+     match (=) failed
+     code:  assert {:error, %Error{type: :validation}} = result
+     left:  {:error, %GameBot.Infrastructure.Persistence.Error{type: :validation}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Error in transaction: %MatchError{term: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: \"Unexpected error: %DBConnection.EncodeError{message: \\\"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\\\"}\", details: nil}}}",
+               details: %MatchError{
+                 term: {:error,
+                  %GameBot.Infrastructure.Persistence.Error{
+                    type: :system,
+                    context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+                    message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}",
+                    details: nil
+                  }}
+               }
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:59: (test)
+
+  * test delete_record/2 handles concurrent deletions [L#122]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test delete_record/2 handles concurrent deletions (2.6ms) [L#122]
+
+ 25) test delete_record/2 handles concurrent deletions (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:122
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:123: (test)
+
+  * test execute_transaction/1 handles nested transactions [L#64]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test execute_transaction/1 handles nested transactions (2.4ms) [L#64]
+
+ 26) test execute_transaction/1 handles nested transactions (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:64
+     match (=) failed
+     code:  assert {:ok, %TestSchema{name: "nested"}} = result
+     left:  {:ok, %GameBot.Infrastructure.Persistence.Repo.PostgresTest.TestSchema{name: "nested"}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Error in transaction: %MatchError{term: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: \"Unexpected error: %DBConnection.EncodeError{message: \\\"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\\\"}\", details: nil}}}",
+               details: %MatchError{
+                 term: {:error,
+                  %GameBot.Infrastructure.Persistence.Error{
+                    type: :system,
+                    context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+                    message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}",
+                    details: nil
+                  }}
+               }
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:72: (test)
+
+  * test execute_transaction/1 successfully executes transaction [L#44]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test execute_transaction/1 successfully executes transaction (3.2ms) [L#44]
+
+ 27) test execute_transaction/1 successfully executes transaction (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:44
+     match (=) failed
+     code:  assert {:ok, %TestSchema{name: "test"}} = result
+     left:  {:ok, %GameBot.Infrastructure.Persistence.Repo.PostgresTest.TestSchema{name: "test"}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Error in transaction: %MatchError{term: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: \"Unexpected error: %DBConnection.EncodeError{message: \\\"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\\\"}\", details: nil}}}",
+               details: %MatchError{
+                 term: {:error,
+                  %GameBot.Infrastructure.Persistence.Error{
+                    type: :system,
+                    context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+                    message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}",
+                    details: nil
+                  }}
+               }
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:50: (test)
+
+  * test delete_record/2 successfully deletes record [L#116]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test delete_record/2 successfully deletes record (2.8ms) [L#116]
+
+ 28) test delete_record/2 successfully deletes record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:116
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 1. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:117: (test)
+
+
+GameBot.Infrastructure.Persistence.EventStore.SerializerTest [test/game_bot/infrastructure/persistence/event_store/serializer_test.exs]
+  * test event_version/1 returns error for unknown event type [L#113]  * test event_version/1 returns error for unknown event type (0.1ms) [L#113]
+  * test event_version/1 returns correct version for known event types [L#108]  * test event_version/1 returns correct version for known event types (0.00ms) [L#108]
+  * test Serializer handles missing type or version fields [L#202]  * test Serializer handles missing type or version fields (0.00ms) [L#202]
+  * test deserialize/1 returns error for missing required fields [L#101]  * test deserialize/1 returns error for missing required fields (0.1ms) [L#101]
+  * test Serializer serializes and deserializes TestEvent correctly [L#148]  * test Serializer serializes and deserializes TestEvent correctly (0.00ms) [L#148]
+  * test serialize/1 returns error for invalid event structure [L#70]
+Verifying event_store schema exists...
+  * test serialize/1 returns error for invalid event structure (0.00ms) [L#70]
+  * test deserialize/1 successfully deserializes valid event data [L#76]  * test deserialize/1 successfully deserializes valid event data (0.00ms) [L#76]
+  * test serialize/1 successfully serializes valid event [L#50]  * test serialize/1 successfully serializes valid event (0.00ms) [L#50]
+
+GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest [test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs]
+  * test read_stream_forward/4 reads events from a specific version [L#140]  * test read_stream_forward/4 reads events from a specific version (0.00ms) [L#140]
+  * test read_stream_forward/4 reads events from a stream [L#130]  * test read_stream_forward/4 reads events from a stream (0.00ms) [L#130]
+  * test delete_stream/3 successfully deletes a stream [L#200]  * test delete_stream/3 successfully deletes a stream (0.00ms) [L#200]
+  * test subscribe_to_stream/4 successfully subscribes to a stream [L#161]  * test subscribe_to_stream/4 successfully subscribes to a stream (0.00ms) [L#161]
+  * test append_to_stream/4 allows :any version for appending [L#121]  * test append_to_stream/4 allows :any version for appending (0.00ms) [L#121]
+  * test read_stream_forward/4 handles non-existent streams [L#155]  * test read_stream_forward/4 handles non-existent streams (0.00ms) [L#155]
+  * test stream_version/2 returns 0 for non-existent stream [L#187]  * test stream_version/2 returns 0 for non-existent stream (0.00ms) [L#187]
+  * test append_to_stream/4 successfully appends multiple events [L#104]  * test append_to_stream/4 successfully appends multiple events (0.00ms) [L#104]
+  * test stream_version/2 returns current version for existing stream [L#191]  * test stream_version/2 returns current version for existing stream (0.00ms) [L#191]
+  * test subscribe_to_stream/4 supports subscription options [L#176]  * test subscribe_to_stream/4 supports subscription options (0.00ms) [L#176]
+  * test append_to_stream/4 handles optimistic concurrency control [L#113]  * test append_to_stream/4 handles optimistic concurrency control (0.00ms) [L#113]
+  * test delete_stream/3 handles optimistic concurrency on delete [L#214]  * test delete_stream/3 handles optimistic concurrency on delete (0.00ms) [L#214]
+  * test append_to_stream/4 successfully appends events to a new stream [L#98]  * test append_to_stream/4 successfully appends events to a new stream (0.00ms) [L#98]
+  * test subscribe_to_stream/4 handles subscription to non-existent stream [L#171]  * test subscribe_to_stream/4 handles subscription to non-existent stream (0.00ms) [L#171]
+  * test delete_stream/3 handles deleting non-existent stream [L#222]  * test delete_stream/3 handles deleting non-existent stream (0.00ms) [L#222]
+
+ 28) GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest: failure on setup_all callback, all tests have been invalidated
+     ** (RuntimeError) EventStore repository is not running. It should be started in test_helper.exs.
+     stacktrace:
+       (game_bot 0.1.0) test/support/event_store_case.ex:179: GameBot.EventStoreCase.ensure_event_store_schema_exists/0
+       (game_bot 0.1.0) test/support/event_store_case.ex:40: GameBot.EventStoreCase.__ex_unit_setup_all_0/1
+       (game_bot 0.1.0) test/support/event_store_case.ex:1: GameBot.EventStoreCase.__ex_unit__/2
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest.__ex_unit__/2
+
+
+GameBotWeb.ErrorJSONTest [test/game_bot_web/controllers/error_json_test.exs]
+  * test renders 500 [L#8]03:12:20.664 [warning] Exit when stopping GameBot.Infrastructure.Persistence.Repo: {{:shutdown, {:sys, :terminate, [#PID<0.3373.0>, :normal, 5000]}}, {GenServer, :stop, [GameBot.Infrastructure.Persistence.Repo, :normal, 5000]}}
+03:12:21.700 [warning] Event store is not running, cannot reset
+  * test renders 500 (1864.7ms) [L#8]
+  * test renders 404 [L#4]03:12:21.955 [warning] Exit when stopping GameBot.Infrastructure.Persistence.Repo: {:noproc, {GenServer, :stop, [GameBot.Infrastructure.Persistence.Repo, :normal, 5000]}}
+03:12:22.813 [warning] Event store is not running, cannot reset
+  * test renders 404 (254.4ms) [L#4]
+
+GameBotWeb.ErrorHTMLTest [test/game_bot_web/controllers/error_html_test.exs]
+  * test renders 500.html [L#11]03:12:23.101 [warning] Exit when stopping GameBot.Infrastructure.Persistence.Repo: {{:shutdown, {:sys, :terminate, [#PID<0.3482.0>, :normal, 5000]}}, {GenServer, :stop, [GameBot.Infrastructure.Persistence.Repo, :normal, 5000]}}
+03:12:23.850 [warning] Event store is not running, cannot reset
+  * test renders 500.html (288.2ms) [L#11]
+  * test renders 404.html [L#7]03:12:24.127 [warning] Exit when stopping GameBot.Infrastructure.Persistence.Repo: {:noproc, {GenServer, :stop, [GameBot.Infrastructure.Persistence.Repo, :normal, 5000]}}
+03:12:24.862 [warning] Event store is not running, cannot reset
+  * test renders 404.html (276.7ms) [L#7]
+
+GameBot.Domain.Events.BroadcasterTest [test/game_bot/domain/events/broadcaster_test.exs]
+  * test broadcast_event/1 returns {:ok, event} to maintain pipeline compatibility [L#111]  * test broadcast_event/1 returns {:ok, event} to maintain pipeline compatibility (0.7ms) [L#111]
+  * test broadcast_event/1 records telemetry for broadcast operations [L#129]  * test broadcast_event/1 records telemetry for broadcast operations (0.2ms) [L#129]
+  * test broadcast_event/1 broadcasts to both game and event_type topics [L#84]  * test broadcast_event/1 broadcasts to both game and event_type topics (107.5ms) [L#84]
+
+GameBot.Domain.GameModes.KnockoutModeValidationTest [test/game_bot/domain/game_modes/knockout_mode_validation_test.exs]
+  * test process_guess_pair/3 validation validates player uniqueness [L#80]  * test process_guess_pair/3 validation validates player uniqueness (2.3ms) [L#80]
+  * test process_guess_pair/3 validation validates player membership [L#70]  * test process_guess_pair/3 validation validates player membership (0.1ms) [L#70]
+  * test validate_event/1 rejects events with wrong mode [L#262]  * test validate_event/1 rejects events with wrong mode (0.1ms) [L#262]
+  * test validate_event/1 validates TeamEliminated event [L#235]  * test validate_event/1 validates TeamEliminated event (0.00ms) [L#235]
+  * test check_game_end/1 validation validates game end with one team [L#183]  * test check_game_end/1 validation validates game end with one team (0.00ms) [L#183]
+  * test process_guess_pair/3 validation accepts valid guess pair [L#103]  * test process_guess_pair/3 validation accepts valid guess pair (0.1ms) [L#103]
+  * test process_guess_pair/3 validation validates team existence [L#60]  * test process_guess_pair/3 validation validates team existence (0.1ms) [L#60]
+  * test process_guess_pair/3 validation validates guess limit [L#90]  * test process_guess_pair/3 validation validates guess limit (0.1ms) [L#90]
+  * test check_round_end/1 validation validates forced eliminations [L#150]  * test check_round_end/1 validation validates forced eliminations (0.1ms) [L#150]
+  * test init/3 validation validates team size [L#34]  * test init/3 validation validates team size (0.00ms) [L#34]
+  * test check_round_end/1 validation continues game when time remains [L#172]  * test check_round_end/1 validation continues game when time remains (0.00ms) [L#172]
+  * test check_round_end/1 validation validates round time expiry [L#141]  * test check_round_end/1 validation validates round time expiry (0.00ms) [L#141]
+  * test init/3 validation accepts valid initialization parameters [L#42]  * test init/3 validation accepts valid initialization parameters (0.00ms) [L#42]
+  * test check_game_end/1 validation continues game with multiple teams [L#192]  * test check_game_end/1 validation continues game with multiple teams (0.00ms) [L#192]
+  * test init/3 validation validates minimum team count [L#29]  * test init/3 validation validates minimum team count (0.00ms) [L#29]
+  * test validate_event/1 validates GuessProcessed event [L#212]  * test validate_event/1 validates GuessProcessed event (0.00ms) [L#212]
+  * test process_guess_pair/3 validation eliminates team on guess limit [L#113]  * test process_guess_pair/3 validation eliminates team on guess limit (0.00ms) [L#113]
+  * test validate_event/1 validates KnockoutRoundCompleted event [L#248]  * test validate_event/1 validates KnockoutRoundCompleted event (0.00ms) [L#248]
+  * test validate_event/1 validates GameStarted event [L#198]  * test validate_event/1 validates GameStarted event (0.00ms) [L#198]
+
+GameBot.Infrastructure.Persistence.EventStore.Serialization.JsonSerializerTest [test/game_bot/infrastructure/persistence/event_store/serialization/json_serializer_test.exs]
+  * test deserialize/2 preserves metadata during deserialization [L#200]  * test deserialize/2 preserves metadata during deserialization (excluded) [L#200]
+  * test deserialize/2 successfully deserializes valid data [L#179]  * test deserialize/2 successfully deserializes valid data (excluded) [L#179]
+  * test migrate/4 returns error when migrating to older version [L#270]  * test migrate/4 returns error when migrating to older version (excluded) [L#270]
+  * test deserialize/2 returns error for missing required fields [L#222]  * test deserialize/2 returns error for missing required fields (excluded) [L#222]
+  * test serialize/2 returns error for event missing required functions [L#171]  * test serialize/2 returns error for event missing required functions (excluded) [L#171]
+  * test deserialize/2 returns error for invalid data format [L#218]  * test deserialize/2 returns error for invalid data format (excluded) [L#218]
+  * test validate/2 returns error for invalid data [L#251]  * test validate/2 returns error for invalid data (excluded) [L#251]
+  * test serialize/2 preserves metadata during serialization [L#150]  * test serialize/2 preserves metadata during serialization (excluded) [L#150]
+  * test migrate/4 returns same data when versions match [L#265]  * test migrate/4 returns same data when versions match (excluded) [L#265]
+  * test validate/2 validates valid data [L#240]  * test validate/2 validates valid data (excluded) [L#240]
+  * test serialize/2 returns error for invalid event struct [L#167]  * test serialize/2 returns error for invalid event struct (excluded) [L#167]
+  * test migrate/4 returns error when migration not supported [L#274]  * test migrate/4 returns error when migration not supported (excluded) [L#274]
+  * test serialize/2 successfully serializes a valid event [L#133]  * test serialize/2 successfully serializes a valid event (excluded) [L#133]
+  * test deserialize/2 returns error for unknown event type [L#227]  * test deserialize/2 returns error for unknown event type (excluded) [L#227]
+  * test version/0 returns current version [L#280]  * test version/0 returns current version (excluded) [L#280]
+
+GameBotWeb.PageControllerTest [test/game_bot_web/controllers/page_controller_test.exs]
+  * test GET / [L#4]03:12:26.135 [warning] Event store is not running, cannot reset
+  * test GET / (340.9ms) [L#4]
+
+ 29) test GET / (GameBotWeb.PageControllerTest)
+     test/game_bot_web/controllers/page_controller_test.exs:4
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: the table identifier does not refer to an existing ETS table
+
+     code: conn = get(conn, ~p"/")
+     stacktrace:
+       (stdlib 6.2) :ets.lookup(GameBotWeb.Endpoint, :secret_key_base)
+       (game_bot 0.1.0) deps/phoenix/lib/phoenix/endpoint.ex:529: GameBotWeb.Endpoint.config/2
+       (game_bot 0.1.0) lib/game_bot_web/endpoint.ex:1: GameBotWeb.Endpoint.call/2
+       (phoenix 1.7.20) lib/phoenix/test/conn_test.ex:225: Phoenix.ConnTest.dispatch/5
+       test/game_bot_web/controllers/page_controller_test.exs:5: (test)
+
+
+GameBot.Infrastructure.Persistence.Repo.TransactionTest [test/game_bot/infrastructure/persistence/repo/transaction_test.exs]
+  * test execute/3 logs guild context when provided [L#219]  * test execute/3 logs guild context when provided (323.6ms) [L#219]
+  * test transaction boundaries supports nested transactions [L#197]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test transaction boundaries supports nested transactions (55.9ms) [L#197]
+  * test execute/3 adds guild_id to error context on failure [L#246]  * test execute/3 adds guild_id to error context on failure (22.6ms) [L#246]
+  * test transaction boundaries respects timeout settings [L#173]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+03:12:26.573 [error] Postgrex.Protocol (#PID<0.3727.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.3777.0> timed out because it queued and checked out the connection for longer than 10ms
+
+Client #PID<0.3777.0> is still using a connection from owner at location:
+
+    (elixir 1.18.2) lib/process.ex:317: Process.sleep/1
+    test/game_bot/infrastructure/persistence/repo/transaction_test.exs:180: anonymous fn/2 in GameBot.Infrastructure.Persistence.Repo.TransactionTest."test transaction boundaries respects timeout settings"/1
+    (elixir 1.18.2) lib/enum.ex:4503: Enum.reduce/3
+    test/game_bot/infrastructure/persistence/repo/transaction_test.exs:179: anonymous fn/0 in GameBot.Infrastructure.Persistence.Repo.TransactionTest."test transaction boundaries respects timeout settings"/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/repo/postgres.ex:142: anonymous fn/1 in GameBot.Infrastructure.Persistence.Repo.Postgres.execute_transaction/2
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/repo/postgres.ex:140: anonymous fn/2 in GameBot.Infrastructure.Persistence.Repo.Postgres.execute_transaction/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/repo/postgres.ex:176: GameBot.Infrastructure.Persistence.Repo.Postgres.with_retry/2
+    test/game_bot/infrastructure/persistence/repo/transaction_test.exs:175: GameBot.Infrastructure.Persistence.Repo.TransactionTest."test transaction boundaries respects timeout settings"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+The connection itself was checked out by #PID<0.3777.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/repo/postgres.ex:140: anonymous fn/2 in GameBot.Infrastructure.Persistence.Repo.Postgres.execute_transaction/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/repo/postgres.ex:176: GameBot.Infrastructure.Persistence.Repo.Postgres.with_retry/2
+    test/game_bot/infrastructure/persistence/repo/transaction_test.exs:175: GameBot.Infrastructure.Persistence.Repo.TransactionTest."test transaction boundaries respects timeout settings"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+  * test transaction boundaries respects timeout settings (92.9ms) [L#173]
+  * test execute/3 logs without guild context when not provided [L#233]  * test execute/3 logs without guild context when not provided (19.6ms) [L#233]
+  * test transaction boundaries rolls back all changes on error [L#145]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test transaction boundaries rolls back all changes on error (20.8ms) [L#145]
+  * test execute_steps/3 stops execution on first error [L#284]  * test execute_steps/3 stops execution on first error (19.4ms) [L#284]
+  * test transaction boundaries handles exceptions by rolling back [L#160]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test transaction boundaries handles exceptions by rolling back (23.0ms) [L#160]
+  * test transaction boundaries commits all changes on success [L#129]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+  * test transaction boundaries commits all changes on success (22.8ms) [L#129]
+  * test execute_steps/3 executes multiple steps with guild context [L#264]  * test execute_steps/3 executes multiple steps with guild context (18.4ms) [L#264]
+
+GameBot.Replay.CacheTest [test/game_bot/replay/cache_test.exs]
+  * test get_with_fallback/2 calls fallback on miss [L#87]  * test get_with_fallback/2 calls fallback on miss (2.9ms) [L#87]
+  * test get_with_fallback/2 returns cached value on hit [L#75]  * test get_with_fallback/2 returns cached value on hit (0.1ms) [L#75]
+  * test eviction oldest entries are evicted when cache is full [L#201]  * test eviction oldest entries are evicted when cache is full (266.3ms) [L#201]
+  * test get_with_fallback/2 propagates errors from fallback [L#110]  * test get_with_fallback/2 propagates errors from fallback (0.1ms) [L#110]
+  * test put/2 and get/1 returns not_found for missing keys [L#69]  * test put/2 and get/1 returns not_found for missing keys (0.00ms) [L#69]
+  * test get_with_fallback/2 caches by both ID and display name when using display name [L#99]  * test get_with_fallback/2 caches by both ID and display name when using display name (0.1ms) [L#99]
+  * test stats/0 reports current cache size [L#159]  * test stats/0 reports current cache size (61.8ms) [L#159]
+  * test put/2 and get/1 stores and retrieves a replay by display name [L#51]  * test put/2 and get/1 stores and retrieves a replay by display name (0.1ms) [L#51]
+  * test expiration expired items are reported as such [L#182]  * test expiration expired items are reported as such (62.8ms) [L#182]
+  * test stats/0 tracks hits, misses, and inserts correctly [L#136]  * test stats/0 tracks hits, misses, and inserts correctly (0.1ms) [L#136]
+  * test put/2 and get/1 handles different casing in keys [L#61]  * test put/2 and get/1 handles different casing in keys (0.1ms) [L#61]
+  * test put/2 and get/1 stores and retrieves a replay by ID [L#41]  * test put/2 and get/1 stores and retrieves a replay by ID (0.1ms) [L#41]
+  * test remove/1 removes an item from the cache [L#120]  * test remove/1 removes an item from the cache (0.00ms) [L#120]
+
+GameBot.Domain.GameModes.TwoPlayerModeValidationTest [test/game_bot/domain/game_modes/two_player_mode_validation_test.exs]
+  * test process_guess_pair/3 validation validates team existence [L#70]  * test process_guess_pair/3 validation validates team existence (2.0ms) [L#70]
+  * test init/3 validation accepts valid initialization parameters [L#52]  * test init/3 validation accepts valid initialization parameters (0.00ms) [L#52]
+  * test validate_event/1 validates GuessProcessed event [L#147]  * test validate_event/1 validates GuessProcessed event (0.00ms) [L#147]
+  * test process_guess_pair/3 validation validates player uniqueness [L#90]  * test process_guess_pair/3 validation validates player uniqueness (0.00ms) [L#90]
+  * test init/3 validation validates success_threshold is positive [L#47]  * test init/3 validation validates success_threshold is positive (0.00ms) [L#47]
+  * test process_guess_pair/3 validation validates player membership [L#80]  * test process_guess_pair/3 validation validates player membership (0.00ms) [L#80]
+  * test check_round_end/1 validation continues game when rounds remain [L#127]  * test check_round_end/1 validation continues game when rounds remain (0.1ms) [L#127]
+  * test init/3 validation validates team size [L#37]  * test init/3 validation validates team size (0.00ms) [L#37]
+  * test validate_event/1 validates GameStarted event [L#133]  * test validate_event/1 validates GameStarted event (0.00ms) [L#133]
+  * test check_round_end/1 validation validates round completion [L#121]  * test check_round_end/1 validation validates round completion (0.00ms) [L#121]
+  * test init/3 validation validates rounds_required is positive [L#42]  * test init/3 validation validates rounds_required is positive (0.00ms) [L#42]
+  * test validate_event/1 rejects events with wrong mode [L#170]  * test validate_event/1 rejects events with wrong mode (0.00ms) [L#170]
+  * test init/3 validation validates exact team count [L#29]  * test init/3 validation validates exact team count (0.00ms) [L#29]
+  * test process_guess_pair/3 validation accepts valid guess pair [L#100]  * test process_guess_pair/3 validation accepts valid guess pair (0.1ms) [L#100]
+
+GameBot.Infrastructure.Persistence.EventStore.IntegrationTest [test/game_bot/infrastructure/persistence/event_store/integration_test.exs]
+  * test error handling invalid stream operations [L#300]  * test error handling invalid stream operations (0.00ms) [L#300]
+
+ 30) test error handling invalid stream operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:300
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test subscription handling multiple subscribers [L#276]  * test subscription handling multiple subscribers (0.00ms) [L#276]
+
+ 31) test subscription handling multiple subscribers (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:276
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test performance characteristics batch operations [L#344]  * test performance characteristics batch operations (0.00ms) [L#344]
+
+ 32) test performance characteristics batch operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:344
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test subscription handling subscribe to stream [L#257]  * test subscription handling subscribe to stream (0.00ms) [L#257]
+
+ 33) test subscription handling subscribe to stream (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:257
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test error handling transaction boundaries [L#314]  * test error handling transaction boundaries (0.1ms) [L#314]
+
+ 34) test error handling transaction boundaries (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:314
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test stream operations stream versioning [L#217]  * test stream operations stream versioning (0.00ms) [L#217]
+
+ 35) test stream operations stream versioning (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:217
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test stream operations concurrent operations [L#236]  * test stream operations concurrent operations (0.00ms) [L#236]
+
+ 36) test stream operations concurrent operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:236
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test stream operations append and read events [L#196]  * test stream operations append and read events (0.00ms) [L#196]
+
+ 37) test stream operations append and read events (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:196
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test performance characteristics concurrent read performance [L#375]  * test performance characteristics concurrent read performance (0.00ms) [L#375]
+
+ 38) test performance characteristics concurrent read performance (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:375
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+
+GameBot.Infrastructure.Persistence.EventStore.MacroIntegrationTest [test/game_bot/infrastructure/persistence/event_store/macro_integration_test.exs]
+  * test delete_stream removes the stream [L#82]  * test delete_stream removes the stream (1030.9ms) [L#82]
+  * test append and read stream operations work [L#50]  * test append and read stream operations work (161.5ms) [L#50]
+  * test stream_version returns correct version [L#65]  * test stream_version returns correct version (148.3ms) [L#65]
+  * test EventStore implementation makes key functions available [L#41]  * test EventStore implementation makes key functions available (215.9ms) [L#41]
+
+GameBot.ExampleRepositoryTest [test/example_repository_test.exs]
+  * test handles error cases through repository interface [L#90]  * test handles error cases through repository interface (288.2ms) [L#90]
+  * test uses repository interface for insert operations [L#50]  * test uses repository interface for insert operations (1234.6ms) [L#50]
+  * test uses repository interface for query operations [L#64]  * test uses repository interface for query operations (640.4ms) [L#64]
+  * test uses repository interface for transactions [L#40]  * test uses repository interface for transactions (927.5ms) [L#40]
+
+GameBot.DiagnosticTest [test/diagnostic_test.exs]
+  * test diagnostic: EventStore mock works [L#109]  * test diagnostic: EventStore mock works (excluded) [L#109]
+  * test diagnostic: All done [L#194]03:12:31.808 [info] All diagnostic tests completed successfully!
+  * test diagnostic: All done (0.2ms) [L#194]
+03:12:31.808 [info] Testing repository initialization
+  * test diagnostic: Repository initialization [L#78]03:12:31.808 [info] Starting repository: GameBot.Infrastructure.Persistence.Repo
+03:12:31.808 [info] Testing PostgreSQL connection
+  * test diagnostic: Repository initialization (0.00ms) [L#78]
+03:12:31.808 [info] Main test database: "game_bot_test"
+
+ 39) test diagnostic: Repository initialization (GameBot.DiagnosticTest)
+     test/diagnostic_test.exs:78
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.Repo because it was not started or it does not exist
+     code: results = Enum.map(repos, fn repo ->
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/diagnostic_test.exs:89: anonymous fn/1 in GameBot.DiagnosticTest."test diagnostic: Repository initialization"/1
+       (elixir 1.18.2) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+       test/diagnostic_test.exs:86: (test)
+
+  * test diagnostic: PostgreSQL connection is working [L#65]  * test diagnostic: PostgreSQL connection is working (330.7ms) [L#65]
+
+GameBot.Infrastructure.Persistence.Repo.MockTest [test/game_bot/infrastructure/persistence/repo/mock_test.exs]
+  * test handles error from repository in transactions [L#65]In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Setting up error transaction mock expectation
+Before error transaction, implementation is: GameBot.Infrastructure.Persistence.Repo.Postgres
+Executing transaction that should fail
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+This callback should not be called
+Mock transaction was called for error case: false
+Transaction error result: {:ok, :should_not_reach_here}
+  * test handles error from repository in transactions (300.6ms) [L#65]
+
+ 40) test handles error from repository in transactions (GameBot.Infrastructure.Persistence.Repo.MockTest)
+     test/game_bot/infrastructure/persistence/repo/mock_test.exs:65
+     Assertion with == failed
+     code:  assert result == {:error, :mock_error}
+     left:  {:ok, :should_not_reach_here}
+     right: {:error, :mock_error}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/mock_test.exs:98: (test)
+
+  * test uses mock repository for insert operations [L#103]In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Before insert, implementation is: GameBot.Infrastructure.Persistence.Repo.Postgres
+Executing insert through Postgres module
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Mock insert was called: false
+Insert result: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 42. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}", details: nil}}
+  * test uses mock repository for insert operations (3.0ms) [L#103]
+
+ 41) test uses mock repository for insert operations (GameBot.Infrastructure.Persistence.Repo.MockTest)
+     test/game_bot/infrastructure/persistence/repo/mock_test.exs:103
+     match (=) failed
+     code:  assert {:ok, %{id: 1}} = result
+     left:  {:ok, %{id: 1}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Unexpected error: %DBConnection.EncodeError{message: \"Postgrex expected a binary, got 42. Please make sure the value you are passing matches the definition in your table or in your query or convert the value accordingly.\"}",
+               details: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/mock_test.exs:132: (test)
+
+  * test uses mock repository for transactions [L#27]In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Setting up transaction mock expectation
+Before transaction, implementation is: GameBot.Infrastructure.Persistence.Repo.Postgres
+Executing transaction through Postgres module
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Inside transaction callback
+Mock transaction was called: false
+Transaction result: {:ok, :transaction_result}
+  * test uses mock repository for transactions (1.1ms) [L#27]
+
+ 42) test uses mock repository for transactions (GameBot.Infrastructure.Persistence.Repo.MockTest)
+     test/game_bot/infrastructure/persistence/repo/mock_test.exs:27
+     The mock transaction function was not called
+     code: assert was_called, "The mock transaction function was not called"
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/mock_test.exs:61: (test)
+
+
+GameBot.Infrastructure.Persistence.EventStore.Adapter.BaseTest [test/game_bot/infrastructure/persistence/event_store/adapter/base_test.exs]
+  * test read_stream_forward/4 returns error on permanent failure [L#150]  * test read_stream_forward/4 returns error on permanent failure (7.8ms) [L#150]
+  * test read_stream_forward/4 retries on transient errors [L#145]  * test read_stream_forward/4 retries on transient errors (175.7ms) [L#145]
+  * test subscribe_to_stream/4 retries on transient errors [L#161]  * test subscribe_to_stream/4 retries on transient errors (168.3ms) [L#161]
+  * test read_stream_forward/4 successfully reads events [L#140]  * test read_stream_forward/4 successfully reads events (13.0ms) [L#140]
+  * test subscribe_to_stream/4 successfully subscribes to stream [L#156]  * test subscribe_to_stream/4 successfully subscribes to stream (11.6ms) [L#156]
+  * test telemetry emits telemetry events for failed operations [L#191]  * test telemetry emits telemetry events for failed operations (529.2ms) [L#191]
+  * test append_to_stream/4 retries on transient errors [L#127]  * test append_to_stream/4 retries on transient errors (170.4ms) [L#127]
+  * test telemetry emits telemetry events for successful operations [L#173]  * test telemetry emits telemetry events for successful operations (523.0ms) [L#173]
+  * test append_to_stream/4 returns error on permanent failure [L#133]  * test append_to_stream/4 returns error on permanent failure (12.2ms) [L#133]
+  * test append_to_stream/4 successfully appends events [L#122]  * test append_to_stream/4 successfully appends events (13.5ms) [L#122]
+  * test subscribe_to_stream/4 returns error on permanent failure [L#167]  * test subscribe_to_stream/4 returns error on permanent failure (9.7ms) [L#167]
+
+GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest [test/game_bot/infrastructure/persistence/event_store/serialization/event_translator_test.exs]
+  * test migrate/4 applies migrations for simple cases [L#219]  * test migrate/4 applies migrations for simple cases (0.00ms) [L#219]
+  * test migration registration registers migration functions [L#205]  * test migration registration registers migration functions (0.1ms) [L#205]
+  * test migrate/4 returns error for missing migrations [L#231]  * test migrate/4 returns error for missing migrations (0.00ms) [L#231]
+  * test event registration registers event versions [L#199]  * test event registration registers event versions (0.00ms) [L#199]
+  * test migrate/4 returns error for unknown event type [L#226]  * test migrate/4 returns error for unknown event type (0.00ms) [L#226]
+  * test error handling in migrations handles migration errors [L#247]************TestTranslator.event_modules(): [{"other_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}, {"test_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}]
+  * test error handling in migrations handles migration errors (0.00ms) [L#247]
+TestTranslator.event_versions(): [{"other_event", 2}, {"test_event", 4}]
+  * test lookup_module/1 returns error for unknown event type [L#189]TestTranslator.event_migrations(): [{"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.other_v1_to_v2/1}, {"test_event", 3, 4, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v3_to_v4/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+  * test lookup_module/1 returns error for unknown event type (0.00ms) [L#189]
+CustomTranslator.event_modules(): [{"custom_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.CustomTranslator}]
+  * test debug module attributes and graph building [L#258]CustomTranslator.event_versions(): [{"custom_event", 2}]
+CustomTranslator.event_migrations(): [{"custom_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.custom_v1_to_v2/1}]
+ComplexTranslator.event_modules(): [{"complex_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ComplexTranslator}]
+ComplexTranslator.event_versions(): [{"complex_event", 3}]
+ComplexTranslator.event_migrations(): [{"complex_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"complex_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+ErrorTranslator.event_modules(): [{"error_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ErrorTranslator}]
+ErrorTranslator.event_versions(): [{"error_event", 2}]
+ErrorTranslator.event_migrations(): [{"error_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.error_v1_to_v2/1}]
+Building graph with:
+  Event registry: [{"other_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}, {"test_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestTranslator}]
+  Versions: [{"other_event", 2}, {"test_event", 4}]
+  Migrations: [{"other_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.other_v1_to_v2/1}, {"test_event", 3, 4, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v3_to_v4/1}, {"test_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"test_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+  Adding vertex: {other_event, 1}
+  Adding vertex: {other_event, 2}
+  Adding vertex: {test_event, 1}
+  Adding vertex: {test_event, 2}
+  Adding vertex: {test_event, 3}
+  Adding vertex: {test_event, 4}
+  Adding edge: {other_event, 1} -> {other_event, 2}
+  Adding edge: {test_event, 3} -> {test_event, 4}
+  Adding edge: {test_event, 2} -> {test_event, 3}
+  Adding edge: {test_event, 1} -> {test_event, 2}
+Graph has 6 vertices: [{"test_event", 2}, {"test_event", 1}, {"test_event", 4}, {"other_event", 2}, {"other_event", 1}, {"test_event", 3}]
+Graph has 4 edges: [[:"$e" | 2], [:"$e" | 1], [:"$e" | 3], [:"$e" | 0]]
+Building graph with:
+  Event registry: [{"complex_event", GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.ComplexTranslator}]
+  Versions: [{"complex_event", 3}]
+  Migrations: [{"complex_event", 2, 3, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v2_to_v3/1}, {"complex_event", 1, 2, &GameBot.Infrastructure.Persistence.EventStore.Serialization.EventTranslatorTest.TestMigrations.v1_to_v2/1}]
+  Adding vertex: {complex_event, 1}
+  Adding vertex: {complex_event, 2}
+  Adding vertex: {complex_event, 3}
+  Adding edge: {complex_event, 2} -> {complex_event, 3}
+  Adding edge: {complex_event, 1} -> {complex_event, 2}
+Graph has 3 vertices: [{"complex_event", 2}, {"complex_event", 3}, {"complex_event", 1}]
+Graph has 2 edges: [[:"$e" | 1], [:"$e" | 0]]
+  * test debug module attributes and graph building (1.2ms) [L#258]
+  * test complex migrations can find paths across multiple versions [L#242]  * test complex migrations can find paths across multiple versions (0.00ms) [L#242]
+  * test event registration registers event modules [L#193]  * test event registration registers event modules (0.00ms) [L#193]
+  * test lookup_module/1 returns module for known event type [L#185]  * test lookup_module/1 returns module for known event type (0.00ms) [L#185]
+  * test migrate/4 actually transforms data [L#236]  * test migrate/4 actually transforms data (0.00ms) [L#236]
+
+GameBot.Domain.WordServiceTest [test/domain/word_service_test.exs]
+03:12:34.129 [info] WordService initializing with dictionary file: priv/dictionaries/dictionary.txt
+03:12:34.129 [info] WordService initializing with variations file: priv/dictionaries/word_variations.txt
+03:12:34.129 [info] Found dictionary at path: priv/dictionaries/dictionary.txt
+03:12:34.129 [info] Dictionary load result: {:ok, MapSet.new(["analyse", "analyses", "analyze", "analyzing", "be", "box", "boxes", "cat", "cats", "color", "colored", "colors", "colour", "dog", "dogs", "happy", "ran", "run", "running", "sad", "theater", "theatre", "theatres", "walk", "was"]), 25}
+03:12:34.130 [info] Found variations at path: color,colour,colors,colours,colored,coloured
+analyze,analyse,analyzes,analyses,analyzing,analysing
+theater,theatre,theaters,theatres,theatrical
+gray,grey
+behavior,behaviour
+defense,defence
+center,centre
+organize,organise,organization,organisation
+realize,realise,realization,realisation
+honor,honour,honorable,honourable 
+03:12:34.130 [info] Variations load result: {:ok, %{}}
+03:12:34.130 [info] Starting variation precomputation...
+03:12:34.130 [info] Found dictionary at path: priv/dictionaries/dictionary.txt
+  * test matches singular/plural forms [L#107]  * test matches singular/plural forms (0.1ms) [L#107]
+  * test matches US/UK spelling variations [L#101]03:12:34.131 [info] Variation precomputation complete
+  * test matches US/UK spelling variations (0.00ms) [L#101]
+  * test does not match unrelated words [L#119]  * test does not match unrelated words (0.1ms) [L#119]
+  * test matches exact words [L#95]  * test matches exact words (0.00ms) [L#95]
+  * test matches lemmatized forms [L#113]  * test matches lemmatized forms (0.00ms) [L#113]
+  * test combines variations from file and pattern-based rules [L#138]  * test combines variations from file and pattern-based rules (0.00ms) [L#138]
+  * test validates words correctly [L#77]  * test validates words correctly (0.00ms) [L#77]
+  * test matches words using both file and pattern-based variations [L#145]  * test matches words using both file and pattern-based variations (0.1ms) [L#145]
+  * test returns base form of a word [L#132]  * test returns base form of a word (0.00ms) [L#132]
+  * test generates random words [L#84]  * test generates random words (0.1ms) [L#84]
+  * test loads dictionary successfully [L#73]03:12:34.131 [info] Found dictionary at path: priv/dictionaries/dictionary.txt
+  * test loads dictionary successfully (0.3ms) [L#73]
+  * test returns variations of a word [L#125]  * test returns variations of a word (0.00ms) [L#125]
+
+GameBot.Replay.GameCompletionHandlerTest.Deprecated [test/game_bot/replay/game_completion_handler_test.exs]
+  * test process_game_completed/1 handles version compatibility failure [L#130]  * test process_game_completed/1 handles version compatibility failure (skipped) [L#130]
+  * test process_game_completed/1 handles event verification failure [L#108]  * test process_game_completed/1 handles event verification failure (skipped) [L#108]
+  * test process_game_completed/1 handles storage failure [L#193]  * test process_game_completed/1 handles storage failure (skipped) [L#193]
+  * test process_game_completed/1 handles event retrieval failure [L#91]  * test process_game_completed/1 handles event retrieval failure (skipped) [L#91]
+  * test process_game_completed/1 handles statistics calculation failure [L#159]  * test process_game_completed/1 handles statistics calculation failure (skipped) [L#159]
+  * test handle_event/1 returns error when event processing fails [L#51]  * test handle_event/1 returns error when event processing fails (skipped) [L#51]
+  * test process_game_completed/1 successfully processes a completed game and creates a replay [L#70]  * test process_game_completed/1 successfully processes a completed game and creates a replay (skipped) [L#70]
+  * test handle_event/1 successfully processes game completion event [L#32]  * test handle_event/1 successfully processes game completion event (skipped) [L#32]
+  * test subscribe/0 subscribes to game_completed events [L#248]  * test subscribe/0 subscribes to game_completed events (skipped) [L#248]
+
+GameBot.Replay.StorageTest [test/game_bot/replay/storage_test.exs]
+  * test get_replay/2 handles not found error [L#163]  * test get_replay/2 handles not found error (304.8ms) [L#163]
+  * test get_replay/2 retrieves a replay with events [L#138]  * test get_replay/2 retrieves a replay with events (42.1ms) [L#138]
+
+ 43) test get_replay/2 retrieves a replay with events (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:138
+     ** (ErlangError) Erlang error: {:not_mocked, GameBot.Replay.EventStoreAccess}
+     stacktrace:
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck_proc.erl:491: :meck_proc.gen_server/3
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck.erl:484: :meck.unload/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+  * test log_access/6 returns error on failed insert [L#310]Mock insert called
+  * test log_access/6 returns error on failed insert (4.7ms) [L#310]
+
+ 44) test log_access/6 returns error on failed insert (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:310
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: the table identifier does not refer to an existing ETS table
+
+     code: result = Storage.log_access(replay_id, "invalid-user", "guild123", :view)
+     stacktrace:
+       (stdlib 6.2) :ets.insert(#Reference<0.2661887389.202768388.212749>, {:insert_called, true})
+       test/game_bot/infrastructure/persistence/repo/mock_test.exs:113: anonymous fn/3 in GameBot.Infrastructure.Persistence.Repo.MockTest."test uses mock repository for insert operations"/1
+       (game_bot 0.1.0) lib/game_bot/replay/storage.ex:160: GameBot.Replay.Storage.log_access/6
+       test/game_bot/replay/storage_test.exs:321: (test)
+
+  * test get_replay_metadata/1 retrieves only replay metadata [L#202]  * test get_replay_metadata/1 retrieves only replay metadata (1.0ms) [L#202]
+  * test get_replay/2 retrieves a replay by display name [L#121]  * test get_replay/2 retrieves a replay by display name (0.8ms) [L#121]
+  * test get_replay/2 handles event loading errors [L#177]03:12:34.546 [error] Failed to load events for replay 9f06650d-b303-4e44-b717-cfc7fe29f9d2: :stream_not_found
+  * test get_replay/2 handles event loading errors (51.5ms) [L#177]
+
+ 45) test get_replay/2 handles event loading errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:177
+     ** (ErlangError) Erlang error: {:not_mocked, GameBot.Replay.EventStoreAccess}
+     stacktrace:
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck_proc.erl:491: :meck_proc.gen_server/3
+       (meck 0.9.2) c:/Users/ktw30/apps/word match phoenix/game_bot/deps/meck/src/meck.erl:484: :meck.unload/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+  * test list_replays/1 returns empty list when no replays match filters [L#269]  * test list_replays/1 returns empty list when no replays match filters (6.2ms) [L#269]
+
+ 46) test list_replays/1 returns empty list when no replays match filters (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:269
+     Assertion with == failed
+     code:  assert list == []
+     left:  {:ok, []}
+     right: []
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:283: (test)
+
+  * test store_replay/1 handles insert errors [L#82]03:12:34.571 [error] Failed to store replay: [display_name: {"has already been taken", []}]
+  * test store_replay/1 handles insert errors (0.8ms) [L#82]
+03:12:34.572 [error] Failed to log replay access: [display_name: {"has already been taken", []}]
+
+ 47) test store_replay/1 handles insert errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:82
+     match (=) failed
+     code:  assert {:error, %Ecto.Changeset{} = error_changeset} = result
+     left:  {:error, %Ecto.Changeset{} = error_changeset}
+     right: {:ok,
+             {:error,
+              #Ecto.Changeset<
+                action: nil,
+                changes: %{},
+                errors: [
+                  display_name: {"has already been taken", []}
+                ],
+                data: nil,
+                valid?: false,
+                ...
+              >}}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:97: (test)
+
+  * test log_access/6 logs access successfully [L#289]  * test log_access/6 logs access successfully (0.7ms) [L#289]
+
+ 48) test log_access/6 logs access successfully (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:289
+     Assertion with == failed
+     code:  assert result == :ok
+     left:  {:error,
+             #Ecto.Changeset<
+               action: nil,
+               changes: %{},
+               errors: [
+                 display_name: {"has already been taken", []}
+               ],
+               data: nil,
+               valid?: false,
+               ...
+             >}
+     right: :ok
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:306: (test)
+
+  * test list_replays/1 lists replays with filters [L#243]  * test list_replays/1 lists replays with filters (1.3ms) [L#243]
+
+ 49) test list_replays/1 lists replays with filters (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:243
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: not a list
+
+     code: assert length(list) == 1
+     stacktrace:
+       :erlang.length({:ok, []})
+       test/game_bot/replay/storage_test.exs:264: (test)
+
+  * test get_replay/2 retrieves a replay by ID [L#104]  * test get_replay/2 retrieves a replay by ID (0.7ms) [L#104]
+  * test cleanup_old_replays/1 deletes old replays [L#331]  * test cleanup_old_replays/1 deletes old replays (0.6ms) [L#331]
+
+ 50) test cleanup_old_replays/1 deletes old replays (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:331
+     Assertion with == failed
+     code:  assert count == 5
+     left:  {:ok, 0}
+     right: 5
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:347: (test)
+
+  * test store_replay/1 stores a replay successfully [L#63]  * test store_replay/1 stores a replay successfully (0.7ms) [L#63]
+
+ 51) test store_replay/1 stores a replay successfully (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:63
+     ** (KeyError) key :replay_id not found in: {:ok,
+      %{
+        mode: :two_player,
+        start_time: ~U[2025-03-14 09:12:34.576000Z],
+        created_at: ~U[2025-03-14 10:12:34.576000Z],
+        game_id: "test-game-8389",
+        replay_id: "e90ce4c6-b5d1-44b4-aacd-bbc4445a4e9a",
+        display_name: "test-replay-123",
+        end_time: ~U[2025-03-14 10:12:34.576000Z],
+        event_count: 42,
+        base_stats: %{
+          total_guesses: 75,
+          rounds: 10,
+          player_count: 2,
+          team_count: 2,
+          duration_seconds: 3600
+        },
+        mode_stats: %{
+          successful_guesses: 50,
+          failed_guesses: 25,
+          team_scores: %{"team1" => 30, "team2" => 20},
+          winning_team: "team1",
+          average_guess_time: 15.5
+        },
+        version_map: %{"game_completed" => 1, "game_started" => 1}
+      }}
+
+     If you are using the dot syntax, such as map.field, make sure the left-hand side of the dot is a map
+     code: assert stored_replay.replay_id == replay.replay_id
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:76: (test)
+
+  * test list_replays/1 lists replays with default params [L#219]  * test list_replays/1 lists replays with default params (0.5ms) [L#219]
+
+ 52) test list_replays/1 lists replays with default params (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:219
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: not a list
+
+     code: assert length(list) == 2
+     stacktrace:
+       :erlang.length({:ok, []})
+       test/game_bot/replay/storage_test.exs:239: (test)
+
+  * test cleanup_old_replays/1 handles delete errors [L#351]  * test cleanup_old_replays/1 handles delete errors (0.7ms) [L#351]
+
+ 53) test cleanup_old_replays/1 handles delete errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:351
+     match (=) failed
+     code:  assert {:error, "database error"} = result
+     left:  {:error, "database error"}
+     right: {:ok, {:ok, 0}}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:366: (test)
+
+
+GameBot.Replay.GameCompletionHandlerSimplifiedTest [test/game_bot/replay/game_completion_handler_simplified_test.exs]
+  * test subscribe/0 subscribes to game_completed events [L#224]  * test subscribe/0 subscribes to game_completed events (0.1ms) [L#224]
+  * test handle_event/1 returns error when event processing fails [L#196]  * test handle_event/1 returns error when event processing fails (0.00ms) [L#196]
+  * test handle_event/1 successfully processes game completion event [L#163]  * test handle_event/1 successfully processes game completion event (0.00ms) [L#163]
+  * test process_game_completed/1 with manual dependency injection handles game with missing events [L#128]  * test process_game_completed/1 with manual dependency injection handles game with missing events (0.00ms) [L#128]
+  * test process_game_completed/1 with manual dependency injection handles event retrieval failure [L#144]  * test process_game_completed/1 with manual dependency injection handles event retrieval failure (0.00ms) [L#144]
+  * test process_game_completed/1 with manual dependency injection successfully processes a completed game [L#108]  * test process_game_completed/1 with manual dependency injection successfully processes a completed game (0.00ms) [L#108]
+
+GameBot.Domain.GameModes.RaceModeValidationTest [test/game_bot/domain/game_modes/race_mode_validation_test.exs]
+  * test process_guess_pair/3 validation validates player membership [L#72]  * test process_guess_pair/3 validation validates player membership (2.7ms) [L#72]
+  * test process_guess_pair/3 validation validates team existence [L#62]  * test process_guess_pair/3 validation validates team existence (0.00ms) [L#62]
+  * test process_guess_pair/3 validation accepts valid guess pair [L#92]  * test process_guess_pair/3 validation accepts valid guess pair (0.00ms) [L#92]
+  * test init/3 validation accepts valid initialization parameters [L#44]  * test init/3 validation accepts valid initialization parameters (0.00ms) [L#44]
+  * test process_guess_pair/3 validation validates player uniqueness [L#82]  * test process_guess_pair/3 validation validates player uniqueness (0.00ms) [L#82]
+  * test validate_event/1 validates RaceModeTimeExpired event [L#141]  * test validate_event/1 validates RaceModeTimeExpired event (0.00ms) [L#141]
+  * test init/3 validation validates guild_id presence [L#34]  * test init/3 validation validates guild_id presence (0.00ms) [L#34]
+  * test validate_event/1 rejects events with wrong mode [L#156]  * test validate_event/1 rejects events with wrong mode (0.00ms) [L#156]
+  * test validate_event/1 validates GuessProcessed event [L#118]  * test validate_event/1 validates GuessProcessed event (0.00ms) [L#118]
+  * test init/3 validation validates time_limit is positive [L#39]  * test init/3 validation validates time_limit is positive (0.00ms) [L#39]
+  * test init/3 validation validates minimum team count [L#29]  * test init/3 validation validates minimum team count (0.00ms) [L#29]
+  * test validate_event/1 validates GameStarted event [L#104]  * test validate_event/1 validates GameStarted event (0.00ms) [L#104]
+
+GameBot.Domain.Events.PubSubIntegrationTest [test/game_bot/domain/events/pubsub_integration_test.exs]
+  * test enhanced PubSub integration pipeline uses enhanced broadcasting when feature is enabled [L#215]03:12:34.580 [info] The function passed as a handler with ID "test-broadcast-handler-#Reference<0.2661887389.202637316.213864>" is a local function.
+This means that it is either an anonymous function or a capture of a function without a module specified. That may cause a performance penalty when calling that handler. For more details see the note in `telemetry:attach/4` documentation.
+
+https://hexdocs.pm/telemetry/telemetry.html#attach/4
+  * test enhanced PubSub integration pipeline uses enhanced broadcasting when feature is enabled (105.3ms) [L#215]
+  * test enhanced PubSub integration direct subscription to game topic works [L#233]03:12:34.688 [info] The function passed as a handler with ID "test-broadcast-handler-#Reference<0.2661887389.202637319.190558>" is a local function.
+This means that it is either an anonymous function or a capture of a function without a module specified. That may cause a performance penalty when calling that handler. For more details see the note in `telemetry:attach/4` documentation.
+
+https://hexdocs.pm/telemetry/telemetry.html#attach/4
+  * test enhanced PubSub integration direct subscription to game topic works (1.0ms) [L#233]
+  * test enhanced PubSub integration pipeline uses normal broadcasting when feature is disabled [L#197]03:12:34.689 [info] The function passed as a handler with ID "test-broadcast-handler-#Reference<0.2661887389.202637319.190579>" is a local function.
+This means that it is either an anonymous function or a capture of a function without a module specified. That may cause a performance penalty when calling that handler. For more details see the note in `telemetry:attach/4` documentation.
+
+https://hexdocs.pm/telemetry/telemetry.html#attach/4
+  * test enhanced PubSub integration pipeline uses normal broadcasting when feature is disabled (215.0ms) [L#197]
+
+GameBot.Domain.Events.EventRegistryTest [test/game_bot/domain/events/event_registry_test.exs]
+  * test EventRegistry list all registered events [L#135]  * test EventRegistry list all registered events (0.00ms) [L#135]
+  * test EventRegistry handles errors in deserialization [L#119]  * test EventRegistry handles errors in deserialization (0.00ms) [L#119]
+  * test EventRegistry handles binary data properly [L#177]  * test EventRegistry handles binary data properly (0.1ms) [L#177]
+  * test EventRegistry deserializes events [L#93]  * test EventRegistry deserializes events (0.00ms) [L#93]
+  * test EventRegistry cleanup works correctly [L#157]  * test EventRegistry cleanup works correctly (0.00ms) [L#157]
+  * test EventRegistry registers and retrieves events [L#49]  * test EventRegistry registers and retrieves events (9.9ms) [L#49]
+  * test EventRegistry handles versioned events [L#64]  * test EventRegistry handles versioned events (22.4ms) [L#64]
+  * test EventRegistry starts and registers initial events [L#42]  * test EventRegistry starts and registers initial events (0.1ms) [L#42]
+
+Finished in 53.7 seconds (2.4s async, 51.3s sync)
+548 tests, 53 failures, 26 excluded, 15 invalid, 9 skipped
+
+Cleaning up test environment...
+
+Cleaning up repository connections...

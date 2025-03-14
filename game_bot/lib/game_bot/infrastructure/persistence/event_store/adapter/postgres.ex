@@ -48,6 +48,19 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
 
   @impl Ecto.Repo
   def init(_type, config) do
+    # Make sure we have all essential database configuration
+    config =
+      config
+      |> Keyword.put_new(:pool_size, 10)
+      |> Keyword.put_new(:queue_target, 200)
+      |> Keyword.put_new(:queue_interval, 1000)
+
+    # Register this process to ensure it can be found by EventStore
+    # by adding an application environment variable
+    if config[:register_process] != false do
+      Application.put_env(:event_store, __MODULE__, self())
+    end
+
     {:ok, config}
   end
 
@@ -161,22 +174,18 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
   # Helper functions
 
   defp prepare_events(stream_id, events) when is_list(events) do
+    # Ensure every event has a stream_id that matches the one provided
     prepared = Enum.map(events, fn event ->
-      case event do
-        %{stream_id: _} ->
-          # Already has atom stream_id, remove any string version to avoid duplicates
-          Map.delete(event, "stream_id")
-        %{"stream_id" => _} ->
-          # Already has string stream_id, convert to atom version
-          event
-          |> Map.delete("stream_id")
-          |> Map.put(:stream_id, stream_id)
-        _ when is_map(event) ->
-          # No stream_id, add it
-          Map.put(event, :stream_id, stream_id)
-        _ ->
-          # Not a map, can't add stream_id
-          event
+      if is_map(event) do
+        # Force the stream_id to be the one passed to the function
+        # Use Map.merge to add both atom and string versions, maintaining original structure
+        Map.merge(event, %{
+          :stream_id => stream_id,
+          "stream_id" => stream_id
+        })
+      else
+        # Cannot process non-map events
+        event
       end
     end)
     {:ok, prepared}
@@ -214,68 +223,78 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
   end
 
   # Extract expected version from tuple form if necessary
-  defp normalize_expected_version({:ok, version}) when is_integer(version), do: version
-  defp normalize_expected_version(version), do: version
+  defp normalize_expected_version(:no_stream), do: 0
+  defp normalize_expected_version(:any), do: :any
+  defp normalize_expected_version(version) when is_integer(version), do: version
+  defp normalize_expected_version(_), do: {:error, Error.validation_error(__MODULE__, "Invalid expected version")}
 
   # Pattern matching for different expected version scenarios
-  defp validate_expected_version(_, :any), do: :ok
-  defp validate_expected_version(0, :no_stream), do: :ok
-  defp validate_expected_version(actual, :stream_exists) when actual > 0, do: :ok
-  defp validate_expected_version(actual, expected) when actual == expected, do: :ok
-  defp validate_expected_version(actual, expected) do
-    {:error, Error.concurrency_error(__MODULE__, "Wrong expected version", %{
-      expected: expected,
-      actual: actual
-    })}
+  defp validate_expected_version(actual_version, :any), do: :ok
+  defp validate_expected_version(actual_version, expected_version) when is_integer(expected_version) do
+    if actual_version == expected_version do
+      :ok
+    else
+      {:error, Error.concurrency_error(__MODULE__, "Stream version mismatch", %{
+        expected: expected_version,
+        actual: actual_version
+      })}
+    end
   end
+  defp validate_expected_version(_, {:error, reason}), do: {:error, reason}
+  defp validate_expected_version(_, _), do: {:error, Error.validation_error(__MODULE__, "Invalid expected version")}
 
   defp append_events(stream_id, current_version, events) do
-    events_with_version = Enum.with_index(events, current_version + 1)
+    # Ensure all events have a stream_id before flattening them for insertion
+    case prepare_events(stream_id, events) do
+      {:ok, prepared_events} ->
+        events_with_version = Enum.with_index(prepared_events, current_version + 1)
 
-    insert_events_query = """
-    INSERT INTO #{@events_table}
-    (stream_id, event_type, event_data, event_metadata, event_version)
-    VALUES
-    #{build_events_values(length(events))}
-    """
+        insert_events_query = """
+        INSERT INTO #{@events_table}
+        (stream_id, event_type, event_data, event_metadata, event_version)
+        VALUES
+        #{build_events_values(length(prepared_events))}
+        """
 
-    update_stream_query = """
-    INSERT INTO #{@streams_table} (id, version)
-    VALUES ($1, $2)
-    ON CONFLICT (id) DO UPDATE
-    SET version = EXCLUDED.version
-    """
+        update_stream_query = """
+        INSERT INTO #{@streams_table} (id, version)
+        VALUES ($1, $2)
+        ON CONFLICT (id) DO UPDATE
+        SET version = EXCLUDED.version
+        """
 
-    new_version = current_version + length(events)
-    try do
-      event_params = flatten_event_params_for_insertion(events_with_version)
-      stream_params = [stream_id, new_version]
+        new_version = current_version + length(prepared_events)
+        try do
+          event_params = flatten_event_params_for_insertion(events_with_version)
+          stream_params = [stream_id, new_version]
 
-      # Change the order: first create/update the stream, then insert events
-      with {:ok, _} <- query(update_stream_query, stream_params),
-           {:ok, _} <- query(insert_events_query, event_params) do
-        {:ok, new_version}
-      else
-        {:error, error} ->
-          # Log the error for debugging
-          require Logger
-          Logger.error("Error in append_events: #{inspect(error)}")
-          Logger.error("Stream ID: #{inspect(stream_id)}")
-          Logger.error("Events: #{inspect(events)}")
+          # Change the order: first create/update the stream, then insert events
+          with {:ok, _} <- query(update_stream_query, stream_params),
+               {:ok, _} <- query(insert_events_query, event_params) do
+            {:ok, new_version}
+          else
+            {:error, error} ->
+              # Log the error for debugging
+              require Logger
+              Logger.error("Error in append_events: #{inspect(error)}")
+              Logger.error("Stream ID: #{inspect(stream_id)}")
+              Logger.error("Events: #{inspect(events)}")
 
-          # Return a more specific error
-          {:error, Error.system_error(__MODULE__, "Failed to append events", error)}
-      end
-    rescue
-      e ->
-        # Log the error for debugging
-        require Logger
-        Logger.error("Error in append_events: #{inspect(e)}")
-        Logger.error("Stream ID: #{inspect(stream_id)}")
-        Logger.error("Events: #{inspect(events)}")
+              # Return a more specific error
+              {:error, Error.system_error(__MODULE__, "Failed to append events", error)}
+          end
+        rescue
+          e ->
+            # Log the error for debugging
+            require Logger
+            Logger.error("Error in append_events: #{inspect(e)}")
+            Logger.error("Stream ID: #{inspect(stream_id)}")
+            Logger.error("Events: #{inspect(events)}")
 
-        # Return a more specific error
-        {:error, Error.system_error(__MODULE__, "Unexpected exception: #{Exception.message(e)}", e)}
+            # Return a more specific error
+            {:error, Error.system_error(__MODULE__, "Unexpected exception: #{Exception.message(e)}", e)}
+        end
+      error -> error
     end
   end
 

@@ -3,7 +3,7 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
   import ExUnit.CaptureLog
 
   alias GameBot.Infrastructure.Persistence.Repo
-  alias GameBot.Infrastructure.Persistence.Repo.Postgres
+  alias GameBot.Infrastructure.Persistence.Repo.Postgres, as: Repo
   alias GameBot.Infrastructure.Persistence.Error
   alias Ecto.Changeset
 
@@ -89,57 +89,63 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
     end
   end
 
+  # Test-specific setup
   setup do
-    # Ensure Repo.Postgres is properly registered
-    Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.Postgres)
+    # Check out a connection for this test
+    repo_result = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
 
-    # Ensure the repository is started
-    unless Process.whereis(GameBot.Infrastructure.Persistence.Repo.Postgres) do
-      {:ok, _} = GameBot.Infrastructure.Persistence.Repo.Postgres.start_link([])
-      Process.sleep(100) # Give it time to fully initialize
+    # Handle different return values from checkout
+    case repo_result do
+      :ok -> :ok
+      {:ok, _conn} -> :ok
+      {:already, :owner} -> :ok
+      other ->
+        raise "Unexpected result from repository checkout: #{inspect(other)}"
     end
 
-    # Create test table
-    Postgres.query!("DROP TABLE IF EXISTS test_schema")
-    Postgres.query!("CREATE TABLE IF NOT EXISTS test_schema (
+    # Create the test_schema table for TestSchema struct
+    Repo.query!("DROP TABLE IF EXISTS test_schema", [])
+    Repo.query!("""
+    CREATE TABLE test_schema (
       id SERIAL PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
+      name TEXT NOT NULL,
       value INTEGER NOT NULL,
-      inserted_at TIMESTAMP NOT NULL,
-      updated_at TIMESTAMP NOT NULL
-    )")
+      inserted_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+    )
+    """, [])
 
-    on_exit(fn ->
-      Postgres.query!("DROP TABLE IF EXISTS test_schema")
-    end)
+    # Create a test table for our other transactions if it doesn't exist
+    Repo.query!("CREATE TABLE IF NOT EXISTS test_transactions (id SERIAL PRIMARY KEY, value TEXT)", [])
 
-    # Set the log level to info to ensure the logs are captured
-    :ok = Logger.configure(level: :info)
+    # Clean the test table for each test
+    Repo.query!("DELETE FROM test_transactions", [])
 
-    :ok
+    # Return the repository for use in the tests
+    {:ok, %{repo: Repo}}
   end
 
   describe "transaction boundaries" do
     test "commits all changes on success" do
-      result = Postgres.execute_transaction(fn ->
-        {:ok, record1} = Postgres.insert_record(%TestSchema{name: "test1", value: 1})
-        {:ok, record2} = Postgres.insert_record(%TestSchema{name: "test2", value: 2})
+      result = Repo.execute_transaction(fn ->
+        {:ok, record1} = Repo.insert_record(%TestSchema{name: "test1", value: 1})
+        {:ok, record2} = Repo.insert_record(%TestSchema{name: "test2", value: 2})
         [record1, record2]
       end)
 
       assert {:ok, [%TestSchema{}, %TestSchema{}]} = result
 
       # Verify both records were inserted
-      assert {:ok, record1} = Postgres.fetch(TestSchema, 1)
+      assert {:ok, record1} = Repo.fetch(TestSchema, 1)
       assert record1.name == "test1"
-      assert {:ok, record2} = Postgres.fetch(TestSchema, 2)
+      assert {:ok, record2} = Repo.fetch(TestSchema, 2)
       assert record2.name == "test2"
     end
 
     test "rolls back all changes on error" do
-      result = Postgres.execute_transaction(fn ->
-        {:ok, _} = Postgres.insert_record(%TestSchema{name: "test1", value: 1})
-        {:error, error} = Postgres.insert_record(%TestSchema{name: "t", value: 2})  # Invalid name
+      result = Repo.execute_transaction(fn ->
+        {:ok, _} = Repo.insert_record(%TestSchema{name: "test1", value: 1})
+        {:error, error} = Repo.insert_record(%TestSchema{name: "t", value: 2})  # Invalid name
         # In the real execute_transaction, we get a rollback before reaching this point
         # But in our test we need to explicitly return the error
         {:error, error}
@@ -148,12 +154,12 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
       assert {:error, %Error{type: :validation}} = result
 
       # Verify neither record was inserted
-      assert {:error, %Error{type: :not_found}} = Postgres.fetch(TestSchema, 1)
+      assert {:error, %Error{type: :not_found}} = Repo.fetch(TestSchema, 1)
     end
 
     test "handles exceptions by rolling back" do
-      result = Postgres.execute_transaction(fn ->
-        {:ok, _} = Postgres.insert_record(%TestSchema{name: "test1", value: 1})
+      result = Repo.execute_transaction(fn ->
+        {:ok, _} = Repo.insert_record(%TestSchema{name: "test1", value: 1})
         raise "Deliberate error"
         :should_not_reach_here
       end)
@@ -161,13 +167,13 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
       assert {:error, %Error{}} = result
 
       # Verify record was not inserted
-      assert {:error, %Error{type: :not_found}} = Postgres.fetch(TestSchema, 1)
+      assert {:error, %Error{type: :not_found}} = Repo.fetch(TestSchema, 1)
     end
 
     test "respects timeout settings" do
       # Set up a transaction that will take longer than the timeout
-      result = Postgres.execute_transaction(fn ->
-        {:ok, _} = Postgres.insert_record(%TestSchema{name: "test1", value: 1})
+      result = Repo.execute_transaction(fn ->
+        {:ok, _} = Repo.insert_record(%TestSchema{name: "test1", value: 1})
         # Sleep longer than our timeout but in a way that doesn't cause DBConnection timeouts
         # Use a combination of smaller sleeps
         for _ <- 1..5 do
@@ -182,18 +188,18 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
       # Verify record was not inserted - this may fail if the table doesn't exist
       # so we'll wrap it in a try/rescue
       try do
-        assert {:error, %Error{type: :not_found}} = Postgres.fetch(TestSchema, 1)
+        assert {:error, %Error{type: :not_found}} = Repo.fetch(TestSchema, 1)
       rescue
         _ -> :ok # Table might not exist, which is fine - the transaction failed
       end
     end
 
     test "supports nested transactions" do
-      result = Postgres.execute_transaction(fn ->
-        {:ok, record1} = Postgres.insert_record(%TestSchema{name: "outer", value: 1})
+      result = Repo.execute_transaction(fn ->
+        {:ok, record1} = Repo.insert_record(%TestSchema{name: "outer", value: 1})
 
-        inner_result = Postgres.execute_transaction(fn ->
-          {:ok, record2} = Postgres.insert_record(%TestSchema{name: "inner", value: 2})
+        inner_result = Repo.execute_transaction(fn ->
+          {:ok, record2} = Repo.insert_record(%TestSchema{name: "inner", value: 2})
           record2
         end)
 
@@ -204,8 +210,8 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
       assert {:ok, [%TestSchema{name: "outer"}, {:ok, %TestSchema{name: "inner"}}]} = result
 
       # Verify both records were inserted
-      assert {:ok, _} = Postgres.fetch(TestSchema, 1)
-      assert {:ok, _} = Postgres.fetch(TestSchema, 2)
+      assert {:ok, _} = Repo.fetch(TestSchema, 1)
+      assert {:ok, _} = Repo.fetch(TestSchema, 2)
     end
   end
 

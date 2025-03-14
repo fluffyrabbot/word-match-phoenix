@@ -1,0 +1,1296 @@
+Compiling 2 files (.ex)
+Generated game_bot app
+Setting up event store schema and tables...
+Cleaning up previous event store schema...
+Event store setup complete!
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo.Postgres
+Starting required applications...
+  ✓ Started phoenix
+  ✓ Started phoenix_ecto
+  ✓ Started postgrex
+  ✓ Started ecto
+  ✓ Started ecto_sql
+  ✓ Started eventstore
+
+Starting repositories...
+  ✓ All repositories started successfully
+
+Configuring SQL sandbox mode...
+  ✓ Started and configured GameBot.Infrastructure.Persistence.Repo
+  ✓ Started and configured GameBot.Infrastructure.Persistence.Repo.Postgres
+  ✓ Started and configured GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+
+Setting up event store schema and tables...
+  ✓ Event store setup complete!
+
+Cleaning up previous test data...
+  ✓ Cleaned event_store tables in GameBot.Infrastructure.Persistence.Repo
+  ✓ Cleaned event_store tables in GameBot.Infrastructure.Persistence.Repo.Postgres
+  ✓ Cleaned event_store tables in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+
+Test environment initialized with:
+- Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+- Testing repositories: [GameBot.Infrastructure.Persistence.Repo, GameBot.Infrastructure.Persistence.Repo.Postgres, GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres]
+Running ExUnit with seed: 193147, max_cases: 1
+Excluding tags: [:skip_db, :skip_in_ci]
+
+
+GameBot.Domain.Events.GameEventsTest [test/game_bot/domain/events/game_events_test.exs]
+  * test GuessProcessed serializes and deserializes correctly [L#200]  * test GuessProcessed serializes and deserializes correctly (17.1ms) [L#200]
+
+GameBotWeb.PageControllerTest [test/game_bot_web/controllers/page_controller_test.exs]
+  * test GET / [L#4]02:24:35.463 [warning] Event store is not running, cannot reset
+  * test GET / (78.4ms) [L#4]
+
+  1) test GET / (GameBotWeb.PageControllerTest)
+     test/game_bot_web/controllers/page_controller_test.exs:4
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: the table identifier does not refer to an existing ETS table
+
+     code: conn = get(conn, ~p"/")
+     stacktrace:
+       (stdlib 6.2) :ets.lookup(GameBotWeb.Endpoint, :secret_key_base)
+       (game_bot 0.1.0) deps/phoenix/lib/phoenix/endpoint.ex:529: GameBotWeb.Endpoint.config/2
+       (game_bot 0.1.0) lib/game_bot_web/endpoint.ex:1: GameBotWeb.Endpoint.call/2
+       (phoenix 1.7.20) lib/phoenix/test/conn_test.ex:225: Phoenix.ConnTest.dispatch/5
+       test/game_bot_web/controllers/page_controller_test.exs:5: (test)
+
+
+GameBot.Infrastructure.Persistence.EventStore.SimpleTest [test/game_bot/infrastructure/persistence/event_store/simple_test.exs]
+  * test basic operations with EventStore [L#23]  * test basic operations with EventStore (119.9ms) [L#23]
+
+  2) test basic operations with EventStore (GameBot.Infrastructure.Persistence.EventStore.SimpleTest)
+     test/game_bot/infrastructure/persistence/event_store/simple_test.exs:23
+     EventStore is not running
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/simple_test.exs:14: GameBot.Infrastructure.Persistence.EventStore.SimpleTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/simple_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.SimpleTest.__ex_unit__/2
+
+
+GameBot.Infrastructure.Persistence.EventStore.AdapterTest [test/game_bot/infrastructure/persistence/event_store/adapter_test.exs]
+  * test adapter functions stream_version/2 delegates to configured adapter [L#67]  * test adapter functions stream_version/2 delegates to configured adapter (0.1ms) [L#67]
+
+  3) test adapter functions stream_version/2 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:67
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:14: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit__/2
+
+  * test adapter functions read_stream_forward/4 delegates to configured adapter [L#49]  * test adapter functions read_stream_forward/4 delegates to configured adapter (0.1ms) [L#49]
+
+  4) test adapter functions read_stream_forward/4 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:49
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:14: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit__/2
+
+  * test adapter functions append_to_stream/4 delegates to configured adapter [L#35]  * test adapter functions append_to_stream/4 delegates to configured adapter (0.00ms) [L#35]
+
+  5) test adapter functions append_to_stream/4 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:35
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:14: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit__/2
+
+  * test adapter functions delete_stream/3 delegates to configured adapter [L#84]  * test adapter functions delete_stream/3 delegates to configured adapter (0.00ms) [L#84]
+
+  6) test adapter functions delete_stream/3 delegates to configured adapter (GameBot.Infrastructure.Persistence.EventStore.AdapterTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:84
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:14: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/adapter_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.AdapterTest.__ex_unit__/2
+
+
+GameBot.Test.DatabaseManagerTest [test/game_bot/test/database_manager_test.exs]
+  * test async tests concurrent event store operations [L#54]02:24:35.618 [error] Postgrex.Protocol (#PID<0.790.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.618 [error] Postgrex.Protocol (#PID<0.797.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.618 [error] Postgrex.Protocol (#PID<0.793.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.618 [error] Postgrex.Protocol (#PID<0.791.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.618 [error] Postgrex.Protocol (#PID<0.795.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.618 [error] Postgrex.Protocol (#PID<0.792.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.618 [error] Postgrex.Protocol (#PID<0.794.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.619 [error] Postgrex.Protocol (#PID<0.799.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.619 [error] Postgrex.Protocol (#PID<0.798.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+02:24:35.619 [error] Postgrex.Protocol (#PID<0.796.0>) disconnected: ** (DBConnection.ConnectionError) tcp send: closed
+  * test async tests concurrent event store operations (276.6ms) [L#54]
+
+  7) test async tests concurrent event store operations (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:54
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: assert {:ok, _} = EventStore.append_to_stream(stream_id, :any_version, [event])
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.append_to_stream/4
+       test/game_bot/test/database_manager_test.exs:58: (test)
+
+  * test sync tests handles database errors gracefully [L#34]  * test sync tests handles database errors gracefully (581.0ms) [L#34]
+
+  8) test sync tests handles database errors gracefully (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:34
+     ** (Postgrex.Error) ERROR 42883 (undefined_function) function invalid_function() does not exist
+
+         query: SELECT invalid_function()
+
+         hint: No function matches the given name and argument types. You might need to add explicit type casts.
+     code: assert {:error, _} = Repo.transaction(fn ->
+     stacktrace:
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1096: Ecto.Adapters.SQL.raise_sql_call_error/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+       (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+       test/game_bot/test/database_manager_test.exs:35: (test)
+
+  * test error handling handles transaction failures [L#159]  * test error handling handles transaction failures (1198.7ms) [L#159]
+
+  9) test error handling handles transaction failures (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:159
+     ** (Postgrex.Error) ERROR 42P01 (undefined_table) relation "nonexistent_table" does not exist
+
+         query: SELECT * FROM nonexistent_table
+     code: assert {:error, _} = Repo.transaction(fn ->
+     stacktrace:
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1096: Ecto.Adapters.SQL.raise_sql_call_error/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+       (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+       test/game_bot/test/database_manager_test.exs:160: (test)
+
+  * test sync tests event store operations [L#25]02:24:37.992 [error] Repository GameBot.Infrastructure.Persistence.Repo failed to start
+02:24:37.992 [error] Repository GameBot.Infrastructure.Persistence.Repo is not running, sandbox setup failed
+  * test sync tests event store operations (412.0ms) [L#25]
+
+ 10) test sync tests event store operations (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:25
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: assert {:ok, _} = EventStore.append_to_stream(stream_id, :any_version, [event])
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.append_to_stream/4
+       test/game_bot/test/database_manager_test.exs:29: (test)
+
+  * test error handling handles event store errors [L#165]  * test error handling handles event store errors (327.9ms) [L#165]
+
+ 11) test error handling handles event store errors (GameBot.Test.DatabaseManagerTest)
+     test/game_bot/test/database_manager_test.exs:165
+     ** (RuntimeError) could not lookup GameBot.Infrastructure.Persistence.EventStore because it was not started or it does not exist
+     code: EventStore.read_stream_forward("nonexistent-stream")
+     stacktrace:
+       (eventstore 1.4.8) lib/event_store/config/store.ex:65: EventStore.Config.Store.lookup/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.parse_opts/1
+       (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store.ex:7: GameBot.Infrastructure.Persistence.EventStore.read_stream_forward/4
+       test/game_bot/test/database_manager_test.exs:168: (test)
+
+
+GameBot.Infrastructure.Persistence.Repo.MockTest [test/game_bot/infrastructure/persistence/repo/mock_test.exs]
+  * test uses mock repository for insert operations [L#103]In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo
+Before insert, implementation is: GameBot.Infrastructure.Persistence.Repo
+Executing insert through Postgres module
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Mock insert was called: false
+Insert result: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 42792, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}", details: nil}}
+  * test uses mock repository for insert operations (228.7ms) [L#103]
+
+ 12) test uses mock repository for insert operations (GameBot.Infrastructure.Persistence.Repo.MockTest)
+     test/game_bot/infrastructure/persistence/repo/mock_test.exs:103
+     match (=) failed
+     code:  assert {:ok, %{id: 1}} = result
+     left:  {:ok, %{id: 1}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 42792, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}",
+               details: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/mock_test.exs:132: (test)
+
+  * test handles error from repository in transactions [L#65]In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo
+Setting up error transaction mock expectation
+Before error transaction, implementation is: GameBot.Infrastructure.Persistence.Repo
+Executing transaction that should fail
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+This callback should not be called
+Mock transaction was called for error case: false
+Transaction error result: {:ok, :should_not_reach_here}
+  * test handles error from repository in transactions (1.0ms) [L#65]
+
+ 13) test handles error from repository in transactions (GameBot.Infrastructure.Persistence.Repo.MockTest)
+     test/game_bot/infrastructure/persistence/repo/mock_test.exs:65
+     Assertion with == failed
+     code:  assert result == {:error, :mock_error}
+     left:  {:ok, :should_not_reach_here}
+     right: {:error, :mock_error}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/mock_test.exs:98: (test)
+
+  * test uses mock repository for transactions [L#27]In test setup, checking configured repository implementation
+Current repository implementation: GameBot.Infrastructure.Persistence.Repo
+Setting up transaction mock expectation
+Before transaction, implementation is: GameBot.Infrastructure.Persistence.Repo
+Executing transaction through Postgres module
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Inside transaction callback
+Mock transaction was called: false
+Transaction result: {:ok, :transaction_result}
+  * test uses mock repository for transactions (0.9ms) [L#27]
+
+ 14) test uses mock repository for transactions (GameBot.Infrastructure.Persistence.Repo.MockTest)
+     test/game_bot/infrastructure/persistence/repo/mock_test.exs:27
+     The mock transaction function was not called
+     code: assert was_called, "The mock transaction function was not called"
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/mock_test.exs:61: (test)
+
+
+GameBot.Replay.StorageTest [test/game_bot/replay/storage_test.exs]
+  * test get_replay/2 retrieves a replay with events [L#138]  * test get_replay/2 retrieves a replay with events (260.8ms) [L#138]
+
+ 15) test get_replay/2 retrieves a replay with events (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:138
+     match (=) failed
+     code:  assert {:ok, {retrieved_replay, retrieved_events}} = result
+     left:  {:ok, {retrieved_replay, retrieved_events}}
+     right: {:error, :replay_not_found}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:157: (test)
+
+  * test list_replays/1 returns empty list when no replays match filters [L#269]  * test list_replays/1 returns empty list when no replays match filters (12.1ms) [L#269]
+
+ 16) test list_replays/1 returns empty list when no replays match filters (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:269
+     Assertion with == failed
+     code:  assert list == []
+     left:  {:ok, []}
+     right: []
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:283: (test)
+
+  * test list_replays/1 lists replays with filters [L#243]  * test list_replays/1 lists replays with filters (9.4ms) [L#243]
+
+ 17) test list_replays/1 lists replays with filters (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:243
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: not a list
+
+     code: assert length(list) == 1
+     stacktrace:
+       :erlang.length({:ok, []})
+       test/game_bot/replay/storage_test.exs:264: (test)
+
+  * test store_replay/1 handles insert errors [L#82]02:24:40.307 [error] [No Guild] Database operation failed after retries or non-recoverable: %Postgrex.Error{message: nil, postgres: %{code: :not_null_violation, line: "1988", message: "null value in column \"guild_id\" of relation \"game_replays\" violates not-null constraint", table: "game_replays", file: "execMain.c", unknown: "ERROR", column: "guild_id", severity: "ERROR", schema: "public", routine: "ExecConstraints", detail: "Failing row contains (ae31b05a-5ef3-4242-a177-735700a1ddd6, test-game-1413, test-replay-123, two_player, null, 2025-03-14 08:24:40.304, 2025-03-14 09:24:40.304, 42, {\"rounds\": 10, \"team_count\": 2, \"player_count\": 2, \"total_guesse..., {\"team_scores\": {\"team1\": 30, \"team2\": 20}, \"winning_team\": \"tea..., {\"game_started\": 1, \"game_completed\": 1}, 2025-03-14 09:24:40.304, 2025-03-14 09:24:40, 2025-03-14 09:24:40).", pg_code: "23502"}, connection_id: 7188, query: nil}
+02:24:40.307 [warning] [No Guild] Transaction failed: %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Transaction, message: "Database error: %Postgrex.Error{message: nil, postgres: %{code: :not_null_violation, line: \"1988\", message: \"null value in column \\\"guild_id\\\" of relation \\\"game_replays\\\" violates not-null constraint\", table: \"game_replays\", file: \"execMain.c\", unknown: \"ERROR\", column: \"guild_id\", severity: \"ERROR\", schema: \"public\", routine: \"ExecConstraints\", detail: \"Failing row contains (ae31b05a-5ef3-4242-a177-735700a1ddd6, test-game-1413, test-replay-123, two_player, null, 2025-03-14 08:24:40.304, 2025-03-14 09:24:40.304, 42, {\\\"rounds\\\": 10, \\\"team_count\\\": 2, \\\"player_count\\\": 2, \\\"total_guesse..., {\\\"team_scores\\\": {\\\"team1\\\": 30, \\\"team2\\\": 20}, \\\"winning_team\\\": \\\"tea..., {\\\"game_started\\\": 1, \\\"game_completed\\\": 1}, 2025-03-14 09:24:40.304, 2025-03-14 09:24:40, 2025-03-14 09:24:40).\", pg_code: \"23502\"}, connection_id: 7188, query: nil}", details: nil}
+  * test store_replay/1 handles insert errors (2.8ms) [L#82]
+
+ 18) test store_replay/1 handles insert errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:82
+     match (=) failed
+     code:  assert {:error, %Ecto.Changeset{} = error_changeset} = result
+     left:  {:error, %Ecto.Changeset{} = error_changeset}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Transaction,
+               message: "Database error: %Postgrex.Error{message: nil, postgres: %{code: :not_null_violation, line: \"1988\", message: \"null value in column \\\"guild_id\\\" of relation \\\"game_replays\\\" violates not-null constraint\", table: \"game_replays\", file: \"execMain.c\", unknown: \"ERROR\", column: \"guild_id\", severity: \"ERROR\", schema: \"public\", routine: \"ExecConstraints\", detail: \"Failing row contains (ae31b05a-5ef3-4242-a177-735700a1ddd6, test-game-1413, test-replay-123, two_player, null, 2025-03-14 08:24:40.304, 2025-03-14 09:24:40.304, 42, {\\\"rounds\\\": 10, \\\"team_count\\\": 2, \\\"player_count\\\": 2, \\\"total_guesse..., {\\\"team_scores\\\": {\\\"team1\\\": 30, \\\"team2\\\": 20}, \\\"winning_team\\\": \\\"tea..., {\\\"game_started\\\": 1, \\\"game_completed\\\": 1}, 2025-03-14 09:24:40.304, 2025-03-14 09:24:40, 2025-03-14 09:24:40).\", pg_code: \"23502\"}, connection_id: 7188, query: nil}",
+               details: nil
+             }}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:97: (test)
+
+  * test store_replay/1 stores a replay successfully [L#63]02:24:40.309 [error] [No Guild] Database operation failed after retries or non-recoverable: %Postgrex.Error{message: nil, postgres: %{code: :not_null_violation, line: "1988", message: "null value in column \"guild_id\" of relation \"game_replays\" violates not-null constraint", table: "game_replays", file: "execMain.c", unknown: "ERROR", column: "guild_id", severity: "ERROR", schema: "public", routine: "ExecConstraints", detail: "Failing row contains (2e5140f3-432d-442e-91b8-3de5870ffc0a, test-game-584, test-replay-123, two_player, null, 2025-03-14 08:24:40.307, 2025-03-14 09:24:40.307, 42, {\"rounds\": 10, \"team_count\": 2, \"player_count\": 2, \"total_guesse..., {\"team_scores\": {\"team1\": 30, \"team2\": 20}, \"winning_team\": \"tea..., {\"game_started\": 1, \"game_completed\": 1}, 2025-03-14 09:24:40.307, 2025-03-14 09:24:40, 2025-03-14 09:24:40).", pg_code: "23502"}, connection_id: 19340, query: nil}
+02:24:40.309 [warning] [No Guild] Transaction failed: %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Transaction, message: "Database error: %Postgrex.Error{message: nil, postgres: %{code: :not_null_violation, line: \"1988\", message: \"null value in column \\\"guild_id\\\" of relation \\\"game_replays\\\" violates not-null constraint\", table: \"game_replays\", file: \"execMain.c\", unknown: \"ERROR\", column: \"guild_id\", severity: \"ERROR\", schema: \"public\", routine: \"ExecConstraints\", detail: \"Failing row contains (2e5140f3-432d-442e-91b8-3de5870ffc0a, test-game-584, test-replay-123, two_player, null, 2025-03-14 08:24:40.307, 2025-03-14 09:24:40.307, 42, {\\\"rounds\\\": 10, \\\"team_count\\\": 2, \\\"player_count\\\": 2, \\\"total_guesse..., {\\\"team_scores\\\": {\\\"team1\\\": 30, \\\"team2\\\": 20}, \\\"winning_team\\\": \\\"tea..., {\\\"game_started\\\": 1, \\\"game_completed\\\": 1}, 2025-03-14 09:24:40.307, 2025-03-14 09:24:40, 2025-03-14 09:24:40).\", pg_code: \"23502\"}, connection_id: 19340, query: nil}", details: nil}
+  * test store_replay/1 stores a replay successfully (2.5ms) [L#63]
+
+ 19) test store_replay/1 stores a replay successfully (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:63
+     match (=) failed
+     code:  assert {:ok, stored_replay} = result
+     left:  {:ok, stored_replay}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Transaction,
+               message: "Database error: %Postgrex.Error{message: nil, postgres: %{code: :not_null_violation, line: \"1988\", message: \"null value in column \\\"guild_id\\\" of relation \\\"game_replays\\\" violates not-null constraint\", table: \"game_replays\", file: \"execMain.c\", unknown: \"ERROR\", column: \"guild_id\", severity: \"ERROR\", schema: \"public\", routine: \"ExecConstraints\", detail: \"Failing row contains (2e5140f3-432d-442e-91b8-3de5870ffc0a, test-game-584, test-replay-123, two_player, null, 2025-03-14 08:24:40.307, 2025-03-14 09:24:40.307, 42, {\\\"rounds\\\": 10, \\\"team_count\\\": 2, \\\"player_count\\\": 2, \\\"total_guesse..., {\\\"team_scores\\\": {\\\"team1\\\": 30, \\\"team2\\\": 20}, \\\"winning_team\\\": \\\"tea..., {\\\"game_started\\\": 1, \\\"game_completed\\\": 1}, 2025-03-14 09:24:40.307, 2025-03-14 09:24:40, 2025-03-14 09:24:40).\", pg_code: \"23502\"}, connection_id: 19340, query: nil}",
+               details: nil
+             }}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:75: (test)
+
+  * test get_replay/2 handles event loading errors [L#177]  * test get_replay/2 handles event loading errors (53.9ms) [L#177]
+
+ 20) test get_replay/2 handles event loading errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:177
+     Assertion with == failed
+     code:  assert result == {:error, :stream_not_found}
+     left:  {:error, :replay_not_found}
+     right: {:error, :stream_not_found}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:196: (test)
+
+  * test cleanup_old_replays/1 handles delete errors [L#351]  * test cleanup_old_replays/1 handles delete errors (4.4ms) [L#351]
+
+ 21) test cleanup_old_replays/1 handles delete errors (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:351
+     match (=) failed
+     code:  assert {:error, "database error"} = result
+     left:  {:error, "database error"}
+     right: {:ok, {:ok, 0}}
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:366: (test)
+
+  * test list_replays/1 lists replays with default params [L#219]  * test list_replays/1 lists replays with default params (3.6ms) [L#219]
+
+ 22) test list_replays/1 lists replays with default params (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:219
+     ** (ArgumentError) errors were found at the given arguments:
+
+       * 1st argument: not a list
+
+     code: assert length(list) == 2
+     stacktrace:
+       :erlang.length({:ok, []})
+       test/game_bot/replay/storage_test.exs:239: (test)
+
+  * test cleanup_old_replays/1 deletes old replays [L#331]  * test cleanup_old_replays/1 deletes old replays (4.1ms) [L#331]
+
+ 23) test cleanup_old_replays/1 deletes old replays (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:331
+     Assertion with == failed
+     code:  assert count == 5
+     left:  {:ok, 0}
+     right: 5
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:347: (test)
+
+  * test log_access/6 returns error on failed insert [L#310]02:24:40.392 [error] Failed to log replay access: [guild_id: {"must be a valid Discord guild ID", [validation: :format]}, user_id: {"must be a valid Discord user ID", [validation: :format]}]
+  * test log_access/6 returns error on failed insert (2.9ms) [L#310]
+
+ 24) test log_access/6 returns error on failed insert (GameBot.Replay.StorageTest)
+     test/game_bot/replay/storage_test.exs:310
+     Assertion with == failed
+     code:  assert changeset.errors == [user_id: {"is invalid", []}]
+     left:  [
+              guild_id: {"must be a valid Discord guild ID",
+               [validation: :format]},
+              user_id: {"must be a valid Discord user ID",
+               [validation: :format]}
+            ]
+     right: [user_id: {"is invalid", []}]
+     stacktrace:
+       test/game_bot/replay/storage_test.exs:325: (test)
+
+
+GameBot.Infrastructure.Persistence.Repo.PostgresTest [test/game_bot/infrastructure/persistence/repo/postgres_test.exs]
+  * test insert_record/2 handles validation errors [L#83]  * test insert_record/2 handles validation errors (184.0ms) [L#83]
+
+ 25) test insert_record/2 handles validation errors (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:83
+     ** (exit) exited in: DBConnection.Holder.checkout(#PID<0.1245.0>, [log: #Function<13.132594008/1 in Ecto.Adapters.SQL.with_log/3>, pool: DBConnection.Ownership, repo: GameBot.Infrastructure.Persistence.Repo.Postgres, timeout: 15000, pool_size: 10, queue_target: 200, queue_interval: 1000])
+         ** (EXIT) shutdown: "owner #PID<0.1243.0> exited"
+     stacktrace:
+       (db_connection 2.7.0) lib/db_connection/holder.ex:97: DBConnection.Holder.checkout/3
+       (db_connection 2.7.0) lib/db_connection/holder.ex:78: DBConnection.Holder.checkout/3
+       (db_connection 2.7.0) lib/db_connection.ex:1326: DBConnection.checkout/3
+       (db_connection 2.7.0) lib/db_connection.ex:1651: DBConnection.run/6
+       (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+       (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+       (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:547: Ecto.Adapters.SQL.query!/4
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:136: ExUnit.OnExitHandler.exec_callback/1
+       (ex_unit 1.18.2) lib/ex_unit/on_exit_handler.ex:122: ExUnit.OnExitHandler.on_exit_runner_loop/0
+
+  * test delete_record/2 handles concurrent deletions [L#122]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test delete_record/2 handles concurrent deletions (10.7ms) [L#122]
+
+ 26) test delete_record/2 handles concurrent deletions (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:122
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 38300, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:123: (test)
+
+  * test execute_transaction/1 handles nested transactions [L#64]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test execute_transaction/1 handles nested transactions (12.2ms) [L#64]
+
+ 27) test execute_transaction/1 handles nested transactions (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:64
+     match (=) failed
+     code:  assert {:ok, %TestSchema{name: "nested"}} = result
+     left:  {:ok, %GameBot.Infrastructure.Persistence.Repo.PostgresTest.TestSchema{name: "nested"}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Error in transaction: %MatchError{term: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: \"Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \\\"1452\\\", message: \\\"relation \\\\\\\"test_schema\\\\\\\" does not exist\\\", position: \\\"13\\\", file: \\\"parse_relation.c\\\", unknown: \\\"ERROR\\\", severity: \\\"ERROR\\\", routine: \\\"parserOpenTable\\\", pg_code: \\\"42P01\\\"}, connection_id: 20172, query: \\\"INSERT INTO \\\\\\\"test_schema\\\\\\\" (\\\\\\\"name\\\\\\\",\\\\\\\"value\\\\\\\",\\\\\\\"inserted_at\\\\\\\",\\\\\\\"updated_at\\\\\\\") VALUES ($1,$2,$3,$4) RETURNING \\\\\\\"id\\\\\\\"\\\"}\", details: nil}}}",
+               details: %MatchError{
+                 term: {:error,
+                  %GameBot.Infrastructure.Persistence.Error{
+                    type: :system,
+                    context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+                    message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 20172, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}",
+                    details: nil
+                  }}
+               }
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:72: (test)
+
+  * test update_record/2 handles concurrent modifications [L#105]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test update_record/2 handles concurrent modifications (11.6ms) [L#105]
+
+ 28) test update_record/2 handles concurrent modifications (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:105
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 43548, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:106: (test)
+
+  * test execute_transaction/1 rolls back on error [L#53]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test execute_transaction/1 rolls back on error (11.4ms) [L#53]
+
+ 29) test execute_transaction/1 rolls back on error (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:53
+     match (=) failed
+     code:  assert {:error, %Error{type: :validation}} = result
+     left:  {:error, %GameBot.Infrastructure.Persistence.Error{type: :validation}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Error in transaction: %MatchError{term: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: \"Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \\\"1452\\\", message: \\\"relation \\\\\\\"test_schema\\\\\\\" does not exist\\\", position: \\\"13\\\", file: \\\"parse_relation.c\\\", unknown: \\\"ERROR\\\", severity: \\\"ERROR\\\", routine: \\\"parserOpenTable\\\", pg_code: \\\"42P01\\\"}, connection_id: 21364, query: \\\"INSERT INTO \\\\\\\"test_schema\\\\\\\" (\\\\\\\"name\\\\\\\",\\\\\\\"value\\\\\\\",\\\\\\\"inserted_at\\\\\\\",\\\\\\\"updated_at\\\\\\\") VALUES ($1,$2,$3,$4) RETURNING \\\\\\\"id\\\\\\\"\\\"}\", details: nil}}}",
+               details: %MatchError{
+                 term: {:error,
+                  %GameBot.Infrastructure.Persistence.Error{
+                    type: :system,
+                    context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+                    message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 21364, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}",
+                    details: nil
+                  }}
+               }
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:59: (test)
+
+  * test execute_transaction/1 successfully executes transaction [L#44]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test execute_transaction/1 successfully executes transaction (11.6ms) [L#44]
+
+ 30) test execute_transaction/1 successfully executes transaction (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:44
+     match (=) failed
+     code:  assert {:ok, %TestSchema{name: "test"}} = result
+     left:  {:ok, %GameBot.Infrastructure.Persistence.Repo.PostgresTest.TestSchema{name: "test"}}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Error in transaction: %MatchError{term: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: \"Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \\\"1452\\\", message: \\\"relation \\\\\\\"test_schema\\\\\\\" does not exist\\\", position: \\\"13\\\", file: \\\"parse_relation.c\\\", unknown: \\\"ERROR\\\", severity: \\\"ERROR\\\", routine: \\\"parserOpenTable\\\", pg_code: \\\"42P01\\\"}, connection_id: 42392, query: \\\"INSERT INTO \\\\\\\"test_schema\\\\\\\" (\\\\\\\"name\\\\\\\",\\\\\\\"value\\\\\\\",\\\\\\\"inserted_at\\\\\\\",\\\\\\\"updated_at\\\\\\\") VALUES ($1,$2,$3,$4) RETURNING \\\\\\\"id\\\\\\\"\\\"}\", details: nil}}}",
+               details: %MatchError{
+                 term: {:error,
+                  %GameBot.Infrastructure.Persistence.Error{
+                    type: :system,
+                    context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+                    message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 42392, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}",
+                    details: nil
+                  }}
+               }
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:50: (test)
+
+  * test update_record/2 successfully updates record [L#96]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test update_record/2 successfully updates record (12.6ms) [L#96]
+
+ 31) test update_record/2 successfully updates record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:96
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 33556, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:97: (test)
+
+  * test delete_record/2 successfully deletes record [L#116]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test delete_record/2 successfully deletes record (11.0ms) [L#116]
+
+ 32) test delete_record/2 successfully deletes record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:116
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 21320, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}", details: nil}}
+     code: {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:117: (test)
+
+  * test insert_record/2 successfully inserts valid record [L#77]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test insert_record/2 successfully inserts valid record (10.6ms) [L#77]
+
+ 33) test insert_record/2 successfully inserts valid record (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:77
+     match (=) failed
+     code:  assert {:ok, record} = Postgres.insert_record(%TestSchema{name: "test", value: 1})
+     left:  {:ok, record}
+     right: {:error,
+             %GameBot.Infrastructure.Persistence.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.Repo.Postgres,
+               message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 39500, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}",
+               details: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:78: (test)
+
+  * test insert_record/2 handles constraint violations [L#88]Runtime repository implementation: GameBot.Infrastructure.Persistence.Repo
+  * test insert_record/2 handles constraint violations (10.3ms) [L#88]
+
+ 34) test insert_record/2 handles constraint violations (GameBot.Infrastructure.Persistence.Repo.PostgresTest)
+     test/game_bot/infrastructure/persistence/repo/postgres_test.exs:88
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Persistence.Error{type: :system, context: GameBot.Infrastructure.Persistence.Repo.Postgres, message: "Unexpected error: %Postgrex.Error{message: nil, postgres: %{code: :undefined_table, line: \"1452\", message: \"relation \\\"test_schema\\\" does not exist\", position: \"13\", file: \"parse_relation.c\", unknown: \"ERROR\", severity: \"ERROR\", routine: \"parserOpenTable\", pg_code: \"42P01\"}, connection_id: 3156, query: \"INSERT INTO \\\"test_schema\\\" (\\\"name\\\",\\\"value\\\",\\\"inserted_at\\\",\\\"updated_at\\\") VALUES ($1,$2,$3,$4) RETURNING \\\"id\\\"\"}", details: nil}}
+     code: {:ok, _} = Postgres.insert_record(%TestSchema{name: "unique", value: 1})
+     stacktrace:
+       test/game_bot/infrastructure/persistence/repo/postgres_test.exs:89: (test)
+
+
+GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest [test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs]
+  * test read_stream_forward/4 reads events from a stream [L#130]02:24:57.595 [error] Postgrex.Protocol (#PID<0.1302.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1326.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1326.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1326.0> at location:
+
+    erlang.erl:11286: :erlang.port_command/3
+    prim_inet.erl:575: :prim_inet.send/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3346: Postgrex.Protocol.do_send/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:2944: Postgrex.Protocol.handle_transaction/3
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:364: Ecto.Adapters.SQL.Sandbox.Connection.handle_begin/2
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1838: DBConnection.run_begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1350: DBConnection.checkout/4
+    (db_connection 2.7.0) lib/db_connection.ex:1820: DBConnection.begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1080: DBConnection.transaction/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:133: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test read_stream_forward/4 reads events from a stream"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:24:57.630 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 40704, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test read_stream_forward/4 reads events from a stream (15058.4ms) [L#130]
+
+ 35) test read_stream_forward/4 reads events from a stream (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:130
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected error", details: :rollback, source: nil}}
+     code: {:ok, _} = Postgres.append_to_stream(stream_id, :no_stream, [event])
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:133: (test)
+
+  * test subscribe_to_stream/4 supports subscription options [L#176]02:25:12.650 [error] Postgrex.Protocol (#PID<0.1309.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1332.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1332.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1332.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:178: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test subscribe_to_stream/4 supports subscription options"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:25:12.680 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 26860, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test subscribe_to_stream/4 supports subscription options (15049.2ms) [L#176]
+
+ 36) test subscribe_to_stream/4 supports subscription options (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:176
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected error", details: :rollback, source: nil}}
+     code: {:ok, _} = Postgres.append_to_stream(stream_id, :no_stream, [create_test_event_local(stream_id)])
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:178: (test)
+
+  * test append_to_stream/4 handles optimistic concurrency control [L#113]02:25:27.707 [error] Postgrex.Protocol (#PID<0.1302.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1338.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1338.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1338.0> at location:
+
+    erlang.erl:11286: :erlang.port_command/3
+    prim_inet.erl:575: :prim_inet.send/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3346: Postgrex.Protocol.do_send/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:2944: Postgrex.Protocol.handle_transaction/3
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:364: Ecto.Adapters.SQL.Sandbox.Connection.handle_begin/2
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1838: DBConnection.run_begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1350: DBConnection.checkout/4
+    (db_connection 2.7.0) lib/db_connection.ex:1820: DBConnection.begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1080: DBConnection.transaction/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:116: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test append_to_stream/4 handles optimistic concurrency control"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:25:27.743 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 25252, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test append_to_stream/4 handles optimistic concurrency control (15062.1ms) [L#113]
+
+ 37) test append_to_stream/4 handles optimistic concurrency control (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:113
+     match (=) failed
+     code:  assert {:ok, 1} = Postgres.append_to_stream(stream_id, :no_stream, [event])
+     left:  {:ok, 1}
+     right: {:error,
+             %GameBot.Infrastructure.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+               message: "Unexpected error",
+               details: :rollback,
+               source: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:116: (test)
+
+  * test stream_version/2 returns current version for existing stream [L#191]02:25:42.761 [error] Postgrex.Protocol (#PID<0.1308.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1344.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1344.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1344.0> at location:
+
+    erlang.erl:11286: :erlang.port_command/3
+    prim_inet.erl:575: :prim_inet.send/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3346: Postgrex.Protocol.do_send/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:2944: Postgrex.Protocol.handle_transaction/3
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:364: Ecto.Adapters.SQL.Sandbox.Connection.handle_begin/2
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1838: DBConnection.run_begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1350: DBConnection.checkout/4
+    (db_connection 2.7.0) lib/db_connection.ex:1820: DBConnection.begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1080: DBConnection.transaction/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:194: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test stream_version/2 returns current version for existing stream"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:25:42.794 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 40460, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test stream_version/2 returns current version for existing stream (15050.1ms) [L#191]
+
+ 38) test stream_version/2 returns current version for existing stream (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:191
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected error", details: :rollback, source: nil}}
+     code: {:ok, version} = Postgres.append_to_stream(stream_id, :no_stream, [event])
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:194: (test)
+
+  * test subscribe_to_stream/4 successfully subscribes to a stream [L#161]02:25:57.810 [error] Postgrex.Protocol (#PID<0.1304.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1350.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1350.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1350.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:164: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test subscribe_to_stream/4 successfully subscribes to a stream"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:25:57.961 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 11516, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test subscribe_to_stream/4 successfully subscribes to a stream (15167.0ms) [L#161]
+
+ 39) test subscribe_to_stream/4 successfully subscribes to a stream (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:161
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected error", details: :rollback, source: nil}}
+     code: {:ok, _} = Postgres.append_to_stream(stream_id, :no_stream, [create_test_event_local(stream_id)])
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:164: (test)
+
+  * test append_to_stream/4 successfully appends multiple events [L#104]02:26:12.974 [error] Postgrex.Protocol (#PID<0.1309.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1356.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1356.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1356.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:110: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test append_to_stream/4 successfully appends multiple events"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:26:13.004 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 29344, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test append_to_stream/4 successfully appends multiple events (15042.0ms) [L#104]
+
+ 40) test append_to_stream/4 successfully appends multiple events (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:104
+     match (=) failed
+     code:  assert {:ok, 2} = Postgres.append_to_stream(stream_id, :no_stream, events)
+     left:  {:ok, 2}
+     right: {:error,
+             %GameBot.Infrastructure.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+               message: "Unexpected error",
+               details: :rollback,
+               source: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:110: (test)
+
+  * test append_to_stream/4 successfully appends events to a new stream [L#98]02:26:28.029 [error] Postgrex.Protocol (#PID<0.1305.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1362.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1362.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1362.0> at location:
+
+    erlang.erl:11286: :erlang.port_command/3
+    prim_inet.erl:575: :prim_inet.send/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3346: Postgrex.Protocol.do_send/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:2944: Postgrex.Protocol.handle_transaction/3
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:364: Ecto.Adapters.SQL.Sandbox.Connection.handle_begin/2
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1838: DBConnection.run_begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1350: DBConnection.checkout/4
+    (db_connection 2.7.0) lib/db_connection.ex:1820: DBConnection.begin/3
+    (db_connection 2.7.0) lib/db_connection.ex:1080: DBConnection.transaction/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:101: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test append_to_stream/4 successfully appends events to a new stream"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:26:28.060 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 5436, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test append_to_stream/4 successfully appends events to a new stream (15054.8ms) [L#98]
+
+ 41) test append_to_stream/4 successfully appends events to a new stream (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:98
+     match (=) failed
+     code:  assert {:ok, 1} = Postgres.append_to_stream(stream_id, :no_stream, [event])
+     left:  {:ok, 1}
+     right: {:error,
+             %GameBot.Infrastructure.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+               message: "Unexpected error",
+               details: :rollback,
+               source: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:101: (test)
+
+  * test append_to_stream/4 allows :any version for appending [L#121]02:26:43.083 [error] Postgrex.Protocol (#PID<0.1304.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1368.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1368.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1368.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:124: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test append_to_stream/4 allows :any version for appending"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:26:43.112 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 42020, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test append_to_stream/4 allows :any version for appending (15051.0ms) [L#121]
+
+ 42) test append_to_stream/4 allows :any version for appending (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:121
+     match (=) failed
+     code:  assert {:ok, 1} = Postgres.append_to_stream(stream_id, :any, [event])
+     left:  {:ok, 1}
+     right: {:error,
+             %GameBot.Infrastructure.Error{
+               type: :system,
+               context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres,
+               message: "Unexpected error",
+               details: :rollback,
+               source: nil
+             }}
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:124: (test)
+
+  * test read_stream_forward/4 reads events from a specific version [L#140]02:26:58.139 [error] Postgrex.Protocol (#PID<0.1303.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1375.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1375.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1375.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:147: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test read_stream_forward/4 reads events from a specific version"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:26:58.171 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 40064, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test read_stream_forward/4 reads events from a specific version (15057.4ms) [L#140]
+
+ 43) test read_stream_forward/4 reads events from a specific version (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:140
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected error", details: :rollback, source: nil}}
+     code: {:ok, _} = Postgres.append_to_stream(stream_id, :no_stream, events)
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:147: (test)
+
+  * test delete_stream/3 handles optimistic concurrency on delete [L#214]02:27:13.194 [error] Postgrex.Protocol (#PID<0.1304.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1381.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1381.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1381.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:217: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test delete_stream/3 handles optimistic concurrency on delete"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:27:13.350 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 29632, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test delete_stream/3 handles optimistic concurrency on delete (15178.6ms) [L#214]
+
+ 44) test delete_stream/3 handles optimistic concurrency on delete (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:214
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected error", details: :rollback, source: nil}}
+     code: {:ok, _} = Postgres.append_to_stream(stream_id, :no_stream, [event])
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:217: (test)
+
+  * test delete_stream/3 successfully deletes a stream [L#200]02:27:28.378 [error] Postgrex.Protocol (#PID<0.1300.0>) disconnected: ** (DBConnection.ConnectionError) client #PID<0.1387.0> timed out because it queued and checked out the connection for longer than 15000ms
+
+Client #PID<0.1387.0> is still using a connection from owner at location:
+
+    prim_inet.erl:796: :prim_inet.recv0/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:3259: Postgrex.Protocol.msg_recv/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1616: Postgrex.Protocol.recv_parse/3
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1582: Postgrex.Protocol.recv_parse_describe/4
+    (postgrex 0.20.0) lib/postgrex/protocol.ex:1382: Postgrex.Protocol.parse_describe_flush/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:413: Ecto.Adapters.SQL.Sandbox.Connection.proxy/3
+    (db_connection 2.7.0) lib/db_connection/holder.ex:354: DBConnection.Holder.holder_apply/4
+    (db_connection 2.7.0) lib/db_connection.ex:1543: DBConnection.prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1536: DBConnection.run_prepare/4
+    (db_connection 2.7.0) lib/db_connection.ex:1548: DBConnection.run_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:772: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.7.0) lib/db_connection.ex:764: DBConnection.prepare_execute/4
+    (postgrex 0.20.0) lib/postgrex.ex:317: Postgrex.query_prepare_execute/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:215: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.get_stream_version/1
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:81: anonymous fn/3 in GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (ecto_sql 3.12.1) lib/ecto/adapters/sql.ex:1400: anonymous fn/3 in Ecto.Adapters.SQL.checkout_or_transaction/4
+    (db_connection 2.7.0) lib/db_connection.ex:1756: DBConnection.run_transaction/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+
+The connection itself was checked out by #PID<0.1387.0> at location:
+
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/postgres.ex:79: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres.do_append_to_stream/4
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:42: anonymous fn/2 in GameBot.Infrastructure.ErrorHelpers.with_retries/3
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:20: GameBot.Infrastructure.ErrorHelpers.wrap_error/2
+    (game_bot 0.1.0) lib/game_bot/infrastructure/error_helpers.ex:114: GameBot.Infrastructure.ErrorHelpers.do_with_retries/6
+    (game_bot 0.1.0) lib/game_bot/infrastructure/persistence/event_store/adapter/base.ex:230: GameBot.Infrastructure.Persistence.EventStore.Adapter.Base.with_telemetry/4
+    test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:204: GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest."test delete_stream/3 successfully deletes a stream"/1
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.2) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+02:27:28.410 [error] Error in do_append_to_stream transaction: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Database error", details: %Postgrex.Error{message: nil, postgres: %{code: :query_canceled, line: "3427", message: "canceling statement due to user request", file: "postgres.c", unknown: "ERROR", severity: "ERROR", routine: "ProcessInterrupts", pg_code: "57014"}, connection_id: 35332, query: "SELECT version FROM event_store.streams WHERE id = $1"}, source: nil}}
+  * test delete_stream/3 successfully deletes a stream (15059.1ms) [L#200]
+
+ 45) test delete_stream/3 successfully deletes a stream (GameBot.Infrastructure.Persistence.EventStore.Adapter.PostgresTest)
+     test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:200
+     ** (MatchError) no match of right hand side value: {:error, %GameBot.Infrastructure.Error{type: :system, context: GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres, message: "Unexpected error", details: :rollback, source: nil}}
+     code: {:ok, version} = Postgres.append_to_stream(stream_id, :no_stream, [event])
+     stacktrace:
+       test/game_bot/infrastructure/persistence/event_store/adapter/postgres_test.exs:204: (test)
+
+
+GameBot.Infrastructure.Persistence.EventStore.IntegrationTest [test/game_bot/infrastructure/persistence/event_store/integration_test.exs]
+  * test subscription handling multiple subscribers [L#276]  * test subscription handling multiple subscribers (0.00ms) [L#276]
+
+ 46) test subscription handling multiple subscribers (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:276
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test stream operations concurrent operations [L#236]  * test stream operations concurrent operations (0.00ms) [L#236]
+
+ 47) test stream operations concurrent operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:236
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test performance characteristics batch operations [L#344]  * test performance characteristics batch operations (0.00ms) [L#344]
+
+ 48) test performance characteristics batch operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:344
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test stream operations stream versioning [L#217]  * test stream operations stream versioning (0.00ms) [L#217]
+
+ 49) test stream operations stream versioning (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:217
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test stream operations append and read events [L#196]  * test stream operations append and read events (0.00ms) [L#196]
+
+ 50) test stream operations append and read events (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:196
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test error handling transaction boundaries [L#314]  * test error handling transaction boundaries (0.1ms) [L#314]
+
+ 51) test error handling transaction boundaries (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:314
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test performance characteristics concurrent read performance [L#375]  * test performance characteristics concurrent read performance (0.00ms) [L#375]
+
+ 52) test performance characteristics concurrent read performance (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:375
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test subscription handling subscribe to stream [L#257]  * test subscription handling subscribe to stream (0.1ms) [L#257]
+
+ 53) test subscription handling subscribe to stream (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:257
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+  * test error handling invalid stream operations [L#300]  * test error handling invalid stream operations (0.00ms) [L#300]
+
+ 54) test error handling invalid stream operations (GameBot.Infrastructure.Persistence.EventStore.IntegrationTest)
+     test/game_bot/infrastructure/persistence/event_store/integration_test.exs:300
+     ** (RuntimeError) could not lookup Ecto repo GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres because it was not started or it does not exist
+     stacktrace:
+       (ecto 3.12.5) lib/ecto/repo/registry.ex:22: Ecto.Repo.Registry.lookup/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:631: Ecto.Adapters.SQL.Sandbox.lookup_meta!/1
+       (ecto_sql 3.12.1) lib/ecto/adapters/sql/sandbox.ex:536: Ecto.Adapters.SQL.Sandbox.checkout/2
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:55: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit_setup_0/1
+       test/game_bot/infrastructure/persistence/event_store/integration_test.exs:1: GameBot.Infrastructure.Persistence.EventStore.IntegrationTest.__ex_unit__/2
+
+
+Finished in 174.1 seconds (0.2s async, 173.9s sync)
+55 tests, 54 failures
+
+Cleaning up test environment...
