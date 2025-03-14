@@ -1,13 +1,11 @@
 defmodule GameBot.Test.DatabaseSetupTest do
   use ExUnit.Case, async: false
 
-setup tags do
-  GameBot.Test.DatabaseManager.setup_sandbox(tags)
-  :ok
-end
+  setup tags do
+    GameBot.Test.DatabaseManager.setup_sandbox(tags)
+    :ok
+  end
 
-
-  
   # Skip these tests in CI environments or when explicitly excluded
   @moduletag :database_setup
   @moduletag :skip_in_ci
@@ -26,8 +24,8 @@ end
       main_db = System.get_env("TEST_DB_MAIN")
       event_db = System.get_env("TEST_DB_EVENT")
 
-      if main_db, do: DatabaseSetup.drop_database(main_db)
-      if event_db, do: DatabaseSetup.drop_database(event_db)
+      if main_db, do: GameBot.Test.DatabaseManager.drop_database(main_db)
+      if event_db, do: GameBot.Test.DatabaseManager.drop_database(event_db)
     end)
 
     :ok
@@ -37,7 +35,7 @@ end
     @tag :skip_in_ci
     test "creates databases with unique names" do
       # Run the setup function
-      {:ok, db_names} = DatabaseSetup.setup_test_databases()
+      {:ok, db_names} = GameBot.Test.DatabaseManager.setup_test_databases()
 
       # Verify the database names are returned
       assert is_binary(db_names.main_db)
@@ -65,7 +63,7 @@ end
     @tag :skip_in_ci
     test "cleans up test databases" do
       # First set up the databases
-      {:ok, db_names} = DatabaseSetup.setup_test_databases()
+      {:ok, db_names} = GameBot.Test.DatabaseManager.setup_test_databases()
 
       # Set environment variables
       System.put_env("TEST_DB_MAIN", db_names.main_db)
@@ -76,7 +74,7 @@ end
       assert database_exists?(db_names.event_db)
 
       # Run the cleanup function
-      :ok = DatabaseSetup.cleanup_resources()
+      :ok = GameBot.Test.DatabaseManager.cleanup_resources()
 
       # Verify the databases no longer exist
       refute database_exists?(db_names.main_db)

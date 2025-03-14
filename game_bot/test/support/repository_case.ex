@@ -9,8 +9,7 @@ defmodule GameBot.RepositoryCase do
   use ExUnit.CaseTemplate
   require Logger
   alias GameBot.Test.Config
-  alias GameBot.Test.DatabaseHelper
-  alias GameBot.Test.DatabaseConnectionManager
+  alias GameBot.Test.DatabaseManager
 
   # Track monitored processes for proper cleanup
   @process_monitors_key {__MODULE__, :monitors}
@@ -53,14 +52,11 @@ defmodule GameBot.RepositoryCase do
     # Initialize process monitor registry for this test
     Process.put(@process_monitors_key, [])
 
-    # Use DatabaseHelper to clean up connections before starting
-    DatabaseConnectionManager.graceful_shutdown()
-
     # For mock tests, we use the MockRepo
     if mock_test?(tags) do
       setup_mock_environment(tags)
     else
-      # For regular tests, use the centralized setup
+      # For regular tests, use the improved database manager setup
       setup_real_environment(tags)
     end
 
@@ -72,8 +68,9 @@ defmodule GameBot.RepositoryCase do
       # Clean up all monitored processes
       cleanup_monitored_processes()
 
-      # Use the DatabaseHelper for final cleanup
-      DatabaseHelper.cleanup_connections()
+      # Clean up database connections - this won't fully terminate connections
+      # as that would disrupt other tests, but will check in any checked out connections
+      graceful_cleanup()
     end)
 
     :ok
@@ -106,13 +103,12 @@ defmodule GameBot.RepositoryCase do
   Monitors a process and ensures it will be cleaned up after the test.
   """
   def monitor_process(pid) when is_pid(pid) do
-    case DatabaseConnectionManager.monitor_process(pid) do
-      {:ok, ref} ->
-        # Store the monitor reference for cleanup
-        Process.put(@process_monitors_key, [ref | Process.get(@process_monitors_key, [])])
-        {:ok, ref}
-      error -> error
-    end
+    # Create a monitor reference
+    ref = Process.monitor(pid)
+
+    # Store the monitor reference for cleanup
+    Process.put(@process_monitors_key, [ref | Process.get(@process_monitors_key, [])])
+    {:ok, ref}
   end
 
   @doc """
@@ -186,20 +182,38 @@ defmodule GameBot.RepositoryCase do
       Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.Postgres)
     end
 
-    # Use the centralized DatabaseHelper to initialize the environment
-    DatabaseHelper.setup_sandbox(tags)
+    # Use the improved DatabaseManager to set up the sandbox
+    DatabaseManager.setup_sandbox(tags)
   end
 
   defp cleanup_monitored_processes do
     # Get all monitored process references
     monitors = Process.get(@process_monitors_key, [])
 
-    # Demonitor and try to stop each process
+    # Demonitor each process
     Enum.each(monitors, fn ref ->
-      DatabaseConnectionManager.demonitor_process(ref)
+      Process.demonitor(ref, [:flush])
     end)
 
     # Clear the monitor list
     Process.put(@process_monitors_key, [])
+  end
+
+  defp graceful_cleanup do
+    # Check in connections but don't fully terminate to avoid disrupting other tests
+    repos = [
+      GameBot.Infrastructure.Persistence.Repo,
+      GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
+    ]
+
+    Enum.each(repos, fn repo ->
+      if Process.whereis(repo) do
+        try do
+          Ecto.Adapters.SQL.Sandbox.checkin(repo)
+        rescue
+          _ -> :ok
+        end
+      end
+    end)
   end
 end

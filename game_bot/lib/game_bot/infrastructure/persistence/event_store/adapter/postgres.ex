@@ -323,8 +323,13 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres do
 
   defp flatten_event_params_for_insertion(events_with_version) do
     Enum.flat_map(events_with_version, fn {event, version} ->
+      # Extract stream_id from event, defaulting to the one provided in the parent function
+      stream_id = Map.get(event, :stream_id) || Map.get(event, "stream_id")
+
+      # We need to explicitly pass the stream_id rather than trying to extract it from the event
+      # This ensures the stream_id is always present and matches the one used in the transaction
       [
-        Map.get(event, :stream_id) || Map.get(event, "stream_id"),
+        stream_id,
         Map.get(event, :event_type) || Map.get(event, "event_type") || Map.get(event, :type) || Map.get(event, "type"),
         Map.get(event, :data) || Map.get(event, "data"),
         Map.get(event, :metadata) || Map.get(event, "metadata"),

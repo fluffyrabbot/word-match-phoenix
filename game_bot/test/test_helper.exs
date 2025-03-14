@@ -77,11 +77,51 @@ Enum.each(required_apps, fn app ->
   end
 end)
 
-# Note: For improved test database setup, use the new mix task:
-#   mix game_bot.test
-#
-# This task handles database setup, test execution, and cleanup automatically.
-# See README_TEST_INFRASTRUCTURE.md for details.
+# Configure the application for testing
+Application.put_env(:game_bot, :start_word_service, false)
+Application.put_env(:game_bot, :start_nostrum, false)
+Application.put_env(:nostrum, :token, "fake_token_for_testing")
+Application.put_env(:nostrum, :api_module, GameBot.Test.Mocks.NostrumApiMock)
+
+# Configure event stores to avoid warnings
+Application.put_env(:game_bot, :event_stores, [
+  GameBot.Infrastructure.Persistence.EventStore
+])
+
+# Ensure the event store database exists and is properly set up
+if !System.get_env("SKIP_DB_INIT") do
+  # First check if the event store database exists
+  event_db_name = Application.get_env(:game_bot, :test_databases)[:event_db] || "game_bot_eventstore_dev"
+
+  # Connect to postgres to check if the database exists
+  postgres_info = [
+    hostname: "localhost",
+    username: "postgres",
+    password: "csstarahid",
+    database: "postgres",
+    connect_timeout: 5000
+  ]
+
+  # Check if event database exists
+  event_db_exists = case Postgrex.start_link(postgres_info) do
+    {:ok, conn} ->
+      result = case Postgrex.query(conn, "SELECT 1 FROM pg_database WHERE datname = $1", [event_db_name], []) do
+        {:ok, %{rows: [[1]]}} -> true
+        _ -> false
+      end
+      GenServer.stop(conn)
+      result
+    _ -> false
+  end
+
+  # Create the event store database if it doesn't exist
+  if !event_db_exists do
+    IO.puts("\n=== Event store database does not exist, creating it now ===")
+
+    # We'll use the mix task directly
+    Mix.Task.run("game_bot.create_event_store_db")
+  end
+end
 
 # Initialize test environment using centralized DatabaseManager with retry logic
 # This implementation uses a retry loop with exponential backoff to handle
@@ -117,8 +157,17 @@ case result do
   {:error, reason} ->
     IO.puts("\n=== FATAL: Test environment initialization failed after multiple attempts ===")
     IO.puts("Final error: #{inspect(reason)}")
-    IO.puts("Terminating test run.")
-    System.halt(1)
+
+    # Try to diagnose what went wrong
+    IO.puts("\n=== Running database diagnostics to identify issues ===")
+    Mix.Task.run("game_bot.db_test_diagnose")
+
+    # We don't want to terminate the test process as this prevents proper debugging
+    # System.halt(1)
+
+    # Instead, we'll print a clear error message and continue
+    IO.puts("\n=== WARNING: Tests will likely fail due to database initialization issues ===")
+    IO.puts("Use 'mix game_bot.db_test_diagnose --repair' to fix the issues")
 end
 
 # Register cleanup for after the test suite with proper error handling
@@ -136,18 +185,7 @@ ExUnit.after_suite(fn _ ->
   end
 end)
 
-# Configure the application for testing
-Application.put_env(:game_bot, :start_word_service, false)
-Application.put_env(:game_bot, :start_nostrum, false)
-Application.put_env(:nostrum, :token, "fake_token_for_testing")
-Application.put_env(:nostrum, :api_module, GameBot.Test.Mocks.NostrumApiMock)
-
-# Configure event stores to avoid warnings
-Application.put_env(:game_bot, :event_stores, [
-  GameBot.Infrastructure.Persistence.EventStore
-])
-
-# Define a helper module to ensure protocol implementations are registered properly
+# Force protocol implementations to be recompiled if needed for test
 defmodule GameBot.Test.ProtocolHelpers do
   @moduledoc """
   Helper functions for dealing with protocol consolidation in tests.
