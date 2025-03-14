@@ -61,14 +61,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
     average_guesses: float()
   }
 
-  @type state :: %{
-    game_id: String.t(),
-    guild_id: String.t(),
-    time_limit: pos_integer(),
-    start_time: DateTime.t(),
-    matches_by_team: %{String.t() => non_neg_integer()},
-    total_guesses_by_team: %{String.t() => non_neg_integer()}
-  }
+  @type state :: GameBot.Domain.GameState.t()
 
   @doc """
   Initializes a new Race mode game state.
@@ -161,40 +154,72 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @since "1.0.0"
   """
   @impl true
-  @spec process_guess_pair(state(), String.t(), map()) ::
-    {:ok, state(), struct()} | {:error, term()}
+  @spec process_guess_pair(GameBot.Domain.GameState.t(), String.t(), map()) ::
+    {:ok, GameBot.Domain.GameState.t(), struct()} | {:error, term()}
   def process_guess_pair(state, team_id, guess_pair) do
-    with :ok <- validate_guess_pair(state, team_id, guess_pair) do
-      case {guess_pair.player1_word, guess_pair.player2_word} do
-        # Handle cases where either player gives up
-        {@give_up_command, _} ->
-          handle_give_up(state, team_id, guess_pair)
-        {_, @give_up_command} ->
-          handle_give_up(state, team_id, guess_pair)
-        # Normal guess processing
-        _ ->
-          with {:ok, state, event} <- GameBot.Domain.GameModes.BaseMode.process_guess_pair(state, team_id, guess_pair) do
-            # Make sure the event is accessible regardless of how it's retrieved
-            guess_successful = Map.get(event, :guess_successful)
-            guess_count = Map.get(event, :guess_count)
+    # First validate the guess pair
+    case validate_guess_pair(state, team_id, guess_pair) do
+      :ok ->
+        # Then process based on the words
+        process_valid_guess_pair(state, team_id, guess_pair)
+      error ->
+        error
+    end
+  end
 
-            state = if guess_successful do
-              # Update match count and total guesses for the team - don't use update_in on struct fields
-              state = Map.update(state, :matches_by_team, %{team_id => 1}, fn matches ->
-                Map.update(matches, team_id, 1, &(&1 + 1))
-              end)
+  # Process a guess pair that has passed validation
+  defp process_valid_guess_pair(state, team_id, guess_pair) do
+    case {Map.get(guess_pair, :player1_word), Map.get(guess_pair, :player2_word)} do
+      # Handle cases where either player gives up
+      {@give_up_command, _} ->
+        handle_give_up(state, team_id, guess_pair)
+      {_, @give_up_command} ->
+        handle_give_up(state, team_id, guess_pair)
+      # Normal guess processing
+      _ ->
+        process_normal_guess(state, team_id, guess_pair)
+    end
+  end
 
-              # Update total guesses in a similar way
-              Map.update(state, :total_guesses_by_team, %{team_id => guess_count}, fn total_guesses ->
-                Map.update(total_guesses, team_id, guess_count, &(&1 + guess_count))
-              end)
-            else
-              state
-            end
+  # Helper function to process normal guesses
+  defp process_normal_guess(state, team_id, guess_pair) do
+    # First validate the guess pair to ensure we don't get type errors
+    # This will help Dialyzer understand the flow better
+    case validate_guess_pair(state, team_id, guess_pair) do
+      :ok ->
+        # Now we know the validation passed, so we can safely call BaseMode
+        process_validated_guess(state, team_id, guess_pair)
+      error ->
+        error
+    end
+  end
 
-            {:ok, state, event}
-          end
-      end
+  # Process a guess that has already been validated
+  defp process_validated_guess(state, team_id, guess_pair) do
+    case GameBot.Domain.GameModes.BaseMode.process_guess_pair(state, team_id, guess_pair) do
+      {:ok, updated_state, event} ->
+        # Make sure the event is accessible regardless of how it's retrieved
+        guess_successful = Map.get(event, :guess_successful)
+        guess_count = Map.get(event, :guess_count)
+
+        updated_state = if guess_successful do
+          # Update match count and total guesses for the team - don't use update_in on struct fields
+          matches_by_team = Map.get(updated_state, :matches_by_team, %{})
+          updated_matches = Map.update(matches_by_team, team_id, 1, fn count -> count + 1 end)
+          updated_state = Map.put(updated_state, :matches_by_team, updated_matches)
+
+          # Update total guesses in a similar way
+          total_guesses_by_team = Map.get(updated_state, :total_guesses_by_team, %{})
+          updated_total_guesses = Map.update(total_guesses_by_team, team_id, guess_count, fn count -> count + guess_count end)
+          Map.put(updated_state, :total_guesses_by_team, updated_total_guesses)
+        else
+          updated_state
+        end
+
+        {:ok, updated_state, event}
+      {:error, reason} ->
+        # Just pass through any error
+        {:error, reason}
     end
   end
 
@@ -210,16 +235,28 @@ defmodule GameBot.Domain.GameModes.RaceMode do
 
   ## Returns
     * `{:ok, new_state, event}` - Successfully handled abandonment
-    * `{:error, reason}` - Failed to handle abandonment
 
   @since "1.0.0"
   """
   @impl true
-  @spec handle_guess_abandoned(state(), String.t(), atom(), map() | nil) ::
-    {:ok, state(), GuessAbandoned.t()} | {:error, term()}
+  @spec handle_guess_abandoned(GameBot.Domain.GameState.t(), String.t(), :timeout | :player_quit | :disconnected, map() | nil) ::
+    {:ok, GameBot.Domain.GameState.t(), GuessAbandoned.t()}
   def handle_guess_abandoned(state, team_id, reason, last_guess) do
-    GameBot.Domain.GameModes.BaseMode.handle_guess_abandoned(state, team_id, reason, last_guess)
+    # Delegate to the BaseMode implementation
+    # BaseMode.handle_guess_abandoned always returns {:ok, updated_state, event}
+    # according to Dialyzer's inference
+    {:ok, updated_state, event} = GameBot.Domain.GameModes.BaseMode.handle_guess_abandoned(state, team_id, reason, last_guess)
+
+    # Ensure the event has the required metadata field
+    # Use pattern matching instead of conditional to avoid guard clause issues
+    event = add_metadata_if_missing(event)
+
+    {:ok, updated_state, event}
   end
+
+  # Helper function to add metadata if missing
+  defp add_metadata_if_missing(%{metadata: _} = event), do: event
+  defp add_metadata_if_missing(event), do: Map.put(event, :metadata, %{})
 
   @doc """
   Checks if the current round should end.
@@ -234,7 +271,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @since "1.0.0"
   """
   @impl true
-  @spec check_round_end(state()) :: :continue
+  @spec check_round_end(GameBot.Domain.GameState.t()) :: :continue
   def check_round_end(_state) do
     :continue
   end
@@ -261,7 +298,7 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @since "1.0.0"
   """
   @impl true
-  @spec check_game_end(state()) :: {:game_end, [String.t()], [struct()]} | :continue
+  @spec check_game_end(GameBot.Domain.GameState.t()) :: {:game_end, [String.t()], [struct()]} | :continue
   def check_game_end(state) do
     now = DateTime.utc_now()
     elapsed_seconds = DateTime.diff(now, state.start_time)
@@ -316,10 +353,12 @@ defmodule GameBot.Domain.GameModes.RaceMode do
     player2_word: player2_word
   }) do
     # Get team players first so we can reference it in the cond
-    team_players = get_in(state.teams, [team_id, :player_ids]) || []
+    teams = Map.get(state, :teams, %{})
+    team = Map.get(teams, team_id, %{})
+    team_players = Map.get(team, :player_ids, [])
 
     cond do
-      !Map.has_key?(state.teams, team_id) ->
+      !Map.has_key?(teams, team_id) ->
         {:error, :invalid_team}
 
       player1_id not in team_players or player2_id not in team_players ->
@@ -351,7 +390,9 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   defp handle_give_up(state, team_id, guess_pair) do
     # Create a guess processed event first to record the give-up in the standard guess flow
     # This will ensure the give-up appears in replays alongside normal guesses
-    guess_count = get_in(state.teams, [team_id, :guess_count]) + 1
+    teams = Map.get(state, :teams, %{})
+    team_state = Map.get(teams, team_id, %{})
+    guess_count = Map.get(team_state, :guess_count, 0) + 1
 
     # Get player info from state
     player1_id = guess_pair.player1_id
@@ -410,17 +451,20 @@ defmodule GameBot.Domain.GameModes.RaceMode do
     }
 
     # Update total guesses to count this as a failed attempt
-    state = update_in(state.total_guesses_by_team[team_id], &(&1 + 1))
+    # Use Map.update instead of update_in for structs
+    total_guesses_by_team = Map.get(state, :total_guesses_by_team, %{})
+    updated_total_guesses = Map.update(total_guesses_by_team, team_id, 1, fn count -> count + 1 end)
+    state = Map.put(state, :total_guesses_by_team, updated_total_guesses)
 
     # Clear the current words for the team and reset their guess count
     # Note: The session manager will handle getting new words
-    state = update_in(state.teams[team_id], fn team_state ->
-      %{team_state |
-        current_words: [],
-        guess_count: 0,
-        pending_guess: nil
-      }
-    end)
+    updated_team_state = Map.merge(team_state, %{
+      current_words: [],
+      guess_count: 0,
+      pending_guess: nil
+    })
+    updated_teams = Map.put(teams, team_id, updated_team_state)
+    state = Map.put(state, :teams, updated_teams)
 
     # Return both events in a list, with GuessProcessed coming first
     {:ok, state, [guess_processed_event, round_restart_event]}
@@ -429,27 +473,36 @@ defmodule GameBot.Domain.GameModes.RaceMode do
   @doc false
   # Finds winners based on matches and average guesses
   defp find_winners(state) do
-    # Get highest match count
-    max_matches = Enum.max(Map.values(state.matches_by_team))
+    matches_by_team = Map.get(state, :matches_by_team, %{})
 
-    # Find all teams with max matches
-    teams_with_max = Enum.filter(state.matches_by_team, fn {_team, matches} ->
-      matches == max_matches
-    end)
-    |> Enum.map(&elem(&1, 0))
-
-    if length(teams_with_max) == 1 do
-      # Single winner
-      {teams_with_max, max_matches}
+    if map_size(matches_by_team) == 0 do
+      # No matches recorded yet, return empty list
+      {[], 0}
     else
-      # Tiebreaker based on average guesses per match
-      winner = Enum.min_by(teams_with_max, fn team_id ->
-        total_guesses = state.total_guesses_by_team[team_id]
-        matches = state.matches_by_team[team_id]
-        total_guesses / matches
-      end)
+      # Get highest match count
+      max_matches = Enum.max(Map.values(matches_by_team))
 
-      {[winner], max_matches}
+      # Find all teams with max matches
+      teams_with_max = Enum.filter(matches_by_team, fn {_team, matches} ->
+        matches == max_matches
+      end)
+      |> Enum.map(&elem(&1, 0))
+
+      if length(teams_with_max) == 1 do
+        # Single winner
+        {teams_with_max, max_matches}
+      else
+        # Tiebreaker based on average guesses per match
+        total_guesses_by_team = Map.get(state, :total_guesses_by_team, %{})
+
+        winner = Enum.min_by(teams_with_max, fn team_id ->
+          total_guesses = Map.get(total_guesses_by_team, team_id, 0)
+          matches = Map.get(matches_by_team, team_id, 1)
+          total_guesses / matches
+        end)
+
+        {[winner], max_matches}
+      end
     end
   end
 

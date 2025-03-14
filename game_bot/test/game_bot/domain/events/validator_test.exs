@@ -184,8 +184,8 @@ defmodule GameBot.Domain.Events.ValidatorTest do
         metadata: %{source_id: "src123", correlation_id: "corr123"},
         round_number: 1,
         team_id: "team1",
-        player1_info: {123456789, "player1", "Player One"},
-        player2_info: {987654321, "player2", "Player Two"},
+        player1_id: "playerbob",
+        player2_id: "playeralice",
         player1_word: "apple",
         player2_word: "banana",
         guess_successful: true,
@@ -203,10 +203,10 @@ defmodule GameBot.Domain.Events.ValidatorTest do
 
     test "detects missing required fields" do
       event = create_valid_guess_processed()
-      |> Map.drop([:player1_info])
+      |> Map.put(:player1_id, nil)
 
       assert {:error, error_msg} = EventValidator.validate(event)
-      assert error_msg =~ "Missing required fields: player1_info"
+      assert error_msg =~ "Missing required fields: player1_id"
     end
 
     test "validates positive counts" do
@@ -281,8 +281,8 @@ defmodule GameBot.Domain.Events.ValidatorTest do
       metadata: %{source_id: "src123", correlation_id: "corr123"},
       round_number: 1,
       team_id: "team1",
-      player1_info: {123456789, "player1", "Player One"},
-      player2_info: {987654321, "player2", "Player Two"},
+      player1_id: "playerbob",
+      player2_id: "playeralice",
       player1_word: "apple",
       player2_word: "banana",
       guess_successful: true,

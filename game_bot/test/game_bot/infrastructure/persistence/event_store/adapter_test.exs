@@ -9,6 +9,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
     # Ensure repositories are started
     RepositoryManager.ensure_all_started()
 
+    # Ensure test event store is properly configured
+    Application.put_env(:game_bot, :event_store_adapter, GameBot.Test.EventStoreCore)
+
     # Generate a unique stream ID for this test
     stream_id = "test-stream-#{System.unique_integer([:positive])}"
 
@@ -16,8 +19,12 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
     case GameBot.Test.EventStoreCore.start_link() do
       {:ok, pid} ->
         on_exit(fn ->
-          GameBot.Test.EventStoreCore.reset()
-          Process.exit(pid, :normal)
+          try do
+            GameBot.Test.EventStoreCore.reset()
+            Process.exit(pid, :normal)
+          catch
+            _, _ -> :ok
+          end
         end)
         {:ok, %{event_store_pid: pid, stream_id: stream_id}}
       {:error, {:already_started, pid}} ->
@@ -34,6 +41,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
       # Create a test event
       event = create_test_event("test-1")
 
+      # Make sure we're using the stream ID correctly in the test
+      event = Map.put(event, :stream_id, stream_id)
+
       # Append to stream
       assert {:ok, 1} = Adapter.append_to_stream(stream_id, :no_stream, [event])
     end
@@ -44,6 +54,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
         create_test_event("test-1"),
         create_test_event("test-2")
       ]
+
+      # Make sure we're using the same stream ID for all events
+      events = Enum.map(events, fn event -> Map.put(event, :stream_id, stream_id) end)
 
       # Append to stream
       assert {:ok, 2} = Adapter.append_to_stream(stream_id, :no_stream, events)
@@ -56,6 +69,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
     test "stream_version/2 delegates to configured adapter", %{stream_id: stream_id} do
       # Create and append test event
       event = create_test_event("test-1")
+
+      # Make sure we're using the stream ID correctly in the test
+      event = Map.put(event, :stream_id, stream_id)
 
       # Check initial version
       assert {:ok, 0} = Adapter.stream_version(stream_id)
@@ -70,6 +86,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
     test "delete_stream/3 delegates to configured adapter", %{stream_id: stream_id} do
       # Create and append test event
       event = create_test_event("test-1")
+
+      # Make sure we're using the stream ID correctly in the test
+      event = Map.put(event, :stream_id, stream_id)
 
       # Append to stream
       assert {:ok, 1} = Adapter.append_to_stream(stream_id, :no_stream, [event])
@@ -86,7 +105,6 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.AdapterTest do
 
   defp create_test_event(id) do
     %{
-      stream_id: "test-#{id}",
       event_type: "test_event",
       data: %{id: id, value: "test data for #{id}"},
       metadata: %{correlation_id: "test-correlation-#{id}"}

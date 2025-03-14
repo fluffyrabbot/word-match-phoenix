@@ -387,8 +387,7 @@ defmodule GameBot.Test.EventStoreCore do
     case Map.get(state.streams, stream_id) do
       nil ->
         # Stream doesn't exist
-        {:reply, {:error, :stream_not_found}, state}
-
+        {:reply, {:ok, 0}, state}
       stream ->
         {:reply, {:ok, stream.version}, state}
     end

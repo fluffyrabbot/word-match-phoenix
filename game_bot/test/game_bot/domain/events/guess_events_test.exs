@@ -10,8 +10,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
         mode: :two_player,
         round_number: 1,
         team_id: "team123",
-        player1_info: {123456789, "player1", "Player One"},
-        player2_info: {987654321, "player2", "Player Two"},
+        player1_id: "playerbob",
+        player2_id: "playeralice",
         player1_word: "word1",
         player2_word: "word1",
         guess_successful: true,
@@ -38,8 +38,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
         mode: :two_player,
         round_number: 1,
         team_id: "team123",
-        player1_info: {123456789, "player1", "Player One"},
-        player2_info: {987654321, "player2", "Player Two"},
+        player1_id: "playerbob",
+        player2_id: "playeralice",
         player1_word: "word1",
         player2_word: "word2",
         guess_successful: false,
@@ -68,7 +68,7 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
         metadata: %{"guild_id" => "guild123"}
       }
 
-      assert {:error, "player1_info is required"} = GuessProcessed.validate(event)
+      assert {:error, "player1_id is required"} = GuessProcessed.validate(event)
     end
 
     test "converts to and from map" do
@@ -78,8 +78,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
         mode: :two_player,
         round_number: 1,
         team_id: "team123",
-        player1_info: {123456789, "player1", "Player One"},
-        player2_info: {987654321, "player2", "Player Two"},
+        player1_id: "playerbob",
+        player2_id: "playeralice",
         player1_word: "word1",
         player2_word: "word1",
         guess_successful: true,
@@ -99,8 +99,8 @@ defmodule GameBot.Domain.Events.GuessEventsTest do
 
       assert reconstructed.game_id == original.game_id
       assert reconstructed.team_id == original.team_id
-      assert reconstructed.player1_info == original.player1_info
-      assert reconstructed.player2_info == original.player2_info
+      assert reconstructed.player1_id == original.player1_id
+      assert reconstructed.player2_id == original.player2_id
       assert reconstructed.player1_word == original.player1_word
       assert reconstructed.player2_word == original.player2_word
       assert reconstructed.guess_successful == original.guess_successful

@@ -149,8 +149,8 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.Validator 
       "game_id",
       "guild_id",
       "team_id",
-      "player1_info",
-      "player2_info",
+      "player1_id",
+      "player2_id",
       "player1_word",
       "player2_word"
     ])

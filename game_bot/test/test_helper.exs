@@ -5,6 +5,16 @@ Code.compiler_options(ignore_module_conflict: true)
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Config module.
 
+# ===================================================================
+# DATABASE INITIALIZATION NOTE:
+#
+# Test database initialization follows this sequence:
+# 1. Configure ExUnit and start applications
+# 2. Use GameBot.Test.DatabaseManager.initialize() for database setup
+# 3. Any direct calls to GameBot.Test.Setup.* are deprecated
+#    and should be migrated to use DatabaseManager functions
+# ===================================================================
+
 # Configure ExUnit with appropriate settings
 ExUnit.configure(
   exclude: [:skip_db, :skip_in_ci],
@@ -14,6 +24,10 @@ ExUnit.configure(
   formatters: [ExUnit.CLIFormatter],
   max_cases: System.schedulers_online() * 2
 )
+
+# Define a maximum retry count for database initialization
+max_db_init_retries = 3
+db_retry_delay = 1000
 
 # Start ExUnit
 ExUnit.start()
@@ -42,8 +56,26 @@ if children != [] do
 end
 
 # Start required applications in correct order
-Application.ensure_all_started(:phoenix)
-Application.ensure_all_started(:phoenix_ecto)
+# Ensure we start them in the right order with proper error handling
+required_apps = [
+  :phoenix,
+  :phoenix_ecto,
+  :postgrex,
+  :ecto,
+  :ecto_sql,
+  :eventstore
+]
+
+# Start each application with error handling
+Enum.each(required_apps, fn app ->
+  case Application.ensure_all_started(app) do
+    {:ok, _} -> :ok
+    {:error, {dep, reason}} ->
+      IO.puts("\n=== Failed to start #{app}. Dependency #{dep} failed ===")
+      IO.puts("Reason: #{inspect(reason)}")
+      System.halt(1)
+  end
+end)
 
 # Note: For improved test database setup, use the new mix task:
 #   mix game_bot.test
@@ -51,21 +83,57 @@ Application.ensure_all_started(:phoenix_ecto)
 # This task handles database setup, test execution, and cleanup automatically.
 # See README_TEST_INFRASTRUCTURE.md for details.
 
-# Initialize test environment using centralized DatabaseManager
-case GameBot.Test.DatabaseManager.initialize() do
-  :ok ->
-    IO.puts("\n=== Test Environment Initialized Successfully ===\n")
+# Initialize test environment using centralized DatabaseManager with retry logic
+# This implementation uses a retry loop with exponential backoff to handle
+# temporary failures during initialization
+result = Enum.reduce_while(1..max_db_init_retries, {:error, :not_attempted}, fn attempt, _acc ->
+  IO.puts("\n=== Initializing test environment (attempt #{attempt}/#{max_db_init_retries}) ===")
+
+  case GameBot.Test.DatabaseManager.initialize() do
+    :ok ->
+      IO.puts("\n=== Test Environment Initialized Successfully ===\n")
+      {:halt, :ok}
+
+    {:error, reason} ->
+      IO.puts("\n=== Failed to Initialize Test Environment ===")
+      IO.puts("Reason: #{inspect(reason)}")
+
+      if attempt < max_db_init_retries do
+        # Wait with exponential backoff before retrying
+        retry_delay = db_retry_delay * attempt
+        IO.puts("Retrying in #{retry_delay}ms...")
+        Process.sleep(retry_delay)
+        {:cont, {:error, reason}}
+      else
+        IO.puts("Maximum retry attempts reached. Giving up.")
+        {:halt, {:error, reason}}
+      end
+  end
+end)
+
+# Verify the result and terminate if initialization failed
+case result do
+  :ok -> :ok  # Continue with test execution
   {:error, reason} ->
-    IO.puts("\n=== Failed to Initialize Test Environment ===")
-    IO.puts("Reason: #{inspect(reason)}")
+    IO.puts("\n=== FATAL: Test environment initialization failed after multiple attempts ===")
+    IO.puts("Final error: #{inspect(reason)}")
+    IO.puts("Terminating test run.")
     System.halt(1)
 end
 
-# Register cleanup for after the test suite
+# Register cleanup for after the test suite with proper error handling
 ExUnit.after_suite(fn _ ->
   IO.puts("\n=== Cleaning up after test suite ===")
-  GameBot.Test.DatabaseManager.cleanup()
-  IO.puts("=== Test suite cleanup complete ===\n")
+
+  case GameBot.Test.DatabaseManager.cleanup() do
+    :ok ->
+      IO.puts("=== Test suite cleanup complete ===\n")
+
+    {:error, reason} ->
+      IO.puts("=== Warning: Test suite cleanup failed ===")
+      IO.puts("Reason: #{inspect(reason)}")
+      IO.puts("This may affect future test runs. Manual cleanup may be required.")
+  end
 end)
 
 # Configure the application for testing
@@ -144,12 +212,13 @@ defmodule GameBot.Test.Setup do
   @moduledoc """
   Setup module for the test environment.
 
-  This module is responsible for initializing all necessary components
-  for the test environment, including:
-  - Database connections
-  - Repository startup and configuration
-  - Phoenix endpoint initialization
-  - Event store setup
+  This module provides legacy functionality for test setup.
+  The primary initialization is now handled by GameBot.Test.DatabaseManager.
+  This module is kept for compatibility with tests that directly use its functions.
+
+  For new tests, prefer using the DatabaseManager approach:
+  - Use GameBot.Test.DatabaseManager.initialize() for environment setup
+  - Use GameBot.Test.DatabaseManager.setup_sandbox(tags) for sandbox configuration
   """
 
   import ExUnit.Callbacks, only: [on_exit: 1]
@@ -163,18 +232,17 @@ defmodule GameBot.Test.Setup do
   @doc """
   Initializes the entire test environment.
 
-  This function should be called once at the beginning of the test run
-  to ensure all services are properly configured and started.
+  DEPRECATED: Use GameBot.Test.DatabaseManager.initialize() instead.
+  This function is kept for backward compatibility with existing tests.
   """
   def initialize do
-    IO.puts("\nWorking with databases: main=#{get_main_db_name()}, event=#{get_event_db_name()}")
+    IO.puts("\n[DEPRECATED] Using legacy Setup.initialize(). Consider migrating to DatabaseManager.initialize().")
+    IO.puts("Working with databases: main=#{get_main_db_name()}, event=#{get_event_db_name()}")
 
-    # Start required applications
-    start_required_applications()
+    # Start required applications is now handled by the main test_helper.exs initialization
+    # Initialize repositories is now handled by DatabaseManager.initialize()
 
-    # Initialize repositories
-    initialize_repositories()
-
+    # Return :ok for compatibility
     :ok
   end
 
@@ -188,10 +256,20 @@ defmodule GameBot.Test.Setup do
 
   @doc """
   Sets up the sandbox based on the test tags.
+
+  DEPRECATED: For new tests, use GameBot.Test.DatabaseManager.setup_sandbox/1 instead.
+  This function now delegates to DatabaseManager.setup_sandbox/1 for compatibility.
   """
   def setup_sandbox(tags) do
     if !tags[:mock] do
-      setup_postgres_sandbox(tags)
+      # Delegate to DatabaseManager for consistency
+      case GameBot.Test.DatabaseManager.setup_sandbox(tags) do
+        :ok -> :ok
+        {:error, reason} ->
+          IO.puts("Warning: Failed to set up sandbox through DatabaseManager: #{inspect(reason)}")
+          # Fall back to legacy implementation for backwards compatibility
+          setup_postgres_sandbox(tags)
+      end
     else
       :ok
     end
@@ -356,7 +434,7 @@ defmodule GameBot.Test.Setup do
 end
 
 # Configure the application for testing
-GameBot.Test.Setup.initialize()
+# GameBot.Test.Setup.initialize()  # REMOVED: Functionality consolidated into DatabaseManager-based initialization
 
 defmodule GameBot.Test.Cleanup do
   def cleanup_test_resources do

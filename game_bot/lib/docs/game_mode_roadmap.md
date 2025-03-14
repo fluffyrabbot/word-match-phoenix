@@ -8,7 +8,7 @@
   config :game_bot, GameBot.EventStore,
     serializer: GameBot.EventStore.JSONSerializer,
     username: "postgres",
-    password: "postgres",
+    password: "csstarahid",
     database: "game_bot_eventstore",
     hostname: "localhost"
   ```

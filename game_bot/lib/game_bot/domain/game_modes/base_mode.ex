@@ -45,6 +45,10 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     GameCompleted
   }
 
+  require GameBot.Domain.GameState
+  require GameBot.Domain.Events.GameEvents.GameStarted
+  require GameBot.Domain.Events.GameEvents.GuessAbandoned
+
   @type config :: term()
   @type game_id :: String.t()
   @type team_id :: String.t()
@@ -57,6 +61,10 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     player1_word: word(),
     player2_word: word()
   }
+
+  @type game_state_t :: GameBot.Domain.GameState.t()
+  @type game_started_t :: GameBot.Domain.Events.GameEvents.GameStarted.t()
+  @type guess_abandoned_t :: GameBot.Domain.Events.GameEvents.GuessAbandoned.t()
 
   @doc """
   Callback to initialize a new game state.
@@ -78,7 +86,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       end
   """
   @callback init(game_id(), %{team_id() => [player_id()]}, config()) ::
-    {:ok, GameState.t()} | error()
+    {:ok, GameBot.Domain.GameState.t()} | error()
 
   @doc """
   Callback to process a guess pair from a team.
@@ -186,8 +194,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
 
   @since "1.0.0"
   """
-  @spec initialize_game(module(), game_id(), %{team_id() => [player_id()]}, config()) ::
-    {:ok, GameState.t()} | error()
+  @spec initialize_game(module(), game_id(), map(), config()) ::
+    {:ok, map(), [map()]} | error()
   def initialize_game(mode, game_id, teams, config) do
     # Extract guild_id from config or use default
     guild_id = get_in(config, [:metadata, :guild_id]) || "default_guild"
@@ -248,7 +256,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     player2_duration = Map.get(guess_pair, :player2_duration, 0)
 
     # Validate inputs
-    with {:ok, team} <- get_team(state, team_id),
+    with {:ok, team} <- fetch_team(state, team_id),
          :ok <- validate_guess_pair(state, team_id, guess_pair) do
       # Get current round guess count
       round_guess_count = team.guess_count + 1
@@ -324,8 +332,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
 
   @since "1.0.0"
   """
-  @spec handle_guess_abandoned(GameState.t(), team_id(), atom(), map() | nil) ::
-    {:ok, GameState.t(), GuessAbandoned.t()} | error()
+  @spec handle_guess_abandoned(map(), team_id(), atom(), map() | nil) ::
+    {:ok, map(), map()} | error()
   def handle_guess_abandoned(state, team_id, reason, last_guess) do
     team_state = get_in(state.teams, [team_id])
     now = DateTime.utc_now()
@@ -334,7 +342,7 @@ defmodule GameBot.Domain.GameModes.BaseMode do
       game_id: game_id(state),
       guild_id: state.guild_id,
       mode: state.mode,
-      round_number: state.round_number,
+      round_number: state.current_round,
       team_id: team_id,
       player1_id: last_guess["player1_id"],
       player2_id: last_guess["player2_id"],
@@ -353,18 +361,16 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     {:ok, updated_state, event}
   end
 
-  @doc """
-  Validates the given guess pair against the current game state.
-
-  ## Parameters
-    * `state` - Current game state
-    * `team_id` - Team making the guess
-    * `guess_pair` - Map containing guess details
-
-  ## Returns
-    * `:ok` - Guess pair is valid
-    * `{:error, reason}` - Validation error
-  """
+  # Validates the given guess pair against the current game state.
+  #
+  # Parameters:
+  #   * `state` - Current game state
+  #   * `team_id` - Team making the guess
+  #   * `guess_pair` - Map containing guess details
+  #
+  # Returns:
+  #   * `:ok` - Guess pair is valid
+  #   * `{:error, reason}` - Validation error
   defp validate_guess_pair(state, team_id, %{
     player1_id: player1_id,
     player2_id: player2_id,
@@ -497,7 +503,16 @@ defmodule GameBot.Domain.GameModes.BaseMode do
 
   # Private helpers
 
-  defp game_id(%GameState{mode: mode, start_time: start_time}) do
+  @doc """
+  Generates a unique game ID from a game state.
+
+  ## Parameters
+    * `state` - The game state to generate an ID for
+
+  ## Returns
+    * A string ID in the format "{mode}-{timestamp}"
+  """
+  def game_id(%GameState{mode: mode, start_time: start_time}) do
     "#{mode}-#{DateTime.to_unix(start_time)}"
   end
 
@@ -637,49 +652,6 @@ defmodule GameBot.Domain.GameModes.BaseMode do
   end
 
   @doc """
-  Validates that a team exists in the game state.
-
-  ## Parameters
-    * `state` - Current game state
-    * `team_id` - Team ID to validate
-
-  ## Returns
-    * `:ok` - Team exists
-    * `{:error, :invalid_team}` - Team doesn't exist
-  """
-  @spec validate_team_exists(GameState.t(), team_id()) :: :ok | {:error, :invalid_team}
-  defp validate_team_exists(state, team_id) do
-    if Map.has_key?(state.teams, team_id) do
-      :ok
-    else
-      {:error, :invalid_team}
-    end
-  end
-
-  @doc """
-  Validates that guess contents are valid (non-empty words).
-
-  ## Parameters
-    * `word1` - First word to validate
-    * `word2` - Second word to validate
-
-  ## Returns
-    * `:ok` - Words are valid
-    * `{:error, :invalid_guess}` - Words are invalid
-  """
-  @spec validate_guess_contents(String.t(), String.t()) :: :ok | {:error, :invalid_guess}
-  defp validate_guess_contents(word1, word2) do
-    cond do
-      is_nil(word1) or is_nil(word2) ->
-        {:error, :invalid_guess}
-      String.trim(word1) == "" or String.trim(word2) == "" ->
-        {:error, :invalid_guess}
-      true ->
-        :ok
-    end
-  end
-
-  @doc """
   Gets a team from the state by team ID.
 
   ## Parameters
@@ -690,8 +662,8 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     * `{:ok, team}` - Successfully retrieved team
     * `{:error, :invalid_team}` - Team not found
   """
-  @spec get_team(GameState.t(), String.t()) :: {:ok, map()} | {:error, :invalid_team}
-  def get_team(state, team_id) do
+  @spec fetch_team(GameState.t(), String.t()) :: {:ok, map()} | {:error, :invalid_team}
+  def fetch_team(state, team_id) do
     case Map.get(state.teams, team_id) do
       nil -> {:error, :invalid_team}
       team -> {:ok, team}
@@ -712,5 +684,23 @@ defmodule GameBot.Domain.GameModes.BaseMode do
     state.teams
     |> Enum.map(fn {_team_id, team} -> Map.get(team, :guess_count, 0) end)
     |> Enum.sum()
+  end
+
+  @doc """
+  Gets a team from the state by team ID.
+
+  DEPRECATED: Use fetch_team/2 instead.
+
+  ## Parameters
+    * `state` - The current game state
+    * `team_id` - The ID of the team to retrieve
+
+  ## Returns
+    * `{:ok, team}` - Successfully retrieved team
+    * `{:error, :invalid_team}` - Team not found
+  """
+  @spec get_team(GameState.t(), String.t()) :: {:ok, map()} | {:error, :invalid_team}
+  def get_team(state, team_id) do
+    fetch_team(state, team_id)
   end
 end

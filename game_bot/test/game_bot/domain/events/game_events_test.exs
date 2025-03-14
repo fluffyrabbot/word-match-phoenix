@@ -53,8 +53,8 @@ defmodule GameBot.Domain.Events.GameEventsTest do
       mode: Keyword.get(opts, :mode, :two_player),
       round_number: Keyword.get(opts, :round_number, 1),
       team_id: Keyword.get(opts, :team_id, "team1"),
-      player1_info: {123456789, "player1", "Player One"},
-      player2_info: {987654321, "player2", "Player Two"},
+      player1_id: Keyword.get(opts, :player1_id, "player1"),
+      player2_id: Keyword.get(opts, :player2_id, "player2"),
       player1_word: "word1",
       player2_word: "word2",
       guess_successful: Keyword.get(opts, :guess_successful, true),
@@ -157,13 +157,16 @@ defmodule GameBot.Domain.Events.GameEventsTest do
     end
 
     test "validates required fields" do
-      event = create_guess_processed() |> Map.delete(:player1_info)
+      event = create_guess_processed() |> Map.put(:player1_id, nil)
       assert {:error, _} = EventValidator.validate(event)
 
-      event = create_guess_processed() |> Map.delete(:player2_info)
+      event = create_guess_processed() |> Map.put(:player2_id, nil)
       assert {:error, _} = EventValidator.validate(event)
 
-      event = create_guess_processed() |> Map.delete(:player1_word)
+      event = create_guess_processed() |> Map.put(:player1_id, 123)
+      assert {:error, _} = EventValidator.validate(event)
+
+      event = create_guess_processed() |> Map.put(:player2_id, 123)
       assert {:error, _} = EventValidator.validate(event)
     end
 
@@ -196,16 +199,16 @@ defmodule GameBot.Domain.Events.GameEventsTest do
 
     test "serializes and deserializes correctly" do
       original = create_guess_processed()
-      serialized = GuessProcessed.to_map(original)
-      reconstructed = GuessProcessed.from_map(serialized)
+      serialized = EventSerializer.to_map(original)
+      reconstructed = EventSerializer.from_map(serialized)
 
       assert reconstructed.game_id == original.game_id
       assert reconstructed.guild_id == original.guild_id
       assert reconstructed.mode == original.mode
       assert reconstructed.round_number == original.round_number
       assert reconstructed.team_id == original.team_id
-      assert reconstructed.player1_info == original.player1_info
-      assert reconstructed.player2_info == original.player2_info
+      assert reconstructed.player1_id == original.player1_id
+      assert reconstructed.player2_id == original.player2_id
       assert reconstructed.player1_word == original.player1_word
       assert reconstructed.player2_word == original.player2_word
       assert reconstructed.guess_successful == original.guess_successful

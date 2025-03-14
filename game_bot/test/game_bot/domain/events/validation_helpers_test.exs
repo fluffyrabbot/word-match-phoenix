@@ -94,23 +94,6 @@ defmodule GameBot.Domain.Events.ValidationHelpersTest do
     end
   end
 
-  describe "validate_player_info_tuple/2" do
-    test "returns :ok for valid player info tuple" do
-      assert :ok = ValidationHelpers.validate_player_info_tuple({"123", "Player Name"}, "player_info")
-    end
-
-    test "returns error for nil" do
-      assert {:error, "player_info is required"} = ValidationHelpers.validate_player_info_tuple(nil, "player_info")
-    end
-
-    test "returns error for invalid tuple format" do
-      assert {:error, "player_info must be a tuple of {id, name}"} = ValidationHelpers.validate_player_info_tuple({"123"}, "player_info")
-      assert {:error, "player_info must be a tuple of {id, name}"} = ValidationHelpers.validate_player_info_tuple({123, "Name"}, "player_info")
-      assert {:error, "player_info must be a tuple of {id, name}"} = ValidationHelpers.validate_player_info_tuple({"123", 123}, "player_info")
-      assert {:error, "player_info must be a tuple of {id, name}"} = ValidationHelpers.validate_player_info_tuple(["123", "Name"], "player_info")
-    end
-  end
-
   describe "ensure_metadata_fields/2" do
     test "adds required fields to empty metadata" do
       guild_id = "123456"

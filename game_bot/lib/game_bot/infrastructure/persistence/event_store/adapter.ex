@@ -129,6 +129,7 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Adapter do
     # Ensure the adapter module is loaded and available
     case Code.ensure_loaded(adapter) do
       {:module, _} ->
+        # Adapter module is available, return it
         {:ok, adapter}
       {:error, reason} ->
         {:error, Error.system_error(__MODULE__, "Event store adapter not available", reason)}

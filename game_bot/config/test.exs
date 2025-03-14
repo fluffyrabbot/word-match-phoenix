@@ -1,9 +1,8 @@
 import Config
 
-# Generate unique database names for each test run to avoid connection conflicts
-unique_suffix = System.get_env("MIX_TEST_PARTITION") || System.system_time(:second)
-main_db_name = "game_bot_test_#{unique_suffix}"
-event_db_name = "game_bot_eventstore_test_#{unique_suffix}"
+# Use fixed database names for testing to avoid connection conflicts
+main_db_name = "game_bot_test"
+event_db_name = "game_bot_eventstore_test"
 
 # Get the pool size from environment or use default
 pool_size = String.to_integer(System.get_env("ECTO_POOL_SIZE") || "10")
