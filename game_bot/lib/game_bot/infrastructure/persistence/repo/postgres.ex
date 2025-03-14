@@ -18,14 +18,14 @@ defmodule GameBot.Infrastructure.Persistence.Repo.Postgres do
 
   # Runtime configuration for repository implementation
   # This allows swapping with a mock in tests
-  # @repo_implementation Application.compile_env(:game_bot, :repo_implementation, __MODULE__)
+  @repo_implementation Application.compile_env(:game_bot, :repo_implementation, __MODULE__)
 
   # At startup, log the configured repository implementation
-  # @on_load :log_repo_implementation
-  # def log_repo_implementation do
-  #   IO.puts("Configured repository implementation: #{inspect(@repo_implementation)}")
-  #   :ok
-  # end
+  @on_load :log_repo_implementation
+  def log_repo_implementation do
+    IO.puts("Runtime repository implementation: #{inspect(@repo_implementation)}")
+    :ok
+  end
 
   # ETS table names for tracking test state
   @test_names :test_schema_names

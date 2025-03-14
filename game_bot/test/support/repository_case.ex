@@ -181,6 +181,11 @@ defmodule GameBot.RepositoryCase do
   defp setup_real_environment(tags) do
     Logger.debug("Setting up real repository test environment")
 
+    # First set the repo implementation explicitly if not already set
+    if is_nil(Application.get_env(:game_bot, :repo_implementation)) do
+      Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.Postgres)
+    end
+
     # Use the centralized DatabaseHelper to initialize the environment
     DatabaseHelper.setup_sandbox(tags)
   end

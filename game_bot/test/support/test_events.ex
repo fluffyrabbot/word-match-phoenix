@@ -3,6 +3,12 @@ defmodule GameBot.Domain.Events.TestEvents.ValidatorTestEvent do
   Test event struct for validation tests
   """
   defstruct [:game_id, :guild_id, :mode, :timestamp, :metadata, :count, :score]
+
+  @doc "Returns the event type for serialization"
+  def event_type, do: "validator_test_event"
+
+  @doc "Returns the event version for serialization"
+  def event_version, do: 1
 end
 
 defmodule GameBot.Domain.Events.TestEvents.ValidatorOptionalFieldsEvent do
@@ -10,6 +16,12 @@ defmodule GameBot.Domain.Events.TestEvents.ValidatorOptionalFieldsEvent do
   Test event with optional fields
   """
   defstruct [:game_id, :guild_id, :mode, :timestamp, :metadata, :optional_field]
+
+  @doc "Returns the event type for serialization"
+  def event_type, do: "validator_optional_fields_event"
+
+  @doc "Returns the event version for serialization"
+  def event_version, do: 1
 end
 
 # This module provides direct validation functions for test events without relying on protocols

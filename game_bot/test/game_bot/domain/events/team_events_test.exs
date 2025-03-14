@@ -50,7 +50,7 @@ defmodule GameBot.Domain.Events.TeamEventsTest do
         guild_id: "guild_123",
         created_at: DateTime.utc_now(),
         timestamp: DateTime.utc_now(),
-        metadata: %{guild_id: "guild_123"}
+        metadata: %{guild_id: "guild_123", source_id: "test_source", correlation_id: "test_correlation"}
       }
 
       assert :ok = TeamCreated.validate(valid_event)
@@ -145,7 +145,7 @@ defmodule GameBot.Domain.Events.TeamEventsTest do
         guild_id: "guild_123",
         team_updated_at: DateTime.utc_now(),
         timestamp: DateTime.utc_now(),
-        metadata: %{guild_id: "guild_123"}
+        metadata: %{guild_id: "guild_123", source_id: "test_source", correlation_id: "test_correlation"}
       }
 
       assert :ok = TeamUpdated.validate(valid_event)
@@ -242,7 +242,7 @@ defmodule GameBot.Domain.Events.TeamEventsTest do
         guild_id: "guild_123",
         added_at: DateTime.utc_now(),
         timestamp: DateTime.utc_now(),
-        metadata: %{guild_id: "guild_123"}
+        metadata: %{guild_id: "guild_123", source_id: "test_source", correlation_id: "test_correlation"}
       }
 
       assert :ok = TeamMemberAdded.validate(valid_event)
@@ -304,7 +304,7 @@ defmodule GameBot.Domain.Events.TeamEventsTest do
         guild_id: "guild_123",
         removed_at: DateTime.utc_now(),
         timestamp: DateTime.utc_now(),
-        metadata: %{guild_id: "guild_123"}
+        metadata: %{guild_id: "guild_123", source_id: "test_source", correlation_id: "test_correlation"}
       }
 
       assert :ok = TeamMemberRemoved.validate(valid_event)

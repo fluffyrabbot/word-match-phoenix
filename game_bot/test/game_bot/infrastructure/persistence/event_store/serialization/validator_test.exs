@@ -40,7 +40,9 @@ defmodule GameBot.Infrastructure.Persistence.EventStore.Serialization.ValidatorT
         guess_count: 1,
         round_guess_count: 1,
         total_guesses: 5,
-        guess_duration: 30
+        guess_duration: 30,
+        player1_duration: 20,
+        player2_duration: 30
       }
 
       assert :ok = Validator.validate(valid_game_started)

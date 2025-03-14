@@ -90,6 +90,15 @@ defmodule GameBot.Infrastructure.Persistence.Repo.TransactionTest do
   end
 
   setup do
+    # Ensure Repo.Postgres is properly registered
+    Application.put_env(:game_bot, :repo_implementation, GameBot.Infrastructure.Persistence.Repo.Postgres)
+
+    # Ensure the repository is started
+    unless Process.whereis(GameBot.Infrastructure.Persistence.Repo.Postgres) do
+      {:ok, _} = GameBot.Infrastructure.Persistence.Repo.Postgres.start_link([])
+      Process.sleep(100) # Give it time to fully initialize
+    end
+
     # Create test table
     Postgres.query!("DROP TABLE IF EXISTS test_schema")
     Postgres.query!("CREATE TABLE IF NOT EXISTS test_schema (

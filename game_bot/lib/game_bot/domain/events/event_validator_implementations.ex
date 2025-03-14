@@ -114,8 +114,8 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
       required_fields = [
         :round_number,
         :team_id,
-        :player1_info,
-        :player2_info,
+        :player1_id,
+        :player2_id,
         :player1_word,
         :player2_word,
         :guess_successful,
@@ -134,8 +134,8 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
           # All required fields are present, continue with validation
           with :ok <- Helpers.validate_positive_integer(event.round_number, "round_number"),
                :ok <- Helpers.validate_id(event.team_id, "team_id"),
-               :ok <- validate_player_info(event.player1_info, "player1_info"),
-               :ok <- validate_player_info(event.player2_info, "player2_info"),
+               :ok <- Helpers.validate_id(event.player1_id, "player1_id"),
+               :ok <- Helpers.validate_id(event.player2_id, "player2_id"),
                :ok <- validate_word(event.player1_word, "player1_word"),
                :ok <- validate_word(event.player2_word, "player2_word"),
                :ok <- validate_boolean(event.guess_successful, "guess_successful"),
@@ -165,10 +165,10 @@ defmodule GameBot.Domain.Events.EventValidatorImplementations do
       end
     end
 
-    defp validate_word(word, field_name) when is_binary(word) and word != "", do: :ok
+    defp validate_word(word, _field_name) when is_binary(word) and word != "", do: :ok
     defp validate_word(_, field_name), do: {:error, "#{field_name} must be a non-empty string"}
 
-    defp validate_boolean(value, field_name) when is_boolean(value), do: :ok
+    defp validate_boolean(value, _field_name) when is_boolean(value), do: :ok
     defp validate_boolean(_, field_name), do: {:error, "#{field_name} must be a boolean"}
 
     defp validate_positive_counts(event) do

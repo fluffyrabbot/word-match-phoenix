@@ -261,6 +261,20 @@ defmodule GameBot.Domain.Events.GameEvents do
     end
 
     @doc """
+    Creates a new GameStarted event with roles parameter.
+
+    This version supports the 10-arity case used by the CommandHandler.
+    """
+    @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()], map(), map(), DateTime.t() | nil, map()) :: t() | no_return()
+    def new(game_id, guild_id, mode, teams, team_ids, player_ids, roles, config, started_at, metadata) do
+      # Merge roles into config if present
+      enhanced_config = if roles && map_size(roles) > 0, do: Map.put(config || %{}, :roles, roles), else: config || %{}
+
+      # Call the 9-arity version
+      new(game_id, guild_id, mode, teams, team_ids, player_ids, enhanced_config, started_at, metadata)
+    end
+
+    @doc """
     Creates a new GameStarted event with default configuration and started_at.
     """
     @spec new(String.t(), String.t(), atom(), map(), [String.t()], [String.t()]) :: t() | no_return()

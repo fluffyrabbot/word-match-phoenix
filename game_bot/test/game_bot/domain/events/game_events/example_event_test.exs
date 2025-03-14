@@ -202,7 +202,7 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEventTest do
 
       # Assert
       assert {:error, message} = result
-      assert message == "data must be a map"
+      assert message == "timestamp is required"
     end
   end
 

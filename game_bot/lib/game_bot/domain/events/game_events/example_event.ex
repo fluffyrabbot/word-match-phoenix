@@ -72,10 +72,15 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   @impl GameEvents
   @spec validate(t()) :: :ok | {:error, String.t()}
   def validate(%__MODULE__{} = event) do
-    with :ok <- EventStructure.validate(event),
-         :ok <- validate_action(event.action),
-         :ok <- validate_data(event.data) do
-      :ok
+    # First validate the overall structure
+    case EventStructure.validate(event) do
+      :ok ->
+        # Then validate custom fields
+        with :ok <- validate_action(event.action),
+             :ok <- validate_data(event.data) do
+          :ok
+        end
+      error -> error
     end
   end
 
@@ -257,6 +262,21 @@ defmodule GameBot.Domain.Events.GameEvents.ExampleEvent do
   defp validate_data(nil), do: {:error, "data is required"}
   defp validate_data(data) when is_map(data), do: :ok
   defp validate_data(_), do: {:error, "data must be a map"}
+
+  @doc """
+  Deserializes event data into an ExampleEvent struct.
+  This function is required by EventRegistry.deserialize/1.
+
+  ## Parameters
+  - data: Map containing event data
+
+  ## Returns
+  - An ExampleEvent struct
+  """
+  @spec deserialize(map()) :: t()
+  def deserialize(data) do
+    from_map(data)
+  end
 
   @spec default_attrs() :: map()
   defp default_attrs do

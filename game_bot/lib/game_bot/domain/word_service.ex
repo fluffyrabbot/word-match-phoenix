@@ -406,20 +406,35 @@ defmodule GameBot.Domain.WordService do
   defp add_verb_variations(variations, original) do
     case Map.get(@irregular_verbs, original) do
       nil ->
-        variations ++ Enum.flat_map(variations, fn word ->
+        verb_forms = Enum.flat_map(variations, fn word ->
           cond do
-            String.ends_with?(word, "ing") ->
-              [word, String.slice(word, 0..-4//1)]
-            String.ends_with?(word, "ed") ->
-              [word, String.slice(word, 0..-3//1)]
+            # End with 'e' like 'analyze' -> add 'analyzing'
             String.ends_with?(word, "e") ->
-              [word, word <> "ing", word <> "d"]
-            String.ends_with?(word, "ze") or String.ends_with?(word, "se") ->
-              [word, word <> "s", word <> "d", String.slice(word, 0..-3//1) <> "ing"]
+              base_without_e = String.slice(word, 0..-2//1)
+              [word, base_without_e <> "ing", word <> "ing", word <> "d", base_without_e <> "ed"]
+            # End with 'ze' or 'se' like 'analyze' or 'analyse'
+            String.ends_with?(word, "ze") ->
+              base_without_ze = String.slice(word, 0..-3//1)
+              [word, word <> "s", word <> "d", base_without_ze <> "ing"]
+            String.ends_with?(word, "se") ->
+              base_without_se = String.slice(word, 0..-3//1)
+              [word, word <> "s", word <> "d", base_without_se <> "ing"]
+            # Already end with 'ing' like 'running'
+            String.ends_with?(word, "ing") ->
+              base = String.slice(word, 0..-4//1)
+              [word, base, base <> "ed", base <> "s"]
+            # End with 'ed' like 'walked'
+            String.ends_with?(word, "ed") ->
+              base = String.slice(word, 0..-3//1)
+              [word, base, base <> "ing", base <> "s"]
+            # Default case - regular words
             true ->
-              [word, word <> "ing", word <> "ed"]
+              [word, word <> "ing", word <> "ed", word <> "s"]
           end
         end)
+
+        variations ++ verb_forms
+
       irregular_forms ->
         variations ++ irregular_forms
     end
@@ -440,6 +455,12 @@ defmodule GameBot.Domain.WordService do
           [w, String.replace(w, "yze", "yse")]
         String.contains?(w, "yse") ->
           [w, String.replace(w, "yse", "yze")]
+        String.contains?(w, "er") and (String.ends_with?(w, "er") or String.ends_with?(w, "ers")) ->
+          # Handle theater/theatre and similar patterns
+          [w, String.replace(w, "er", "re")]
+        String.contains?(w, "re") and (String.ends_with?(w, "re") or String.ends_with?(w, "res")) ->
+          # Handle theatre/theater and similar patterns
+          [w, String.replace(w, "re", "er")]
         true ->
           [w]
       end
@@ -511,9 +532,9 @@ defmodule GameBot.Domain.WordService do
     # Generate pattern-based variations
     pattern_variations =
       [word]
-      |> add_verb_variations(word)
-      |> add_plural_variations()
-      |> add_regional_variations()
+      |> add_regional_variations()  # Apply regional variations first
+      |> add_verb_variations(word)  # Then add verb forms like "analyzing"
+      |> add_plural_variations()    # Then pluralize the results
       |> MapSet.new()
       |> MapSet.delete(word)  # Remove the original word
       |> MapSet.to_list()

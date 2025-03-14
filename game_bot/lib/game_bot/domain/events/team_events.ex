@@ -68,7 +68,6 @@ defmodule GameBot.Domain.Events.TeamEvents do
     @doc """
     Validates custom fields specific to this event.
     """
-    @impl true
     @spec validate_custom_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
     def validate_custom_fields(changeset) do
       super(changeset)
@@ -161,6 +160,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
         name: name,
         player_ids: player_ids,
         guild_id: guild_id,
+        mode: nil,  # Explicitly set mode to nil
         created_at: now,
         timestamp: now,
         metadata: enhanced_metadata
@@ -348,6 +348,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
         team_id: team_id,
         name: name,
         guild_id: guild_id,
+        mode: nil,  # Explicitly set mode to nil
         team_updated_at: now,
         timestamp: now,
         metadata: enhanced_metadata
@@ -518,6 +519,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
         player_id: player_id,
         added_by: added_by,
         guild_id: guild_id,
+        mode: nil,  # Explicitly set mode to nil
         added_at: now,
         timestamp: now,
         metadata: enhanced_metadata
@@ -695,6 +697,7 @@ defmodule GameBot.Domain.Events.TeamEvents do
         removed_by: removed_by,
         reason: reason,
         guild_id: guild_id,
+        mode: nil,  # Explicitly set mode to nil
         removed_at: now,
         timestamp: now,
         metadata: enhanced_metadata

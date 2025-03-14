@@ -16,7 +16,7 @@ defmodule GameBot.Domain.Events.EventStructure do
   alias GameBot.Domain.Events.Metadata
 
   # Base fields that should be present in all events
-  @base_fields [:game_id, :guild_id, :mode, :timestamp, :metadata]
+  @base_fields [:guild_id, :timestamp, :metadata]
 
   @doc """
   When used, imports common event functionality and sets up the event structure.
@@ -140,7 +140,8 @@ defmodule GameBot.Domain.Events.EventStructure do
     with :ok <- validate_required_fields(event, @base_fields),
          :ok <- validate_id_fields(event),
          :ok <- validate_timestamp(event.timestamp),
-         :ok <- validate_mode(event.mode) do
+         # Only validate mode if the field exists in the event
+         :ok <- (if Map.has_key?(event, :mode), do: validate_mode(event.mode), else: :ok) do
       :ok
     end
   end
@@ -267,11 +268,21 @@ defmodule GameBot.Domain.Events.EventStructure do
   end
 
   defp validate_id_fields(event) do
-    with true <- is_binary(event.game_id) and byte_size(event.game_id) > 0,
-         true <- is_binary(event.guild_id) and byte_size(event.guild_id) > 0 do
-      :ok
+    # Always validate guild_id first
+    if not is_binary(event.guild_id) or byte_size(event.guild_id) <= 0 do
+      {:error, "guild_id must be a non-empty string"}
     else
-      false -> {:error, "game_id and guild_id must be non-empty strings"}
+      # If game_id field is present, validate it
+      if Map.has_key?(event, :game_id) and not is_nil(event.game_id) do
+        if is_binary(event.game_id) and byte_size(event.game_id) > 0 do
+          :ok
+        else
+          {:error, "game_id must be a non-empty string"}
+        end
+      else
+        # game_id is optional, so this is valid
+        :ok
+      end
     end
   end
 
@@ -284,6 +295,8 @@ defmodule GameBot.Domain.Events.EventStructure do
   defp validate_timestamp(_), do: {:error, "timestamp must be a DateTime"}
 
   defp validate_mode(mode) when is_atom(mode), do: :ok
+  defp validate_mode(nil), do: :ok  # Mode is optional
+  # If mode is not present in the event, it's also considered optional
   defp validate_mode(_), do: {:error, "mode must be an atom"}
 
   # Serialization Functions

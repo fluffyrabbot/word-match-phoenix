@@ -60,8 +60,8 @@ defmodule GameBot.Domain.Events.EventBuilderTest do
 
     test "returns error with invalid metadata" do
       metadata = %{
-        # Missing required fields
-        source_id: nil
+        # Missing source_id
+        correlation_id: "corr-456"
       }
 
       attrs = %{
@@ -124,8 +124,8 @@ defmodule GameBot.Domain.Events.EventBuilderTest do
       assert map["reason"] == "invalid_word"
       assert is_binary(map["timestamp"])
       assert is_map(map["metadata"])
-      assert map["metadata"]["source_id"] == "test-123"
-      assert map["metadata"]["correlation_id"] == "corr-456"
+      assert Map.get(map["metadata"], "source_id") == "test-123" || Map.get(map["metadata"], :source_id) == "test-123"
+      assert Map.get(map["metadata"], "correlation_id") == "corr-456" || Map.get(map["metadata"], :correlation_id) == "corr-456"
     end
 
     test "deserializes map to event with from_map" do

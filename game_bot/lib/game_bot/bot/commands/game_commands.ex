@@ -39,6 +39,7 @@ defmodule GameBot.Bot.Commands.GameCommands do
             player_ids: teams.player_ids,
             config: config,
             timestamp: DateTime.utc_now(),
+            started_at: DateTime.utc_now(),
             metadata: metadata
           }
 
@@ -80,6 +81,7 @@ defmodule GameBot.Bot.Commands.GameCommands do
             player_ids: teams.player_ids,
             config: config,
             timestamp: DateTime.utc_now(),
+            started_at: DateTime.utc_now(),
             metadata: metadata
           }
 

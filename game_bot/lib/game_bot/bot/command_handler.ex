@@ -142,7 +142,6 @@ defmodule GameBot.Bot.CommandHandler do
       options.teams.team_map,  # teams
       options.teams.team_ids,
       options.teams.player_ids,
-      %{},  # roles (empty map as default)
       %{},  # config (empty map as default)
       nil,  # started_at (nil uses current time)
       metadata  # pass the metadata we created

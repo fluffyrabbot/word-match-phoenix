@@ -60,7 +60,12 @@ defmodule GameBot.Domain.GameModes.Events do
       player2_word: guess_pair.player2_word,
       guess_successful: result.match?,
       guess_count: get_in(state.teams, [team_id, :guess_count]),
-      match_score: Map.get(result, :score, 0)
+      round_guess_count: get_in(state.teams, [team_id, :round_guess_count]) || 1,
+      total_guesses: get_in(state.teams, [team_id, :total_guesses]) || 1,
+      guess_duration: Map.get(result, :duration, 0),
+      match_score: Map.get(result, :score, 0),
+      player1_duration: Map.get(guess_pair, :player1_duration, 0),
+      player2_duration: Map.get(guess_pair, :player2_duration, 0)
     })
   end
 

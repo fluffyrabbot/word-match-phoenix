@@ -26,9 +26,11 @@ defmodule GameBot.Application do
   defp base_children do
     # Start the Ecto repositories
     repos = [
-      GameBot.Infrastructure.Persistence.Repo,
-      GameBot.Infrastructure.Persistence.Repo.Postgres
+      GameBot.Infrastructure.Persistence.Repo
     ]
+
+    # Always include Postgres repo which is needed for both regular and test environments
+    repos = repos ++ [GameBot.Infrastructure.Persistence.Repo.Postgres]
 
     # Add EventStore if not in test environment
     repos = if Mix.env() != :test do

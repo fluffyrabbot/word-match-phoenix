@@ -31,7 +31,7 @@ defmodule GameBot.Domain.Events.EventStructureTest do
   describe "base_fields/0" do
     test "returns the expected base fields" do
       assert Enum.sort(EventStructure.base_fields()) ==
-             Enum.sort([:game_id, :guild_id, :mode, :timestamp, :metadata])
+             Enum.sort([:guild_id, :timestamp, :metadata])
     end
   end
 
@@ -42,8 +42,8 @@ defmodule GameBot.Domain.Events.EventStructureTest do
     end
 
     test "returns error for missing fields" do
-      event = create_valid_event() |> Map.delete(:game_id)
-      assert {:error, "game_id is required"} = EventStructure.validate_base_fields(event)
+      event = create_valid_event() |> Map.delete(:guild_id)
+      assert {:error, "guild_id is required"} = EventStructure.validate_base_fields(event)
     end
 
     test "validates timestamp is not in future" do

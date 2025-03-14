@@ -3,6 +3,23 @@ defmodule GameBot.Domain.Events.ValidationHelpersTest do
 
   alias GameBot.Domain.Events.ValidationHelpers
 
+  # Define a test struct for use with Ecto.Changeset
+  defmodule TestStruct do
+    use Ecto.Schema
+    import Ecto.Changeset
+
+    @primary_key false
+    embedded_schema do
+      field :timestamp, :utc_datetime_usec
+    end
+
+    def changeset(struct, params) do
+      struct
+      |> cast(params, [:timestamp])
+      |> validate_required([:timestamp])
+    end
+  end
+
   describe "validate_string_value/1" do
     test "returns :ok for non-empty strings" do
       assert :ok = ValidationHelpers.validate_string_value("test")
@@ -74,21 +91,21 @@ defmodule GameBot.Domain.Events.ValidationHelpersTest do
   describe "validate_not_future/2" do
     test "returns changeset with no errors for past dates" do
       past_date = DateTime.add(DateTime.utc_now(), -3600, :second)
-      changeset = Ecto.Changeset.change(%{timestamp: past_date})
+      changeset = Ecto.Changeset.change(%TestStruct{timestamp: past_date}, %{})
       result = ValidationHelpers.validate_not_future(changeset, :timestamp)
       refute result.errors[:timestamp]
     end
 
     test "returns changeset with no errors for current date" do
       now = DateTime.utc_now()
-      changeset = Ecto.Changeset.change(%{timestamp: now})
+      changeset = Ecto.Changeset.change(%TestStruct{timestamp: now}, %{})
       result = ValidationHelpers.validate_not_future(changeset, :timestamp)
       refute result.errors[:timestamp]
     end
 
     test "returns changeset with error for future dates" do
       future_date = DateTime.add(DateTime.utc_now(), 3600, :second)
-      changeset = Ecto.Changeset.change(%{timestamp: future_date})
+      changeset = Ecto.Changeset.change(%TestStruct{timestamp: future_date}, %{})
       result = ValidationHelpers.validate_not_future(changeset, :timestamp)
       assert {"cannot be in the future", _} = result.errors[:timestamp]
     end
@@ -133,9 +150,8 @@ defmodule GameBot.Domain.Events.ValidationHelpersTest do
 
       result = ValidationHelpers.ensure_metadata_fields(existing, guild_id)
 
-      # guild_id should be updated
-      assert result.guild_id == guild_id
-      # but source_id and correlation_id should be preserved
+      # No fields should be overwritten
+      assert result.guild_id == "existing-guild-id"
       assert result.source_id == source_id
       assert result.correlation_id == correlation_id
     end

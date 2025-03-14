@@ -6,8 +6,6 @@ defmodule GameBot.Domain.Events.EventSerializerMapImpl do
 
   alias GameBot.Domain.Events.EventSerializer
 
-  @behaviour EventSerializer
-
   # Implement EventSerializer for Map
   defimpl EventSerializer, for: Map do
     @doc """

@@ -270,15 +270,32 @@ defmodule GameBot.Test.DatabaseHelper do
     - `{:error, reason}` - If any repository fails to start
   """
   def ensure_all_repos_running do
-    Enum.reduce(@repos, :ok, fn repo, acc ->
-      case acc do
-        :ok ->
-          if not is_repo_running?(repo) do
-            start_repo(repo)
-          else
-            :ok
-          end
-        error -> error
+    Logger.debug("Ensuring all repositories are running")
+
+    # Make sure both repositories are defined in the application environment
+    if is_nil(Application.get_env(:game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres)) do
+      # Configure with minimal settings for test
+      Application.put_env(:game_bot, GameBot.Infrastructure.Persistence.Repo.Postgres, [
+        database: "gamebot_test",
+        username: "postgres",
+        password: "csstarahid",
+        hostname: "localhost",
+        pool: Ecto.Adapters.SQL.Sandbox,
+        pool_size: 10
+      ])
+    end
+
+    # Attempt to start each repository if not already running
+    Enum.each(@repos, fn repo ->
+      if not is_repo_running?(repo) do
+        start_repo(repo)
+      end
+    end)
+
+    # Verify all repositories are running
+    Enum.each(@repos, fn repo ->
+      unless is_repo_running?(repo) do
+        Logger.error("Repository #{inspect(repo)} is not running after initialization attempt")
       end
     end)
   end
@@ -303,6 +320,7 @@ defmodule GameBot.Test.DatabaseHelper do
   def setup_shared_mode_for_test(timeout \\ 15000) do
     repos = [
       GameBot.Infrastructure.Persistence.Repo,
+      GameBot.Infrastructure.Persistence.Repo.Postgres,
       GameBot.Infrastructure.Persistence.EventStore.Adapter.Postgres
     ]
 
